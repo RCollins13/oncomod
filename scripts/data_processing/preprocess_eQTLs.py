@@ -135,6 +135,7 @@ def main():
             fout_path = args.outfile
         fout = open(fout_path, 'w')
     out_df.to_csv(fout, sep='\t', index=False)
+    fout.close()
 
     # Compress with bgzip, if optioned
     if gzip and not stream_out:

@@ -16,11 +16,12 @@
 ### Set local parameters
 export BASEDIR=/broad/VanAllenLab/xchip/cga_home/rcollins
 export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers
+export CODEDIR=$WRKDIR/code/ras_modifiers
 cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in refs data; do
+for SUBDIR in refs data code; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -28,7 +29,7 @@ done
 
 
 ### Write simple reference files
-echo -e "KRAS\nNRAS\nHRAS" > $WRKDIR/refs/genes.list
+echo -e "NRAS\nHRAS\nKRAS" > $WRKDIR/refs/genes.list
 
 
 ### Extract gene bodies from MANE-Select GTF
@@ -55,3 +56,12 @@ wget -O - https://storage.googleapis.com/gtex_analysis_v8/multi_tissue_qtl_data/
 | gunzip -c | fgrep -f <( cut -f1 -d \. $WRKDIR/refs/ENSG_to_symbol.tsv ) \
 >> $WRKDIR/data/GTEx_Analysis_v8.metasoft.RAS_genes.tsv
 gzip -f $WRKDIR/data/GTEx_Analysis_v8.metasoft.RAS_genes.tsv
+$CODEDIR/scripts/data_processing/preprocess_eQTLs.py \
+  --ensg-map $WRKDIR/refs/ENSG_to_symbol.tsv \
+  --outfile $WRKDIR/data/RAS_eQTLs.tsv.gz \
+  --verbose-outfile $WRKDIR/data/RAS_eQTLs.verbose.tsv.gz \
+  $WRKDIR/data/GTEx_Analysis_v8.metasoft.RAS_genes.tsv.gz
+while read gene; do
+  zcat $WRKDIR/data/RAS_eQTLs.tsv.gz \
+  | fgrep -w $gene | cut -f2 | sort -nrk1,1 | sed -e 1b -e '$!d' | paste -s -
+done < $WRKDIR/refs/genes.list
