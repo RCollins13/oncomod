@@ -101,16 +101,16 @@ def main():
     args = parser.parse_args()
 
     # Load ID map
-    id_map = load_id_map(id_map_tsv, vcf_ids_in)
+    id_map = load_id_map(args.id_map_tsv, args.vcf_ids_in)
 
     # Add diagnostic information
-    main_df = add_dx_info(dx_csv)
+    main_df = add_dx_info(args.dx_csv)
 
     # Add ancestry information
-    main_df = add_ancestry_info(main_df, ancestry_csv, id_map)
+    main_df = add_ancestry_info(main_df, args.ancestry_csv, id_map)
 
     # Add relevant health history
-    main_df = add_health_history(main_df, hx_csv, id_map)
+    main_df = add_health_history(main_df, args.hx_csv, id_map)
 
 
     # panc_hits = dx_df.SITE_DESCR.str.contains('PANCR') \

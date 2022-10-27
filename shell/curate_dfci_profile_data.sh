@@ -36,19 +36,16 @@ tabix -H $GTDIR/PROFILE_COMB.22.HQ.vcf.gz \
 | fgrep -v "##" | cut -f10- | sed 's/\t/\n/g' \
 > $WRKDIR/data/ids/vcf.ids.list
 # Get list of patients from cancer types of interest
-dx_csv = "/data/gusev/PROFILE/CLINICAL/OncDRS/ALL_2021_11/CANCER_DIAGNOSIS_CAREG.csv.gz"
-id_map_tsv = "/data/gusev/PROFILE/CLINICAL/PROFILE_MRN_BL_PANEL.PBP.tab"
-ancestry_csv = "/data/gusev/PROFILE/CLINICAL/PROFILE_2022_ANCESTRY.csv.gz"
-hx_csv = "/data/gusev/PROFILE/CLINICAL/OncDRS/ALL_2021_11/HEALTH_HISTORY.csv.gz"
-survival_csv
-
+$CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
+  --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab \
+  --dx-csv $CLINDIR/OncDRS/ALL_2021_11/CANCER_DIAGNOSIS_CAREG.csv.gz \
+  --ancestry-csv $CLINDIR/PROFILE_2022_ANCESTRY.csv.gz \
+  --hx-csv $CLINDIR/OncDRS/ALL_2021_11/HEALTH_HISTORY.csv.gz \
+  --vcf-ids $WRKDIR/data/ids/vcf.ids.list
 
 
 ### Subset VCFs to patients of interest and RAS loci
 # Note: may need to lift over to hg38?
-
-
-### 
 
 
 ### Curate somatic data for patients of interest
