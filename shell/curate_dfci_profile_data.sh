@@ -23,7 +23,7 @@ cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in data data/ids; do
+for SUBDIR in data data/sample_info; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -34,14 +34,17 @@ done
 # Get list of all IDs present in VCF
 tabix -H $GTDIR/PROFILE_COMB.22.HQ.vcf.gz \
 | fgrep -v "##" | cut -f10- | sed 's/\t/\n/g' \
-> $WRKDIR/data/ids/vcf.ids.list
+> $WRKDIR/data/sample_info/vcf.ids.list
 # Get list of patients from cancer types of interest
-$CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
+# $CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
+$TMPDIR/preprocess_dfci_profile_ehr.py \
   --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab \
   --dx-csv $CLINDIR/OncDRS/ALL_2021_11/CANCER_DIAGNOSIS_CAREG.csv.gz \
   --ancestry-csv $CLINDIR/PROFILE_2022_ANCESTRY.csv.gz \
   --hx-csv $CLINDIR/OncDRS/ALL_2021_11/HEALTH_HISTORY.csv.gz \
-  --vcf-ids $WRKDIR/data/ids/vcf.ids.list
+  --survival-csv $CLINDIR/OncDRS/ALL_2021_11/PT_INFO_STATUS_REGISTRATION.csv.gz \
+  --out-prefix $WRKDIR/data/sample_info/ \
+  --vcf-ids $WRKDIR/data/sample_info/vcf.ids.list
 
 
 ### Subset VCFs to patients of interest and RAS loci
