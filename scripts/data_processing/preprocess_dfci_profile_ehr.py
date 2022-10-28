@@ -110,8 +110,6 @@ def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None):
               'BL_to_PBP' : id_df.set_index('BL_ID').to_dict()['PBP'],
               'PBP_to_BL' : id_df.set_index('PBP').to_dict()['BL_ID']}
 
-    import pdb; pdb.set_trace()
-
     # Add PBP IDs to genomic data
     genomic_df['PBP'] = genomic_df.BL_ID.map(id_map['BL_to_PBP'])
 
