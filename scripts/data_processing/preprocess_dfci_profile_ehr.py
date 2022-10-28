@@ -77,16 +77,20 @@ def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None):
     # After that, arbitrarily choose just one of the tumor biopsies to keep
     panel_priority = [2.0, 1.0, 3.1, 3.0]
     genomic_df.PANEL_VERSION = pd.Categorical(genomic_df.PANEL_VERSION, panel_priority)
-    genomic_df.sort_values('PANEL_VERSION', inplace=True)
+    biopsy_priority = 'PRIMARY,LOCAL RECURRENCE,DIAGNOSIS PENDING,' + \
+                      'DIAGNOSIS UNAVAILABLE,UNSPECIFIED,ANY/OTHER,' + \
+                      'METASTATIC RECURRENCE,NOT APPLICABLE'
+    genomic_df.BIOPSY_SITE_TYPE = pd.Categorical(genomic_df.BIOPSY_SITE_TYPE.astype(str), 
+                                                 biopsy_priority.split(','))
+    genomic_df.sort_values('PANEL_VERSION BIOPSY_SITE_TYPE'.split(), inplace=True)
     panc_hits = (genomic_df.CANCER_TYPE == 'Pancreatic Cancer') \
                 & (genomic_df.PRIMARY_CANCER_DIAGNOSIS.str.lower().str.contains('adenocarcinoma'))
     crc_hits = (genomic_df.CANCER_TYPE == 'Colorectal Cancer') \
                & (genomic_df.PRIMARY_CANCER_DIAGNOSIS.str.lower().str.contains('adenocarcinoma'))
     mel_hits = (genomic_df.CANCER_TYPE == 'Melanoma') \
                & (genomic_df.PRIMARY_CANCER_DIAGNOSIS.isin('Melanoma|Cutaneous Melanoma'.split('|')))
-    keep_genomic_rows = (panc_hits | crc_hits | mel_hits) \
-                        & (genomic_df.BIOPSY_SITE_TYPE == 'PRIMARY')
-    genomic_df = genomic_df[keep_genomic_rows].drop_duplicates('DFCI_MRN', keep='first')
+    genomic_df = genomic_df[(panc_hits | crc_hits | mel_hits)]
+    genomic_df.drop_duplicates('DFCI_MRN', keep='first', inplace=True)
 
     # Subset ID linker table to BL IDs present in genomic df
     id_df = id_df[id_df.BL_ID.isin(genomic_df.BL_ID)]
@@ -212,7 +216,7 @@ def clean_output_df(main_df):
                      'GENDER_NM' : 'SEX'}
     drop_cols = 'D_DIAGNOSIS_DT SITE_DESCR HISTOLOGY_DESCR HYBRID_DEATH_IND ' + \
                 'D_HYBRID_DEATH_DT D_DERIVED_LAST_ALIVE_DATE HYBRID_DEATH_DT ' + \
-                'BIOPSY_SITE BIOPSY_SITE_TYPE PANEL_VERSION'
+                'PANEL_VERSION'
 
     main_df.rename(columns=new_col_names, inplace=True)
     main_df.drop(drop_cols.split(), axis=1, inplace=True)
@@ -226,7 +230,8 @@ def clean_output_df(main_df):
     col_order = 'PBP SEX BMI POPULATION CANCER_TYPE PRIMARY_CANCER_DIAGNOSIS ' + \
                 'DIAGNOSIS_DATE AGE_AT_DIAGNOSIS DIAGNOSIS_YEAR IS_ALIVE ' + \
                 'LAST_ALIVE_DATE DAYS_SURVIVED CAUSE_OF_DEATH ' + \
-                'PC1 PC2 PC3 PC4 PC5 PC6 PC7 PC8 PC9 PC10'
+                'PC1 PC2 PC3 PC4 PC5 PC6 PC7 PC8 PC9 PC10 ' + \
+                'BIOPSY_SITE BIOPSY_SITE_TYPE'
     sort_cols = 'CANCER_TYPE AGE_AT_DIAGNOSIS POPULATION'
 
     return main_df[col_order.split()].sort_values(sort_cols.split())
@@ -285,11 +290,11 @@ def main():
     # Write out PBP IDs per cancer type
     for cancer in 'PDAC SKCM CRAD'.split():
         with open(args.out_prefix + cancer + '.samples.list', 'w') as fout:
-            ids = set(main_df.PBP[main_df.cancer_type == cancer].to_list())
+            ids = set(main_df.PBP.astype(str)[main_df.CANCER_TYPE == cancer].to_list())
             for sample in ids:
                 fout.write(sample + '\n')
     all_cancers_out = args.out_prefix + 'ALL' + '.samples.list'
-    main_df.loc[:, 'PBP cancer_type'.split()].\
+    main_df.loc[:, 'PBP CANCER_TYPE'.split()].\
             to_csv(all_cancers_out, sep='\t', index=False, header=False)
 
     # Write out full table of patient metadata for all cancer types

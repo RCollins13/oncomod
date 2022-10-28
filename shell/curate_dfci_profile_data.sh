@@ -36,8 +36,7 @@ tabix -H $GTDIR/PROFILE_COMB.22.HQ.vcf.gz \
 | fgrep -v "##" | cut -f10- | sed 's/\t/\n/g' \
 > $WRKDIR/data/sample_info/vcf.ids.list
 # Get list of patients from cancer types of interest
-# $CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
-$TMPDIR/preprocess_dfci_profile_ehr.py \
+$CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py
   --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab \
   --genomic-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_SPECIMEN.csv.gz \
   --dx-csv $CLINDIR/OncDRS/ALL_2021_11/CANCER_DIAGNOSIS_CAREG.csv.gz \
@@ -59,11 +58,14 @@ for contig in $( seq 1 3 ); do
 done
 # Extract samples & loci of interest
 while read chrom start end gene; do
-  bcftools view \
+
+  bsub -q long -R 'rusage[mem=6000]' -n 2 -J extract_${gene}_variants \
+  "bcftools view \
     -O z -o $WRKDIR/data/PROFILE.$gene.vcf.gz \
     --samples-list <( cut -f1 $WRKDIR/data/sample_info/ALL.samples.list ) \
-    --regions "$chrom:${start}-$end" \
-    $GTDIR/PROFILE_COMB.$contig.HQ.vcf.bgz
+    --regions '$chrom:${start}-$end' \
+    $GTDIR/PROFILE_COMB.$contig.HQ.vcf.bgz; \
+   tabix -p vcf -f $GTDIR/PROFILE_COMB.$contig.HQ.vcf.bgz"
 done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
 # Merge VCFs for each gene into a single VCF and index the merged VCF
 
