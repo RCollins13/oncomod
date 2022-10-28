@@ -34,9 +34,10 @@ done
 # Get list of all IDs present in VCF
 tabix -H $GTDIR/PROFILE_COMB.22.HQ.vcf.gz \
 | fgrep -v "##" | cut -f10- | sed 's/\t/\n/g' \
-> $WRKDIR/data/sample_info/vcf.ids.list
+> $WRKDIR/data/sample_info/vcf.samples.list
 # Get list of patients from cancer types of interest
-$CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py
+$CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
+$TMPDIR/preprocess_dfci_profile_ehr.py \
   --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab \
   --genomic-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_SPECIMEN.csv.gz \
   --dx-csv $CLINDIR/OncDRS/ALL_2021_11/CANCER_DIAGNOSIS_CAREG.csv.gz \
@@ -44,28 +45,27 @@ $CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py
   --hx-csv $CLINDIR/OncDRS/ALL_2021_11/HEALTH_HISTORY.csv.gz \
   --survival-csv $CLINDIR/OncDRS/ALL_2021_11/PT_INFO_STATUS_REGISTRATION.csv.gz \
   --out-prefix $WRKDIR/data/sample_info/ \
-  --vcf-ids $WRKDIR/data/sample_info/vcf.ids.list
+  --vcf-ids $WRKDIR/data/sample_info/vcf.samples.list
 
 
 ### Subset VCFs to patients of interest and RAS loci
 # Recompress chromosomes 1-3 with bgzip & reindex
 for contig in $( seq 1 3 ); do
   bsub -R 'rusage[mem=8000]' -q long -J compress_index_$contig \
-  "cd /data/gusev/PROFILE/2020_2022_combined/IMPUTE_HQ; \
-   . /PHShome/rlc47/.bashrc; \
-   zcat PROFILE_COMB.$contig.HQ.vcf.gz | bgzip -c > PROFILE_COMB.$contig.HQ.vcf.bgz; \
-   bcftools index PROFILE_COMB.$contig.HQ.vcf.bgz"
+    "cd /data/gusev/PROFILE/2020_2022_combined/IMPUTE_HQ; \
+     . /PHShome/rlc47/.bashrc; \
+     zcat PROFILE_COMB.$contig.HQ.vcf.gz | bgzip -c > PROFILE_COMB.$contig.HQ.vcf.bgz; \
+     bcftools index PROFILE_COMB.$contig.HQ.vcf.bgz"
 done
 # Extract samples & loci of interest
 while read chrom start end gene; do
-
   bsub -q long -R 'rusage[mem=6000]' -n 2 -J extract_${gene}_variants \
-  "bcftools view \
-    -O z -o $WRKDIR/data/PROFILE.$gene.vcf.gz \
-    --samples-list <( cut -f1 $WRKDIR/data/sample_info/ALL.samples.list ) \
-    --regions '$chrom:${start}-$end' \
-    $GTDIR/PROFILE_COMB.$contig.HQ.vcf.bgz; \
-   tabix -p vcf -f $GTDIR/PROFILE_COMB.$contig.HQ.vcf.bgz"
+    "bcftools view \
+      -O z -o $WRKDIR/data/PROFILE.$gene.vcf.gz \
+      --samples-list <(  ) \
+      --regions \"$chrom:${start}-$end\" \
+      $GTDIR/PROFILE_COMB.$contig.HQ.vcf.bgz; \
+     tabix -p vcf -f $GTDIR/PROFILE_COMB.$contig.HQ.vcf.bgz"
 done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
 # Merge VCFs for each gene into a single VCF and index the merged VCF
 

@@ -110,10 +110,13 @@ def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None):
               'BL_to_PBP' : id_df.set_index('BL_ID').to_dict()['PBP'],
               'PBP_to_BL' : id_df.set_index('PBP').to_dict()['BL_ID']}
 
+    import pdb; pdb.set_trace()
+
     # Add PBP IDs to genomic data
     genomic_df['PBP'] = genomic_df.BL_ID.map(id_map['BL_to_PBP'])
 
-    return genomic_df
+    # Samples *must* have PBP IDs to be used for downstream analysis
+    return genomic_df[~genomic_df.PBP.isna()]
 
 
 def add_dx_info(main_df, dx_csv):
@@ -297,8 +300,7 @@ def main():
     main_df.loc[:, 'PBP CANCER_TYPE'.split()].\
             to_csv(all_cancers_out, sep='\t', index=False, header=False)
     all_samples_out = args.out_prefix + 'ALL' + '.samples.list'
-    main_df.loc[:, 'PBP'.split()].\
-            to_csv(all_cancers_out, sep='\t', index=False, header=False)
+    main_df.PBP.to_csv(all_samples_out, sep='\t', index=False, header=False)
 
     # Write out full table of patient metadata for all cancer types
     main_df.to_csv(args.out_prefix + 'ALL.sample_metadata.tsv.gz', 
