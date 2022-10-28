@@ -301,6 +301,7 @@ def main():
     main_df.PBP.to_csv(all_samples_out, sep='\t', index=False, header=False)
 
     # Write out full table of patient metadata for all cancer types
+    main_df.rename(columns = {'PBP' : '#PBP'}, inplace=True)
     main_df.to_csv(args.out_prefix + 'ALL.sample_metadata.tsv.gz', 
                    index=False, sep='\t', na_rep='.')
 
