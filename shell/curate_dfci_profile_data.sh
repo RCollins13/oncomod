@@ -39,6 +39,7 @@ tabix -H $GTDIR/PROFILE_COMB.22.HQ.vcf.gz \
 # $CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
 $TMPDIR/preprocess_dfci_profile_ehr.py \
   --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab \
+  --genomic-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_SPECIMEN.csv.gz \
   --dx-csv $CLINDIR/OncDRS/ALL_2021_11/CANCER_DIAGNOSIS_CAREG.csv.gz \
   --ancestry-csv $CLINDIR/PROFILE_2022_ANCESTRY.csv.gz \
   --hx-csv $CLINDIR/OncDRS/ALL_2021_11/HEALTH_HISTORY.csv.gz \
@@ -48,7 +49,23 @@ $TMPDIR/preprocess_dfci_profile_ehr.py \
 
 
 ### Subset VCFs to patients of interest and RAS loci
-# Note: may need to lift over to hg38?
+# Recompress chromosomes 1-3 with bgzip & reindex
+for contig in $( seq 1 3 ); do
+  bsub -R 'rusage[mem=8000]' -q long -J compress_index_$contig \
+  "cd /data/gusev/PROFILE/2020_2022_combined/IMPUTE_HQ; \
+   . /PHShome/rlc47/.bashrc; \
+   zcat PROFILE_COMB.$contig.HQ.vcf.gz | bgzip -c > PROFILE_COMB.$contig.HQ.vcf.bgz; \
+   bcftools index PROFILE_COMB.$contig.HQ.vcf.bgz"
+done
+# Extract samples & loci of interest
+while read chrom start end gene; do
+  bcftools view \
+    -O z -o $WRKDIR/data/PROFILE.$gene.vcf.gz \
+    --samples-list <( cut -f1 $WRKDIR/data/sample_info/ALL.samples.list ) \
+    --regions "$chrom:${start}-$end" \
+    $GTDIR/PROFILE_COMB.$contig.HQ.vcf.bgz
+done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
+# Merge VCFs for each gene into a single VCF and index the merged VCF
 
 
 ### Curate somatic data for patients of interest
