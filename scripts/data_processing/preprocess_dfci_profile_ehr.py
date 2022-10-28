@@ -293,8 +293,11 @@ def main():
             ids = set(main_df.PBP.astype(str)[main_df.CANCER_TYPE == cancer].to_list())
             for sample in ids:
                 fout.write(sample + '\n')
-    all_cancers_out = args.out_prefix + 'ALL' + '.samples.list'
+    all_cancers_out = args.out_prefix + 'ALL' + '.samples.with_cancer_labels.tsv'
     main_df.loc[:, 'PBP CANCER_TYPE'.split()].\
+            to_csv(all_cancers_out, sep='\t', index=False, header=False)
+    all_samples_out = args.out_prefix + 'ALL' + '.samples.list'
+    main_df.loc[:, 'PBP'.split()].\
             to_csv(all_cancers_out, sep='\t', index=False, header=False)
 
     # Write out full table of patient metadata for all cancer types
