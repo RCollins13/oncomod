@@ -224,7 +224,7 @@ def clean_output_df(main_df):
     # Simplify cancer types into codes
     cancer_codes = {'Colorectal Cancer' : 'CRAD',
                     'Pancreatic Cancer' : 'PDAC',
-                    'Melanoma' : 'SKM'}
+                    'Melanoma' : 'SKCM'}
     main_df.CANCER_TYPE = main_df.CANCER_TYPE.map(cancer_codes)
 
     col_order = 'PBP SEX BMI POPULATION CANCER_TYPE PRIMARY_CANCER_DIAGNOSIS ' + \
