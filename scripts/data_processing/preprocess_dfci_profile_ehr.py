@@ -14,7 +14,6 @@ import argparse
 import numpy as np
 import pandas as pd
 from collections import Counter
-from sys import stdout
 
 
 def _convert_DT_to_year(DT):

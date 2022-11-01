@@ -23,7 +23,7 @@ cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in data data/sample_info; do
+for SUBDIR in data data/sample_info LSF LSF/scripts LSF/logs ../refs; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -58,32 +58,50 @@ for contig in $( seq 1 3 ); do
 done
 # Extract samples & loci of interest
 while read contig start end gene; do
-  bsub -q long -R 'rusage[mem=6000]' -n 2 -J extract_${gene}_variants \
-    "bcftools view \
-      -O z -o $WRKDIR/data/PROFILE.$gene.vcf.gz \
-      --samples-list <(  ) \
-      --regions \"$contig:${start}-$end\" \
-      $GTDIR/PROFILE_COMB.$contig.HQ.vcf.bgz; \
-     tabix -p vcf -f $GTDIR/PROFILE_COMB.$contig.HQ.vcf.bgz"
+  cat << EOF > $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
+#!/usr/bin/env bash
+. /PHShome/rlc47/.bashrc
+cd $WRKDIR
+bcftools view \
+  -O z -o $WRKDIR/data/PROFILE.$gene.vcf.gz \
+  --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
+  --regions "$contig:${start}-$end" \
+  $GTDIR/PROFILE_COMB.$contig.HQ.vcf.gz
+tabix -p vcf -f $WRKDIR/data/PROFILE.$gene.vcf.gz
+EOF
+  chmod a+x $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
+  rm $WRKDIR/LSF/logs/extract_${gene}_variants.*
+  bsub \
+    -q long -R 'rusage[mem=6000]' -n 2 -J extract_${gene}_variants \
+    -o $WRKDIR/LSF/logs/extract_${gene}_variants.log \
+    -e $WRKDIR/LSF/logs/extract_${gene}_variants.err \
+    $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
 done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
 # Merge VCFs for each gene into a single VCF and index the merged VCF
+zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 \
+| xargs -I {} echo "$WRKDIR/data/PROFILE.{}.vcf.gz" \
+> $WRKDIR/data/PROFILE.single_gene_vcfs.list
+bcftools concat \
+  --file-list $WRKDIR/data/PROFILE.single_gene_vcfs.list \
+  -O z -o $WRKDIR/data/PROFILE.RAS_loci.vcf.gz
+tabix -p vcf -f $WRKDIR/data/PROFILE.RAS_loci.vcf.gz
 
 
 ### Curate somatic data for patients of interest
+# Download Gencode v19 GTF for extracting gene coordinates
+wget -O /dev/stdout \
+ https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_19/gencode.v19.annotation.gtf.gz \
+| gunzip -c | grep -ve '^#' | sort -Vk1,1 -k4,4n -k5,5n | bgzip -c \
+> $WRKDIR/../refs/gencode.v19.annotation.gtf.gz
+tabix -f -p gff $WRKDIR/../refs/gencode.v19.annotation.gtf.gz
+# Curate somatic data
+$TMPDIR/preprocess_dfci_profile_somatic.py \
+  --mutation-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_MUTATION_RESULTS.csv.gz \
+  --cna-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_CNV_RESULTS.csv.gz \
+  --samples-list $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
+  --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab \
+  --genes-gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
+  --outfile $WRKDIR/data/PROFILE.somatic_variants.tsv.gz
 
-
-# The imputed germline VCFs are here:
-# /data/gusev/PROFILE/2020_2022_combined/IMPUTE_HQ
-# And the samples use “PBP” identifiers
-#  
-# The identifier mapping is here:
-# /data/gusev/PROFILE/CLINICAL/PROFILE_MRN_BL_PANEL.PBP.tab
-# The PBP ids are for the imputed data, the BL ids are for the tumor specimen, and the MRN is the medical number for the patient. All but the PBP ids are sensitive data so make sure not to share them.
-#  
-# If you need it, genetic ancestry is here:
-# /data/gusev/PROFILE/CLINICAL/PROFILE_2022_ANCESTRY.csv.gz 
-#  
-# All of the EHR data is here:
-# /data/gusev/PROFILE/CLINICAL/OncDRS/ALL_2021_11
-# (also sensitive data so please don’t share), the GENOMIC_SPECIMEN file contains information on the tumor biopsied, the *MUTATION* tables list the SNVs and the *CNV* tables list the CNVs, the CANCER_DIAGNOSIS_CAREG table contains cancer stage and other information from the cancer registry (on a subset of patients) which may also be useful to stratify by stage. The schema for these tables is described here: https://wiki.dfci.harvard.edu:8443/oncdata/latest
+# the GENOMIC_SPECIMEN file contains information on the tumor biopsied, the *MUTATION* tables list the SNVs and the *CNV* tables list the CNVs, the CANCER_DIAGNOSIS_CAREG table contains cancer stage and other information from the cancer registry (on a subset of patients) which may also be useful to stratify by stage. The schema for these tables is described here: https://wiki.dfci.harvard.edu:8443/oncdata/latest
 
