@@ -29,6 +29,15 @@ for SUBDIR in data data/sample_info LSF LSF/scripts LSF/logs refs; do
 done
 
 
+### Recode array-genotyped SNPs as VCF
+module load plink/1.90b3
+plink \
+  --bfile $GTDIR/TCGA.NORMAL \
+  --recode vcf bgz \
+  --out $WRKDIR/data/TCGA.array_typed
+tabix -p vcf -f $WRKDIR/data/TCGA.array_typed.vcf.gz
+
+
 ### Define set of TCGA samples with complete data from cancer types of interest
 # Get list of all IDs present in the WES VCF
 gsutil -m cat \
@@ -51,24 +60,25 @@ zcat $WRKDIR/refs/VanAllen.TCGA.WES_DeepVariant.sample_manifest.tsv.gz \
 | cut -f2 | cut -f1-3 -d\- | sort | uniq \
 > $WRKDIR/data/sample_info/TCGA.vcf.exome.donors.list
 # Get list of all IDs present in genotyped array VCF
-cut -f2 -d\  $GTDIR/TCGA.NORMAL.fam | sort | uniq \
-> $WRKDIR/data/sample_info/TCGA.vcf.array_typed.samples.list
-cut -f1-3 -d\- $WRKDIR/data/sample_info/TCGA.vcf.array_typed.samples.list | sort | uniq \
-> $WRKDIR/data/sample_info/TCGA.vcf.array_typed.donors.list
+tabix -H $WRKDIR/data//TCGA.array_typed.vcf.gz \
+| fgrep -v "##" | cut -f10- | sed 's/\t/\n/g' \
+> $WRKDIR/data/sample_info/TCGA.vcf.array_typed.samples.gusev_IDs.list
 # Get list of all IDs present in imputed VCF
 tabix -H $GTDIR/IMPUTED/1.vcf.gz \
 | fgrep -v "##" | cut -f10- | sed 's/\t/\n/g' \
 > $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.samples.gusev_IDs.list
 # Make map of Sasha's array IDs to canonical TCGA IDs
-cut --complement -f2 -d\- $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.samples.gusev_IDs.list \
-> $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.samples.list
-cut -f1-3 -d\- $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.samples.list | sort | uniq \
-> $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.donors.list
+for tech in array_typed array_imputed; do
+  cut --complement -f2 -d\- $WRKDIR/data/sample_info/TCGA.vcf.$tech.samples.gusev_IDs.list \
+  > $WRKDIR/data/sample_info/TCGA.vcf.$tech.samples.list
+  cut -f1-3 -d\- $WRKDIR/data/sample_info/TCGA.vcf.$tech.samples.list | sort | uniq \
+  > $WRKDIR/data/sample_info/TCGA.vcf.$tech.donors.list
+done
 # Intersect samples with both exomes and genotyped arrays (not necessarily imputed)
 $CODEDIR/scripts/data_processing/harmonize_tcga_samples.py \
   --exome-ids $WRKDIR/data/sample_info/TCGA.vcf.exome.samples.list \
   --exome-id-map $WRKDIR/refs/VanAllen.TCGA.WES_DeepVariant.sample_manifest.tsv.gz \
-  --array-typed-ids $WRKDIR/data/sample_info/TCGA.vcf.array_typed.samples.list \
+  --array-typed-ids $WRKDIR/data/sample_info/TCGA.vcf.array_typed.samples.gusev_IDs.list \
   --array-imputed-ids $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.samples.gusev_IDs.list \
   --tcga-tss-table $CODEDIR/refs/TCGA_TSS_codes.tsv.gz \
   --tcga-study-table $CODEDIR/refs/TCGA_study_codes.tsv.gz \
@@ -89,27 +99,37 @@ $CODEDIR/scripts/data_processing/harmonize_tcga_samples.py \
 
 
 ### Subset VCFs to patients of interest and RAS loci
-# Extract samples & loci of interest from Sasha's imputed arrays
+# Extract samples & loci of interest from genotyped and imputed arrays
 while read contig start end gene; do
-  cat << EOF > $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
+  for tech in array_typed array_imputed; do
+    case $tech in
+      array_typed)
+        VCF=$WRKDIR/data/TCGA.array_typed.vcf.gz
+        ;;
+      array_imputed)
+        VCF=$GTDIR/IMPUTED/$contig.vcf.gz
+        ;;
+    esac
+    cat << EOF > $WRKDIR/LSF/scripts/extract_${gene}_variants_${tech}.sh
 #!/usr/bin/env bash
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
 bcftools view \
-  -O z -o $WRKDIR/data/TCGA.$gene.array.vcf.gz \
+  -O z -o $WRKDIR/data/TCGA.$gene.$tech.vcf.gz \
   --min-ac 1 \
-  --samples-file $WRKDIR/data/sample_info/TCGA.ALL.array.samples.list \
+  --samples-file $WRKDIR/data/sample_info/TCGA.ALL.$tech.samples.list \
   --regions "$contig:${start}-$end" \
-  $GTDIR/$contig.vcf.gz
-tabix -p vcf -f $WRKDIR/data/TCGA.$gene.array.vcf.gz
+  $VCF
+tabix -p vcf -f $WRKDIR/data/TCGA.$gene.$tech.vcf.gz
 EOF
-  chmod a+x $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
-  rm $WRKDIR/LSF/logs/extract_${gene}_variants.*
-  bsub \
-    -q long -R 'rusage[mem=6000]' -n 2 -J TCGA_extract_${gene}_variants \
-    -o $WRKDIR/LSF/logs/extract_${gene}_variants.log \
-    -e $WRKDIR/LSF/logs/extract_${gene}_variants.err \
-    $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
+    chmod a+x $WRKDIR/LSF/scripts/extract_${gene}_variants_${tech}.sh
+    rm $WRKDIR/LSF/logs/extract_${gene}_variants_${tech}.*
+    bsub \
+      -q short -R 'rusage[mem=6000]' -n 2 -J TCGA_extract_${gene}_variants_${tech} \
+      -o $WRKDIR/LSF/logs/extract_${gene}_variants_${tech}.log \
+      -e $WRKDIR/LSF/logs/extract_${gene}_variants_${tech}.err \
+      $WRKDIR/LSF/scripts/extract_${gene}_variants_${tech}.sh
+  done
 done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
 # Define well-covered exome intervals within RAS loci of interest
 $TMPDIR/define_well_covered_targets.py \

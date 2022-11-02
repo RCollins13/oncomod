@@ -50,7 +50,7 @@ def load_array_samples(typed_in, imputed_in):
 
     # Load & donor-deduplicate typed input
     typed_df = pd.read_csv(typed_in, sep='\t', header=None, names=['ARRAY_TYPED_ID'])
-    typed_df['DONOR_ID'] = typed_df.ARRAY_TYPED_ID.apply(_parse_donor)
+    typed_df['DONOR_ID'] = typed_df.ARRAY_TYPED_ID.apply(_parse_donor, skip=[1])
     typed_df.drop_duplicates('DONOR_ID', keep='first', inplace=True)
 
     # Load & donor-deduplicated imputed input
