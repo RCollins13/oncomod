@@ -40,36 +40,34 @@ def main():
     if args.samples_list is not None:
         with open(args.samples_list) as fin:
             samples = set([s.rstrip() for s in fin.readlines()])
-        usecols = ['Target'] + list(samples)
+        usecols = list(samples)
     else:
         usecols = None
 
-    import pdb; pdb.set_trace()
-
-    # Load coverage matrix
-    df = pd.read_csv(args.coverage_matrix, sep='\t', usecols=usecols)
+    # Load coverage matrix with intervals as index
+    df = pd.read_csv(args.coverage_matrix, sep='\t', usecols=usecols,
+                     index_col='Target', dtype=float)
 
     # Compute fraction of samples covered at --min-frac-target
     def _calc_frac(values, thresh=0.9):
         return (values >= thresh).sum() / len(values)
-    frac_samples = df[samples].apply(_calc_frac, thresh=args.min_frac_target, axis=1)
+    frac_samples = df.apply(_calc_frac, thresh=args.min_frac_target, axis=1)
 
     # Identify targets covered in --min-frac-samples
     keep_targets = (frac_samples >= args.min_frac_samples)
 
-    # Split eligible targets into BED-style strings 
-    def _format_bed(istr):
-        return '\t'.join(re.split(':-', istr)) + '\n'
-    import pdb; pdb.set_trace()
-    df.Target[keep_targets].apply(_format_bed)
+    # Open connection to output file
+    if args.outfile in '- stdout /dev/stdout'.split():
+        fout = stdout
+    else:
+        fout = open(args.outfile, 'w')
 
-    # # Write merged somatic data to output file
-    # if args.outfile in '- stdout'.split():
-    #     fout = stdout
-    # else:
-    #     fout = args.outfile
-    # mut_df = mut_df.rename(columns={'CHROMOSOME' : '#CHROMOSOME'})
-    # mut_df.to_csv(fout, sep='\t', index=False, na_rep='.')
+    # Split eligible targets and write to BED output file
+    def _format_bed(istr):
+        return '\t'.join(re.split(':|-', istr)) + '\n'
+    for interval in df.index[keep_targets].apply(_format_bed):
+        fout.write(interval)
+    fout.close()
 
 
 if __name__ == '__main__':

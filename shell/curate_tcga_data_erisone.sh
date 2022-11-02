@@ -136,7 +136,9 @@ $TMPDIR/define_well_covered_targets.py \
   --coverage-matrix $WRKDIR/data/101122_TCGA_10960_interval_process.tsv.gz \
   --samples-list $WRKDIR/data/sample_info/TCGA.ALL.exome.samples.list \
   --min-frac-samples 0.9 \
-  --min-frac-target 0.9
+  --min-frac-target 0.9 \
+| sort -Vk1,1 -k2,2n -k3,3n | bgzip -c \
+> $WRKDIR/refs/TCGA_WES.covered_intervals.bed.gz
 # TODO: intersect well-covered intervals with RAS gene loci to get regions for extraction
 # Use bcftools to stream WES data from gs:// bucket for samples & loci of interest
 gsutil -m cp \
