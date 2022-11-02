@@ -132,14 +132,21 @@ EOF
   done
 done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
 # Define well-covered exome intervals within RAS loci of interest
-$TMPDIR/define_well_covered_targets.py \
+$CODEDIR/scripts/data_processing/define_well_covered_targets.py \
   --coverage-matrix $WRKDIR/data/101122_TCGA_10960_interval_process.tsv.gz \
   --samples-list $WRKDIR/data/sample_info/TCGA.ALL.exome.samples.list \
   --min-frac-samples 0.9 \
   --min-frac-target 0.9 \
 | sort -Vk1,1 -k2,2n -k3,3n | bgzip -c \
 > $WRKDIR/refs/TCGA_WES.covered_intervals.bed.gz
-# TODO: intersect well-covered intervals with RAS gene loci to get regions for extraction
+tabix -p bed -f $WRKDIR/refs/TCGA_WES.covered_intervals.bed.gz
+while read contig start end gene; do
+  bedtools intersect -u \
+    -a $WRKDIR/refs/TCGA_WES.covered_intervals.bed.gz \
+    -b <( echo -e "$contig\t$start\t$end" ) \
+  | bgzip -c > $WRKDIR/refs/TCGA_WES.covered_intervals.$gene.bed.gz
+  tabix -p bed -f $WRKDIR/refs/TCGA_WES.covered_intervals.$gene.bed.gz
+done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
 # Use bcftools to stream WES data from gs:// bucket for samples & loci of interest
 gsutil -m cp \
   gs://fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz.tbi \
@@ -152,7 +159,7 @@ while read contig start end gene; do
     -O z -o $WRKDIR/data/TCGA.$gene.exome.vcf.gz \
     --min-ac 1 \
     --samples-file $WRKDIR/data/sample_info/TCGA.ALL.exome.samples.list \
-    --regions "$contig:${start}-$end" \
+    --regions-file $WRKDIR/refs/TCGA_WES.covered_intervals.$gene.bed.gz \
     gs://fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz
   tabix -p vcf -f $WRKDIR/data/TCGA.$gene.exome.vcf.gz
 done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )

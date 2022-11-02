@@ -40,13 +40,14 @@ def main():
     if args.samples_list is not None:
         with open(args.samples_list) as fin:
             samples = set([s.rstrip() for s in fin.readlines()])
-        usecols = list(samples)
+        usecols = ['Target'] + list(samples)
     else:
         usecols = None
 
     # Load coverage matrix with intervals as index
     df = pd.read_csv(args.coverage_matrix, sep='\t', usecols=usecols,
-                     index_col='Target', dtype=float)
+                     index_col='Target')
+    df.astype(float)
 
     # Compute fraction of samples covered at --min-frac-target
     def _calc_frac(values, thresh=0.9):
@@ -65,7 +66,7 @@ def main():
     # Split eligible targets and write to BED output file
     def _format_bed(istr):
         return '\t'.join(re.split(':|-', istr)) + '\n'
-    for interval in df.index[keep_targets].apply(_format_bed):
+    for interval in df.index[keep_targets].map(_format_bed):
         fout.write(interval)
     fout.close()
 
