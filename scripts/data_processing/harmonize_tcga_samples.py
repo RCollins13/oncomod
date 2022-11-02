@@ -122,7 +122,7 @@ def format_outputs(ex_df, ar_df, tss_table_in, study_table_in, out_prefix):
         # Sample IDs for each technology
         for tech in 'exome array_typed array_imputed'.split():
             if tech == 'exome':
-                colname = 'WES_SAMPLE_ID'
+                colname = 'WES_BAM_ID'
             else:
                 colname = tech.upper() + '_ID'
             fname = '{}.{}.{}.samples.list'.format(out_prefix, cancer, tech)

@@ -65,7 +65,7 @@ cut --complement -f2 -d\- $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.sample
 cut -f1-3 -d\- $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.samples.list | sort | uniq \
 > $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.donors.list
 # Intersect samples with both exomes and genotyped arrays (not necessarily imputed)
-$TMPDIR/harmonize_tcga_samples.py \
+$CODEDIR/scripts/data_processing/harmonize_tcga_samples.py \
   --exome-ids $WRKDIR/data/sample_info/TCGA.vcf.exome.samples.list \
   --exome-id-map $WRKDIR/refs/VanAllen.TCGA.WES_DeepVariant.sample_manifest.tsv.gz \
   --array-typed-ids $WRKDIR/data/sample_info/TCGA.vcf.array_typed.samples.list \
@@ -76,6 +76,7 @@ $TMPDIR/harmonize_tcga_samples.py \
 
 
 ### Curate clinical information for patients of interest
+# TODO: implement this
 # $CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
 #   --id-map-tsv $CLINDIR/TCGA_MRN_BL_PANEL.PBP.tab \
 #   --genomic-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_SPECIMEN.csv.gz \
