@@ -121,6 +121,8 @@ def add_dx_info(main_df, dx_csv):
     # Load diagnostic information for samples with available info
     """
 
+    # TODO: extract stage info here once it's clear which variables to use
+
     # Load dx information
     dx_cols_to_keep = 'DFCI_MRN DIAGNOSIS_DT D_DIAGNOSIS_DT AGE_AT_DIAGNOSIS_NBR ' + \
                       'SITE_DESCR HISTOLOGY_DESCR BEHAVIOR_DESCR'

@@ -8,7 +8,7 @@
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
-# Locus refinement for targeted KRAS/NRAS/HRAS analyses
+# Curate data from DFCI-PROFILE cohort for RAS modifiers study
 
 # Note: intended to be executed on the MGB ERISOne cluster
 
@@ -18,7 +18,7 @@ export BASEDIR=/data/gusev/PROFILE
 export GTDIR=$BASEDIR/2020_2022_combined/IMPUTE_HQ
 export CLINDIR=$BASEDIR/CLINICAL
 export WRKDIR=/data/gusev/USERS/rlc47/PROFILE
-export CODEDIR=$WRKDIR/code/ras_modifiers
+export CODEDIR=$WRKDIR/../code/ras_modifiers
 cd $WRKDIR
 
 
@@ -64,6 +64,7 @@ while read contig start end gene; do
 cd $WRKDIR
 bcftools view \
   -O z -o $WRKDIR/data/PROFILE.$gene.vcf.gz \
+  --min-ac 1 \
   --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
   --regions "$contig:${start}-$end" \
   $GTDIR/PROFILE_COMB.$contig.HQ.vcf.gz
@@ -72,7 +73,7 @@ EOF
   chmod a+x $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
   rm $WRKDIR/LSF/logs/extract_${gene}_variants.*
   bsub \
-    -q long -R 'rusage[mem=6000]' -n 2 -J extract_${gene}_variants \
+    -q long -R 'rusage[mem=6000]' -n 2 -J PROFILE_extract_${gene}_variants \
     -o $WRKDIR/LSF/logs/extract_${gene}_variants.log \
     -e $WRKDIR/LSF/logs/extract_${gene}_variants.err \
     $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
@@ -95,7 +96,7 @@ wget -O /dev/stdout \
 > $WRKDIR/../refs/gencode.v19.annotation.gtf.gz
 tabix -f -p gff $WRKDIR/../refs/gencode.v19.annotation.gtf.gz
 # Curate somatic data
-$TMPDIR/preprocess_dfci_profile_somatic.py \
+$CODEDIR/scripts/data_processing/preprocess_dfci_profile_somatic.py \
   --mutation-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_MUTATION_RESULTS.csv.gz \
   --cna-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_CNV_RESULTS.csv.gz \
   --samples-list $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
@@ -103,5 +104,15 @@ $TMPDIR/preprocess_dfci_profile_somatic.py \
   --genes-gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
   --outfile $WRKDIR/data/PROFILE.somatic_variants.tsv.gz
 
-# the GENOMIC_SPECIMEN file contains information on the tumor biopsied, the *MUTATION* tables list the SNVs and the *CNV* tables list the CNVs, the CANCER_DIAGNOSIS_CAREG table contains cancer stage and other information from the cancer registry (on a subset of patients) which may also be useful to stratify by stage. The schema for these tables is described here: https://wiki.dfci.harvard.edu:8443/oncdata/latest
+
+# Summarize somatic variant status by gene & cancer type
+for cancer in PDAC CRAD SKCM; do
+  while read gene; do
+    n_samp=$( cat ${WRKDIR}/data/sample_info/PROFILE.$cancer.samples.list | wc -l )
+    zcat $WRKDIR/data/PROFILE.somatic_variants.tsv.gz \
+    | fgrep -wf ${WRKDIR}/data/sample_info/PROFILE.$cancer.samples.list \
+    | awk -v gene=$gene -v FS="\t" '{ if ($7==gene && ($14~/AMP|DEL|Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/)) print $6 }' \
+    | sort | uniq | wc -l | awk -v n=$n_samp '{ print $1/n }'
+  done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 ) | paste -s -
+done
 
