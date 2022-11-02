@@ -71,6 +71,7 @@ $TMPDIR/harmonize_tcga_samples.py \
   --array-typed-ids $WRKDIR/data/sample_info/TCGA.vcf.array_typed.samples.list \
   --array-imputed-ids $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.samples.gusev_IDs.list \
   --tcga-tss-table $CODEDIR/refs/TCGA_TSS_codes.tsv.gz \
+  --tcga-study-table $CODEDIR/refs/TCGA_study_codes.tsv.gz \
   --out-prefix $WRKDIR/data/sample_info/TCGA
 
 
