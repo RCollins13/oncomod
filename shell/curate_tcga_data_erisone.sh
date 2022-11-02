@@ -68,7 +68,7 @@ cut -f1-3 -d\- $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.samples.list | so
 $TMPDIR/harmonize_tcga_samples.py \
   --exome-ids $WRKDIR/data/sample_info/TCGA.vcf.exome.samples.list \
   --exome-id-map $WRKDIR/refs/VanAllen.TCGA.WES_DeepVariant.sample_manifest.tsv.gz \
-  --array-typed-ids $WRKDIR/data/sample_info/TCGA.vcf.array_typed.donors.list \
+  --array-typed-ids $WRKDIR/data/sample_info/TCGA.vcf.array_typed.samples.list \
   --array-imputed-ids $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.samples.gusev_IDs.list \
   --tcga-tss-table $CODEDIR/refs/TCGA_TSS_codes.tsv.gz \
   --out-prefix $WRKDIR/data/sample_info/TCGA
