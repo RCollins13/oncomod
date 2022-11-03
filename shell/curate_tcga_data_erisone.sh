@@ -22,7 +22,7 @@ cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in data data/sample_info LSF LSF/scripts LSF/logs refs; do
+for SUBDIR in data data/sample_info LSF LSF/scripts LSF/logs refs misc; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -164,7 +164,16 @@ while read contig start end gene; do
   tabix -p vcf -f $WRKDIR/data/TCGA.$gene.exome.vcf.gz
 done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
 # Merge VCFs for exomes and arrays for each gene
-# TODO: implement this
+while read gene; do
+  $TMPDIR/merge_tcga_arrays_exomes.py \
+    --sample-id-map /data/gusev/USERS/rlc47/TCGA/data/sample_info/TCGA.ALL.id_map.tsv.gz \
+    --exome-vcf $WRKDIR/data/TCGA.$gene.exome.vcf.gz \
+    --array-typed-vcf $WRKDIR/data/TCGA.$gene.array_typed.vcf.gz \
+    --array-imputed-vcf $WRKDIR/data/TCGA.$gene.array_imputed.vcf.gz \
+    --header $WRKDIR/refs/simple_hg19_header.vcf.gz \
+    --outfile $WRKDIR/data/TCGA.$gene.merged.vcf.gz \
+    --verbose 2> $WRKDIR/misc/$gene.merge_arrays_exomes.log
+done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 )
 # Merge VCFs for eacn gene into a single VCF and index the merged VCF
 zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 \
 | xargs -I {} echo "$WRKDIR/data/TCGA.{}.vcf.gz" \
