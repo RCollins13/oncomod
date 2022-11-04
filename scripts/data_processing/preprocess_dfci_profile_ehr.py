@@ -13,6 +13,7 @@ Preprocess DFCI-Profile clinical data for relevant patients
 import argparse
 import numpy as np
 import pandas as pd
+import re
 from collections import Counter
 
 
@@ -121,11 +122,9 @@ def add_dx_info(main_df, dx_csv):
     # Load diagnostic information for samples with available info
     """
 
-    # TODO: extract stage info here once it's clear which variables to use
-
     # Load dx information
     dx_cols_to_keep = 'DFCI_MRN DIAGNOSIS_DT D_DIAGNOSIS_DT AGE_AT_DIAGNOSIS_NBR ' + \
-                      'SITE_DESCR HISTOLOGY_DESCR BEHAVIOR_DESCR'
+                      'SITE_DESCR HISTOLOGY_DESCR BEHAVIOR_DESCR BEST_AJCC_STAGE_CD'
     dx_df = pd.read_csv(dx_csv, sep=',', usecols=dx_cols_to_keep.split())
 
     # Subset diagnostic information to tumors/patients of interest
@@ -140,6 +139,18 @@ def add_dx_info(main_df, dx_csv):
     # For the subset of patients with multiple diagnoses, take the dx info for
     # the earliest diagnosed tumor
     dx_df = dx_df.sort_values('D_DIAGNOSIS_DT').drop_duplicates('DFCI_MRN', keep='first')
+
+    # Simplify stage info
+    for k, v in {'III' : '3', 'II' : '2', 'IV' : '4', 'I' : '1'}.items():
+        dx_df.BEST_AJCC_STAGE_CD = dx_df.BEST_AJCC_STAGE_CD.str.replace(k, v)
+
+    def _simplify_stage(sv):
+        parseable = bool(re.search('^[0-4]', sv))
+        if parseable:
+            return sv[0]
+        else:
+            return pd.NA
+    dx_df['APPROX_STAGE'] = dx_df.BEST_AJCC_STAGE_CD.astype(str).apply(_simplify_stage)
 
     # Clean & merge dx info into main df
     dx_df.drop('BEHAVIOR_DESCR'.split(), axis=1, inplace=True)
@@ -215,7 +226,8 @@ def clean_output_df(main_df):
                      'Predicted_Pop' : 'POPULATION',
                      'NDI_CAUSE_OF_DEATH_RECODE' : 'CAUSE_OF_DEATH',
                      'DERIVED_LAST_ALIVE_DATE' : 'LAST_ALIVE_DATE',
-                     'GENDER_NM' : 'SEX'}
+                     'GENDER_NM' : 'SEX',
+                     'BEST_AJCC_STAGE_CD' : 'AJCC_STAGE'}
     drop_cols = 'D_DIAGNOSIS_DT SITE_DESCR HISTOLOGY_DESCR HYBRID_DEATH_IND ' + \
                 'D_HYBRID_DEATH_DT D_DERIVED_LAST_ALIVE_DATE HYBRID_DEATH_DT ' + \
                 'PANEL_VERSION'
@@ -230,9 +242,9 @@ def clean_output_df(main_df):
     main_df.CANCER_TYPE = main_df.CANCER_TYPE.map(cancer_codes)
 
     col_order = 'PBP SEX BMI POPULATION CANCER_TYPE PRIMARY_CANCER_DIAGNOSIS ' + \
-                'DIAGNOSIS_DATE AGE_AT_DIAGNOSIS DIAGNOSIS_YEAR IS_ALIVE ' + \
-                'LAST_ALIVE_DATE DAYS_SURVIVED CAUSE_OF_DEATH ' + \
-                'PC1 PC2 PC3 PC4 PC5 PC6 PC7 PC8 PC9 PC10 ' + \
+                'AJCC_STAGE APPROX_STAGE DIAGNOSIS_DATE AGE_AT_DIAGNOSIS ' + \
+                'DIAGNOSIS_YEAR IS_ALIVE LAST_ALIVE_DATE DAYS_SURVIVED ' + \
+                'CAUSE_OF_DEATH PC1 PC2 PC3 PC4 PC5 PC6 PC7 PC8 PC9 PC10 ' + \
                 'BIOPSY_SITE BIOPSY_SITE_TYPE'
     sort_cols = 'CANCER_TYPE AGE_AT_DIAGNOSIS POPULATION'
 
