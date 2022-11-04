@@ -86,16 +86,25 @@ $CODEDIR/scripts/data_processing/harmonize_tcga_samples.py \
 
 
 ### Curate clinical information for patients of interest
-# TODO: implement this
-# $CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
-#   --id-map-tsv $CLINDIR/TCGA_MRN_BL_PANEL.PBP.tab \
-#   --genomic-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_SPECIMEN.csv.gz \
-#   --dx-csv $CLINDIR/OncDRS/ALL_2021_11/CANCER_DIAGNOSIS_CAREG.csv.gz \
-#   --ancestry-csv $CLINDIR/TCGA_2022_ANCESTRY.csv.gz \
-#   --hx-csv $CLINDIR/OncDRS/ALL_2021_11/HEALTH_HISTORY.csv.gz \
-#   --survival-csv $CLINDIR/OncDRS/ALL_2021_11/PT_INFO_STATUS_REGISTRATION.csv.gz \
-#   --out-prefix $WRKDIR/data/sample_info/TCGA. \
-#   --vcf-ids $WRKDIR/data/sample_info/TCGA.vcf.samples.list
+# Download & extract TCGA BMI
+wget -P $WRKDIR/data/ https://hgdownload.soe.ucsc.edu/gbdb/hg38/gdcCancer/gdcCancer.bb
+/data/talkowski/tools/bin/bigBedToBed \
+  $WRKDIR/data/gdcCancer.bb \
+  /dev/stdout \
+| $TMPDIR/parse_tcga_bmi.py - - | gzip -c > $WRKDIR/data/TCGA.BMI.tsv.gz
+| awk -v FS="\t" -v OFS="\t" '{ if ($29!="--") print $35, $29 }' \
+| fgrep -v "," | sort -Vk1,1 | uniq | gzip -c > 
+# Note: TCGA ancestry label assignments came from Carrot-Zhang et al., Cancer Cell, 2020
+# https://gdc.cancer.gov/about-data/publications/CCG-AIM-2020
+# Filename: Broad_ancestry_PCA.txt
+# This file has been renamed and relocated to $WRKDIR/data/TCGA.ancestry.tsv.gz
+$TMPDIR/preprocess_tcga_phenotypes.py \
+  --id-map-tsv $WRKDIR/data/sample_info/TCGA.ALL.id_map.tsv.gz \
+  --cdr-csv $BASEDIR/TCGA_CDR.csv \
+  --bmi-tsv $WRKDIR/data/TCGA.BMI.tsv.gz \
+  --ancestry-tsv $WRKDIR/data/TCGA.ancestry.tsv.gz \
+  --pcs-txt $GTDIR/TCGA.COMBINED.QC.NORMAL.eigenvec \
+  --out-prefix $WRKDIR/data/sample_info/TCGA.
 
 
 ### Subset VCFs to patients of interest and RAS loci
