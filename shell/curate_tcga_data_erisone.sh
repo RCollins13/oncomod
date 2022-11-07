@@ -201,11 +201,11 @@ $CODEDIR/scripts/data_processing/merge_tcga_arrays_exomes.py \
 tabix -p vcf -f $WRKDIR/data/TCGA.$gene.merged.vcf.gz
 EOF
     chmod a+x $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.sh
-    rm $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.*
+    rm $WRKDIR/LSF/logs/merge_arrays_exomes_${gene}.*
     bsub \
       -q normal -R 'rusage[mem=6000]' -J TCGA_merge_arrays_exomes_${gene} \
-      -o $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.log \
-      -e $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.err \
+      -o $WRKDIR/LSF/logs/merge_arrays_exomes_${gene}.log \
+      -e $WRKDIR/LSF/logs/merge_arrays_exomes_${gene}.err \
       $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.sh
 done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 )
 # Merge VCFs for eacn gene into a single VCF and index the merged VCF

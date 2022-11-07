@@ -345,16 +345,16 @@ def main():
         # Process current file pointer(s) that have the left-most position
         for tech in next_techs:
 
-            # # Write record to VCF if it hasn't already been written by a 
-            # # higher-priority technology
-            # if current_ids[tech] not in variants_seen:
-            #     format_record(current_records[tech], id_map, out_vcf, tech)
-            #     variants_seen.add(current_ids[tech])
-            #     if args.verbose:
-            #         report_variant_processed(current_records, tech, 'written')
-            # else:
-            #     if args.verbose:
-            #         report_variant_processed(current_records, tech, 'skipped')
+            # Write record to VCF if it hasn't already been written by a 
+            # higher-priority technology
+            if current_ids[tech] not in variants_seen:
+                format_record(current_records[tech], id_map, out_vcf, tech)
+                variants_seen.add(current_ids[tech])
+                if args.verbose:
+                    report_variant_processed(current_records, tech, 'written')
+            else:
+                if args.verbose:
+                    report_variant_processed(current_records, tech, 'skipped')
 
             # Advance this technology to the next record
             new_rec, new_id = next_record(in_vcfs[tech])
