@@ -121,13 +121,16 @@ $CODEDIR/scripts/data_processing/preprocess_tcga_phenotypes.py \
 ### Subset VCFs to patients of interest and RAS loci
 # Extract samples & loci of interest from genotyped and imputed arrays
 while read contig start end gene; do
-  for tech in array_typed array_imputed; do
+  # for tech in array_typed array_imputed; do
+  for tech in array_imputed; do
+    bcftools_options="--min-ac 1"
     case $tech in
       array_typed)
         VCF=$WRKDIR/data/TCGA.array_typed.vcf.gz
         ;;
       array_imputed)
         VCF=$GTDIR/IMPUTED/$contig.vcf.gz
+        bcftools_options="$bcftools_options --exclude 'INFO/INFO < 0.8'"
         ;;
     esac
     cat << EOF > $WRKDIR/LSF/scripts/extract_${gene}_variants_${tech}.sh
@@ -136,7 +139,7 @@ while read contig start end gene; do
 cd $WRKDIR
 bcftools view \
   -O z -o $WRKDIR/data/TCGA.$gene.$tech.vcf.gz \
-  --min-ac 1 \
+  $bcftools_options \
   --samples-file $WRKDIR/data/sample_info/TCGA.ALL.$tech.samples.list \
   --regions "$contig:${start}-$end" \
   $VCF
@@ -210,7 +213,7 @@ EOF
 done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 )
 # Merge VCFs for eacn gene into a single VCF and index the merged VCF
 zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 \
-| xargs -I {} echo "$WRKDIR/data/TCGA.{}.vcf.gz" \
+| xargs -I {} echo "$WRKDIR/data/TCGA.{}.merged.vcf.gz" \
 > $WRKDIR/data/TCGA.single_gene_vcfs.list
 bcftools concat \
   --file-list $WRKDIR/data/TCGA.single_gene_vcfs.list \

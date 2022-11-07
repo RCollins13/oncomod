@@ -237,8 +237,11 @@ def format_record(old_rec, id_map, out_vcf, rec_fmt):
     # Copy basic information from old record to new record
     new_id = '_'.join([rec_fmt.replace('-', '_'), old_rec.chrom, 
                        str(old_rec.pos), *old_rec.alleles])
-    new_rec = out_vcf.new_record(contig=old_rec.chrom, start=old_rec.pos, 
+    new_rec = out_vcf.new_record(contig=old_rec.chrom, start=old_rec.pos-1, 
                                  alleles=old_rec.alleles, id=new_id)
+    # Note: subtracting one from old_rec.pos is necessary because pysam automatically
+    # increments pos by one (assuming this is related to 0- vs 1- indexing but confirmed 
+    # manually this is necessary to match reference nucleotides)
     new_rec.info['SOURCE'] = rec_fmt.replace('-', '_')
     new_rec.info.pop('END')
 
