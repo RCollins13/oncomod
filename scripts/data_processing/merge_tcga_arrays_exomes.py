@@ -49,7 +49,14 @@ def determine_next_record(ex_rec, gt_rec, imp_rec):
     Determine which record(s) to process & write to file next
     """
 
-    cur_pos = pd.Series({i : rec.pos for i, rec in enumerate([ex_rec, gt_rec, imp_rec])})
+    cur_pos = {}
+    for i, rec in enumerate([ex_rec, gt_rec, imp_rec]):
+        if rec is None:
+            cur_pos[i] = np.nan
+        else:
+            cur_pos[i] = rec.pos
+    cur_pos = pd.Series(cur_pos)
+
     next_idxs = np.where(cur_pos == np.nanmin(cur_pos))[0].tolist()
 
     return [k for i, k in enumerate('exome array-typed array-imputed'.split()) if i in next_idxs]
@@ -249,8 +256,14 @@ def report_current_coords(current_records):
     Print position of current records
     """
 
-    fmt = 'Current positions (EX|GT|IMP): {:,} | {:,} | {:,}\n'
-    stderr.write(fmt.format(*[rec.pos for rec in current_records.values()]))
+    fmt = 'Current positions (EX|GT|IMP): {}\n'
+    positions = []
+    for rec in current_records.values():
+        if rec is None:
+            positions.append('-')
+        else:
+            positions.append('{:,}'.format(rec.pos))
+    stderr.write(fmt.format(' | '.join(positions)))
 
 
 def report_variant_processed(current_records, tech, outcome):
@@ -332,23 +345,23 @@ def main():
         # Process current file pointer(s) that have the left-most position
         for tech in next_techs:
 
-            # Write record to VCF if it hasn't already been written by a 
-            # higher-priority technology
-            if current_ids[tech] not in variants_seen:
-                format_record(current_records[tech], id_map, out_vcf, tech)
-                variants_seen.add(current_ids[tech])
-                if args.verbose:
-                    report_variant_processed(current_records, tech, 'written')
-            else:
-                if args.verbose:
-                    report_variant_processed(current_records, tech, 'skipped')
+            # # Write record to VCF if it hasn't already been written by a 
+            # # higher-priority technology
+            # if current_ids[tech] not in variants_seen:
+            #     format_record(current_records[tech], id_map, out_vcf, tech)
+            #     variants_seen.add(current_ids[tech])
+            #     if args.verbose:
+            #         report_variant_processed(current_records, tech, 'written')
+            # else:
+            #     if args.verbose:
+            #         report_variant_processed(current_records, tech, 'skipped')
 
             # Advance this technology to the next record
             new_rec, new_id = next_record(in_vcfs[tech])
             current_records[tech] = new_rec
             current_ids[tech] = new_id
 
-    # Close outfile
+    # Close outfile to clear buffer
     out_vcf.close()
 
 

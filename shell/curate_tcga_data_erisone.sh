@@ -189,7 +189,7 @@ while read gene; do
 #!/usr/bin/env bash
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
-$TMPDIR/merge_tcga_arrays_exomes.py \
+$CODEDIR/scripts/data_processing/merge_tcga_arrays_exomes.py \
   --sample-id-map /data/gusev/USERS/rlc47/TCGA/data/sample_info/TCGA.ALL.id_map.tsv.gz \
   --exome-vcf $WRKDIR/data/TCGA.$gene.exome.vcf.gz \
   --array-typed-vcf $WRKDIR/data/TCGA.$gene.array_typed.vcf.gz \
@@ -197,7 +197,7 @@ $TMPDIR/merge_tcga_arrays_exomes.py \
   --ref-fasta $WRKDIR/refs/GRCh37.fa \
   --header $WRKDIR/refs/simple_hg19_header.vcf.gz \
   --outfile $WRKDIR/data/TCGA.$gene.merged.vcf.gz \
-  --verbose 2> $WRKDIR/misc/$gene.merge_arrays_exomes_$gene.log
+  --verbose
 tabix -p vcf -f $WRKDIR/data/TCGA.$gene.merged.vcf.gz
 EOF
     chmod a+x $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.sh
