@@ -143,7 +143,6 @@ def add_dx_info(main_df, dx_csv):
     # Simplify stage info
     for k, v in {'III' : '3', 'II' : '2', 'IV' : '4', 'I' : '1'}.items():
         dx_df.BEST_AJCC_STAGE_CD = dx_df.BEST_AJCC_STAGE_CD.str.replace(k, v)
-
     def _simplify_stage(sv):
         parseable = bool(re.search('^[0-4]', sv))
         if parseable:

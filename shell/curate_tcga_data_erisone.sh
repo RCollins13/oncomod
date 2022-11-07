@@ -100,19 +100,19 @@ for prefix in PAAD COAD READ SKCM; do
   | awk -v FS="\t" -v OFS="\t" '{ if ($29!="--") print $35, $29 }' \
   | $CODEDIR/scripts/data_processing/parse_ucsc_tcga_bmi.py \
   | sort -Vk1,1 | uniq \
-  >> $WRKDIR/data/sample_info/TCGA.BMI.tsv
+  >> $WRKDIR/data/sample_info/TCGA_BMI/TCGA.BMI.tsv
   rm $WRKDIR/data/sample_info/TCGA_BMI/$prefix.bb
 done
-gzip -f $WRKDIR/data/sample_info/TCGA.BMI.tsv
+gzip -f $WRKDIR/data/sample_info/TCGA_BMI/TCGA.BMI.tsv
 # Note: TCGA ancestry label assignments came from Carrot-Zhang et al., Cancer Cell, 2020
 # https://gdc.cancer.gov/about-data/publications/CCG-AIM-2020
 # Filename: Broad_ancestry_PCA.txt
 # This file has been renamed and relocated to $WRKDIR/data/TCGA.ancestry.tsv.gz
-$TMPDIR/preprocess_tcga_phenotypes.py \
+$CODEDIR/scripts/data_processing/preprocess_tcga_phenotypes.py \
   --id-map-tsv $WRKDIR/data/sample_info/TCGA.ALL.id_map.tsv.gz \
   --cdr-csv $BASEDIR/TCGA_CDR.csv \
   --tcga-study-table $CODEDIR/refs/TCGA_study_codes.tsv.gz \
-  --bmi-tsv $WRKDIR/data/sample_info/TCGA.BMI.tsv.gz \
+  --bmi-tsv $WRKDIR/data/sample_info/TCGA_BMI/TCGA.BMI.tsv.gz \
   --ancestry-tsv $WRKDIR/data/TCGA.ancestry.tsv.gz \
   --pcs-txt $GTDIR/TCGA.COMBINED.QC.NORMAL.eigenvec \
   --out-prefix $WRKDIR/data/sample_info/TCGA.
@@ -185,14 +185,28 @@ while read contig start end gene; do
 done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
 # Merge VCFs for exomes and arrays for each gene
 while read gene; do
-  $TMPDIR/merge_tcga_arrays_exomes.py \
-    --sample-id-map /data/gusev/USERS/rlc47/TCGA/data/sample_info/TCGA.ALL.id_map.tsv.gz \
-    --exome-vcf $WRKDIR/data/TCGA.$gene.exome.vcf.gz \
-    --array-typed-vcf $WRKDIR/data/TCGA.$gene.array_typed.vcf.gz \
-    --array-imputed-vcf $WRKDIR/data/TCGA.$gene.array_imputed.vcf.gz \
-    --header $WRKDIR/refs/simple_hg19_header.vcf.gz \
-    --outfile $WRKDIR/data/TCGA.$gene.merged.vcf.gz \
-    --verbose 2> $WRKDIR/misc/$gene.merge_arrays_exomes.log
+    cat << EOF > $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.sh
+#!/usr/bin/env bash
+. /PHShome/rlc47/.bashrc
+cd $WRKDIR
+$TMPDIR/merge_tcga_arrays_exomes.py \
+  --sample-id-map /data/gusev/USERS/rlc47/TCGA/data/sample_info/TCGA.ALL.id_map.tsv.gz \
+  --exome-vcf $WRKDIR/data/TCGA.$gene.exome.vcf.gz \
+  --array-typed-vcf $WRKDIR/data/TCGA.$gene.array_typed.vcf.gz \
+  --array-imputed-vcf $WRKDIR/data/TCGA.$gene.array_imputed.vcf.gz \
+  --ref-fasta $WRKDIR/refs/GRCh37.fa \
+  --header $WRKDIR/refs/simple_hg19_header.vcf.gz \
+  --outfile $WRKDIR/data/TCGA.$gene.merged.vcf.gz \
+  --verbose 2> $WRKDIR/misc/$gene.merge_arrays_exomes_$gene.log
+tabix -p vcf -f $WRKDIR/data/TCGA.$gene.merged.vcf.gz
+EOF
+    chmod a+x $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.sh
+    rm $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.*
+    bsub \
+      -q normal -R 'rusage[mem=6000]' -J TCGA_merge_arrays_exomes_${gene} \
+      -o $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.log \
+      -e $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.err \
+      $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.sh
 done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 )
 # Merge VCFs for eacn gene into a single VCF and index the merged VCF
 zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 \
