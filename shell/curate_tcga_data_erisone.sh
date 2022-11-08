@@ -228,22 +228,35 @@ cat \
   <( zcat $WRKDIR/data/mc3.v0.2.8.PUBLIC.maf.gz \
      | fgrep -wf $WRKDIR/data/sample_info/TCGA.ALL.donors.list ) \
 | gzip -c > $WRKDIR/data/mc3.v0.2.8.PUBLIC.SKCM_PDAC_CRAD.maf.gz
+# Pre-filter Affy SNP array CNA calls
+# Note: must have been downloaded by cancer type from GDAC Firehose
+# and uploaded to $WRKDIR/data/TCGA_CNA
+cat $( find $WRKDIR/data/TCGA_CNA -name "*seg.seg.txt" | paste -s ) \
+| fgrep -v "Num_Probes" | awk -v OFS="\t" \
+  '{ cnv="NONE"; if ($6 <= -0.4150375) cnv="DEL"; if ($6 >= 0.3219281) cnv="AMP"; \
+     if ($5>=10 && cnv!="NONE") print $2, $3, $4, cnv, $1 }' \
+| sort -Vk1,1 -k2,2n -k3,3n -k5,5V -k4,4V \
+| cat <( echo -e "#chrom\tstart\tend\tCNA\tsample" ) - | bgzip -c \
+> $WRKDIR/data/TCGA.CNA.b19.bed.gz
 # Curate somatic data
 $CODEDIR/scripts/data_processing/preprocess_tcga_somatic.py \
 $TMPDIR/preprocess_tcga_somatic.py \
   --mc3-tsv $WRKDIR/data/mc3.v0.2.8.PUBLIC.SKCM_PDAC_CRAD.maf.gz \
+  --cna-bed $WRKDIR/data/TCGA.CNA.b19.bed.gz \
   --donors-list $WRKDIR/data/sample_info/TCGA.ALL.donors.list \
   --purity-tsv $WRKDIR/data/TCGA.tumor_purity.Aran_2015.tsv.gz \
+  --genes-gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
+  --priority-genes $WRKDIR/../refs/COSMIC.all_GCG.Nov8_2022.genes.list \
   --outfile $WRKDIR/data/TCGA.somatic_variants.tsv.gz
 
 
 # Summarize somatic variant status by gene & cancer type
 for cancer in PDAC CRAD SKCM; do
   while read gene; do
-    n_samp=$( cat ${WRKDIR}/data/sample_info/TCGA.$cancer.samples.list | wc -l )
+    n_samp=$( cat ${WRKDIR}/data/sample_info/TCGA.$cancer.donors.list | wc -l )
     zcat $WRKDIR/data/TCGA.somatic_variants.tsv.gz \
-    | fgrep -wf ${WRKDIR}/data/sample_info/TCGA.$cancer.samples.list \
-    | awk -v gene=$gene -v FS="\t" '{ if ($7==gene && ($14~/Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/)) print $6 }' \
+    | fgrep -wf ${WRKDIR}/data/sample_info/TCGA.$cancer.donors.list \
+    | awk -v gene=$gene -v FS="\t" '{ if ($8==gene && ($14~/Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/)) print $6 }' \
     | sort | uniq | wc -l | awk -v n=$n_samp '{ print $1/n }'
   done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 ) | paste -s -
 done

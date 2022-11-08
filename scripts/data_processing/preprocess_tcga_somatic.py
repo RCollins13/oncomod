@@ -18,12 +18,15 @@ from harmonize_tcga_samples import _parse_donor
 from sys import stdout
 
 
-def load_mutation_data(mc3_tsv, donors, purity_tsv):
+def load_mutation_data(mc3_tsv, donors, purity_tsv, key_genes=None):
     """
     Load & curate mutation data for donors of interest
     """
 
-    cols_to_keep = 'Chromosome Start_Position Reference_Allele Tumor_Seq_Allele2 Hugo_Symbol Variant_Classification Tumor_Sample_Barcode HGVSc HGVSp_Short Transcript_ID Exon_Number t_depth t_alt_count Gene SYMBOL EXON VARIANT_CLASS FILTER'
+    cols_to_keep = 'Chromosome Start_Position Reference_Allele Tumor_Seq_Allele2 ' + \
+                   'Hugo_Symbol Variant_Classification Tumor_Sample_Barcode ' + \
+                   'HGVSc HGVSp_Short Transcript_ID Exon_Number t_depth ' + \
+                   't_alt_count Gene SYMBOL EXON VARIANT_CLASS FILTER'
     mut_df = pd.read_csv(mc3_tsv, sep='\t', header=0, low_memory=False,
                          usecols=cols_to_keep.split())
 
@@ -43,6 +46,11 @@ def load_mutation_data(mc3_tsv, donors, purity_tsv):
 
     # Subset to PASS variants and donors in donor list
     mut_df = mut_df.loc[mut_df.DONOR_ID.isin(donors) & (mut_df.FILTER == 'PASS'), :]
+
+    # Subset to genes of interest, if optioned
+    if key_genes is not None:
+        mut_df = mut_df.loc[mut_df.Hugo_Symbol.isin(key_genes) | \
+                            mut_df.SYMBOL.isin(key_genes)]
 
     # Append purity data
     purity_df = pd.read_csv(purity_tsv, sep='\t', header=0)
@@ -80,7 +88,53 @@ def load_mutation_data(mc3_tsv, donors, purity_tsv):
                 'HARMONIZED_TRANSCRIPT_ID PATHOLOGIST_PATHOGENICITY ALLELE_FRACTION ' + \
                 'COVERAGE MAX_GNOMAD_FREQUENCY TUMOR_PURITY TEST_TYPE PANEL_VERSION'
     
-    return mut_df.sort_values('CHROMOSOME POSITION'.split())[col_order.split()]
+    return mut_df.sort_values('CHROMOSOME POSITION'.split())[col_order.split()], purity_map
+
+
+def add_cna_data(mut_df, cna_bed, genes_gtf, donors, purity_map, key_genes=None):
+    """
+    Load CNA data, transform to gene-level results, and merge with mut_df
+    """
+
+    # Load CNA data
+    cna_df = pd.read_csv(cna_bed, header=0, sep='\t').rename(columns={'sample' : 'SAMPLE'})
+    cna_df['DONOR'] = cna_df.SAMPLE.apply(_parse_donor)
+    cna_bt = pbt.BedTool.from_dataframe(cna_df.loc[cna_df.DONOR.isin(donors)])
+
+    # Preprocess GTF
+    def _preprocess_gtf(feature):
+        feature.chrom = str(feature.chrom).replace('chr', '')
+        pop_keys = [k for k in feature.attrs.keys() if k != 'gene_name']
+        for key in pop_keys:
+            feature.attrs.pop(key)
+        return feature
+    gene_bt = pbt.BedTool(genes_gtf).\
+                  filter(lambda x: x.fields[2] == 'gene').\
+                  each(_preprocess_gtf)
+    if key_genes is not None:
+        gene_bt = gene_bt.filter(lambda x: x.attrs.get('gene_name', None) in key_genes)
+    import pdb; pdb.set_trace()
+
+    # Intersect CNA and gene data and melt to donor-gene pairs compatible with mut_df
+    hit_df = pd.DataFrame(columns=mut_df.columns)
+    for hit in cna_bt.intersect(gene_bt, wb=True):
+        gene = hit.fields[-1].split('"')[1]
+        hit_vals = [hit.chrom, 
+                    int(np.nanmean([int(x) for x in hit.fields[9:11]])),
+                    'N', 
+                    '<{}>'.format(hit.fields[3]),
+                    '_'.join([hit.fields[5], hit.fields[3], gene]),
+                    hit.fields[5],
+                    hit.fields[4],
+                    gene, gene] + \
+                    [hit.fields[3]] * 6 + \
+                    [pd.NA] * 8 + \
+                    [purity_map.get(hit.fields[5], pd.NA), 'AFFY_SNP_6.0', '.']
+        hit_df.loc[len(hit_df)] = hit_vals
+    
+    # Add CNA data to mut_df, sort by position, and return
+    out_df = pd.concat([hit_df.loc[:, mut_df.columns.tolist()], mut_df], ignore_index=True)
+    return out_df.sort_values('CHROMOSOME POSITION'.split())
 
 
 def main():
@@ -91,18 +145,34 @@ def main():
              description=__doc__,
              formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--mc3-tsv', help='Somatic mutation .tsv', required=True)
+    parser.add_argument('--cna-bed', help='Copy number alteration .bed', required=True)
     parser.add_argument('--donors-list', help='List of donors to evaluate', required=True)
     parser.add_argument('--purity-tsv', help='Tumor purity .tsv', required=True)
+    parser.add_argument('--genes-gtf', help='.gtf of gene annotations', required=True)
+    parser.add_argument('--priority-genes', help='If provided, will subset all data ' + 
+                        'to only variants in these genes [default: keep all genes]')
     parser.add_argument('-o', '--outfile', default='stdout', help='path to somatic ' +
                         'variation .tsv [default: stdout]')
     args = parser.parse_args()
 
     # Load donors of interest
     with open(args.donors_list) as fin:
-        donors = [l.rstrip() for l in fin.readlines()]
+        donors = list(set([l.rstrip() for l in fin.readlines()]))
+
+    # Load genes of interest, if optioned
+    if args.priority_genes is not None:
+        with open(args.priority_genes) as fin:
+            key_genes = list(set([l.rstrip() for l in fin.readlines()]))
+    else:
+        key_genes = None
 
     # Load mutation data and subset to samples of interest
-    mut_df = load_mutation_data(args.mc3_tsv, donors, args.purity_tsv)
+    mut_df, purity_map = load_mutation_data(args.mc3_tsv, donors, 
+                                            args.purity_tsv, key_genes)
+    
+    # Add CNA data to mut_df
+    mut_df = add_cna_data(mut_df, args.cna_bed, args.genes_gtf, donors, 
+                          purity_map, key_genes)
     
     # Write somatic mutation data to output file
     if args.outfile in '- stdout'.split():
