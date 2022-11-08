@@ -220,3 +220,31 @@ bcftools concat \
   -O z -o $WRKDIR/data/TCGA.RAS_loci.vcf.gz
 tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.vcf.gz
 
+
+### Curate somatic data for patients of interest
+# Preprocess mc3 data by subsetting on samples of interest to improve pandas IO speed
+cat \
+  <( zcat $WRKDIR/data/mc3.v0.2.8.PUBLIC.maf.gz | head -n1 ) \
+  <( zcat $WRKDIR/data/mc3.v0.2.8.PUBLIC.maf.gz \
+     | fgrep -wf $WRKDIR/data/sample_info/TCGA.ALL.donors.list ) \
+| gzip -c > $WRKDIR/data/mc3.v0.2.8.PUBLIC.SKCM_PDAC_CRAD.maf.gz
+# Curate somatic data
+$CODEDIR/scripts/data_processing/preprocess_tcga_somatic.py \
+$TMPDIR/preprocess_tcga_somatic.py \
+  --mc3-tsv $WRKDIR/data/mc3.v0.2.8.PUBLIC.SKCM_PDAC_CRAD.maf.gz \
+  --donors-list $WRKDIR/data/sample_info/TCGA.ALL.donors.list \
+  --purity-tsv $WRKDIR/data/TCGA.tumor_purity.Aran_2015.tsv.gz \
+  --outfile $WRKDIR/data/TCGA.somatic_variants.tsv.gz
+
+
+# Summarize somatic variant status by gene & cancer type
+for cancer in PDAC CRAD SKCM; do
+  while read gene; do
+    n_samp=$( cat ${WRKDIR}/data/sample_info/TCGA.$cancer.samples.list | wc -l )
+    zcat $WRKDIR/data/TCGA.somatic_variants.tsv.gz \
+    | fgrep -wf ${WRKDIR}/data/sample_info/TCGA.$cancer.samples.list \
+    | awk -v gene=$gene -v FS="\t" '{ if ($7==gene && ($14~/Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/)) print $6 }' \
+    | sort | uniq | wc -l | awk -v n=$n_samp '{ print $1/n }'
+  done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 ) | paste -s -
+done
+
