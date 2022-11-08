@@ -113,7 +113,6 @@ def add_cna_data(mut_df, cna_bed, genes_gtf, donors, purity_map, key_genes=None)
                   each(_preprocess_gtf)
     if key_genes is not None:
         gene_bt = gene_bt.filter(lambda x: x.attrs.get('gene_name', None) in key_genes)
-    import pdb; pdb.set_trace()
 
     # Intersect CNA and gene data and melt to donor-gene pairs compatible with mut_df
     hit_df = pd.DataFrame(columns=mut_df.columns)
