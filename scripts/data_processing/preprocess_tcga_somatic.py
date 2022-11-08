@@ -115,21 +115,30 @@ def add_cna_data(mut_df, cna_bed, genes_gtf, donors, purity_map, key_genes=None)
         gene_bt = gene_bt.filter(lambda x: x.attrs.get('gene_name', None) in key_genes)
 
     # Intersect CNA and gene data and melt to donor-gene pairs compatible with mut_df
-    hit_df = pd.DataFrame(columns=mut_df.columns)
-    for hit in cna_bt.intersect(gene_bt, wb=True):
-        gene = hit.fields[-1].split('"')[1]
-        hit_vals = [hit.chrom, 
-                    int(np.nanmean([int(x) for x in hit.fields[9:11]])),
-                    'N', 
-                    '<{}>'.format(hit.fields[3]),
-                    '_'.join([hit.fields[5], hit.fields[3], gene]),
-                    hit.fields[5],
-                    hit.fields[4],
-                    gene, gene] + \
-                    [hit.fields[3]] * 6 + \
-                    [pd.NA] * 8 + \
-                    [purity_map.get(hit.fields[5], pd.NA), 'AFFY_SNP_6.0', '.']
-        hit_df.loc[len(hit_df)] = hit_vals
+    tmp_df_names = 'CHROMOSOME cna_start cna_end cnv TUMOR_ID DONOR_ID gene_chrom ' + \
+                   'source feature gene_start gene_end score strand skip attrs'
+    hit_df = cna_bt.intersect(gene_bt, wb=True).to_dataframe(names=tmp_df_names.split())
+    keep_cols = 'CHROMOSOME cnv TUMOR_ID DONOR_ID gene_start gene_end attrs'
+    drop_cols = [k for k in tmp_df_names.split() if k not in keep_cols.split()]
+    hit_df.drop(drop_cols, axis=1, inplace=True)
+    hit_df['POSITION'] = \
+        hit_df['gene_start gene_end'.split()].apply(np.nanmean, axis=1).astype(int)
+    hit_df['REF_ALLELE'] = 'N'
+    hit_df['ALT_ALLELE'] = hit_df.cnv.apply(lambda x: '<{}>'.format(x))
+    for gcol in 'CANONICAL_GENE HARMONIZED_HUGO_GENE_NAME'.split():
+        hit_df[gcol] = hit_df['attrs'].apply(lambda x: x.split('"')[1])
+    hit_df['VARIANT_CALL_ID'] = \
+        hit_df['DONOR_ID cnv CANONICAL_GENE'.split()].apply(lambda x: '_'.join(x), axis=1)
+    for prefix in 'CANONICAL HARMONIZED'.split():
+        for suffix in 'PROTEIN_CHANGE CDNA_CHANGE VARIANT_CLASS'.split():
+            hit_df['{}_{}'.format(prefix, suffix)] = hit_df.cnv
+    na_cols = 'CANONICAL_EXON CANONICAL_REF_SEQ_TSCP_ID CANONICAL_ENSEMBL_TSCP_ID ' + \
+              'HARMONIZED_TRANSCRIPT_ID PATHOLOGIST_PATHOGENICITY ALLELE_FRACTION ' + \
+              'COVERAGE MAX_GNOMAD_FREQUENCY PANEL_VERSION'
+    for colname in na_cols.split():
+        hit_df[colname] = pd.NA
+    hit_df['TUMOR_PURITY'] = hit_df.DONOR_ID.map(purity_map)
+    hit_df['TEST_TYPE'] = 'AFFY_SNP_6.0'
     
     # Add CNA data to mut_df, sort by position, and return
     out_df = pd.concat([hit_df.loc[:, mut_df.columns.tolist()], mut_df], ignore_index=True)
