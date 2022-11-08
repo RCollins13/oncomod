@@ -142,6 +142,8 @@ def add_cna_data(mut_df, cna_bed, genes_gtf, donors, purity_map, key_genes=None)
     
     # Add CNA data to mut_df, sort by position, and return
     out_df = pd.concat([hit_df.loc[:, mut_df.columns.tolist()], mut_df], ignore_index=True)
+    out_df.CHROMOSOME = out_df.CHROMOSOME.astype(str)
+    out_df.POSITION = out_df.POSITION.astype(int)
     return out_df.sort_values('CHROMOSOME POSITION'.split())
 
 
