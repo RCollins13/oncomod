@@ -238,6 +238,20 @@ cat $( find $WRKDIR/data/TCGA_CNA -name "*seg.seg.txt" | paste -s ) \
 | sort -Vk1,1 -k2,2n -k3,3n -k5,5V -k4,4V \
 | cat <( echo -e "#chrom\tstart\tend\tCNA\tsample" ) - | bgzip -c \
 > $WRKDIR/data/TCGA.CNA.b19.bed.gz
+# Write lists of donors with no somatic data available callset
+zcat $WRKDIR/data/mc3.v0.2.8.PUBLIC.SKCM_PDAC_CRAD.maf.gz \
+| cut -f16 | cut -f1-3 -d\- | sort | uniq \
+| fgrep -wvf - $WRKDIR/data/sample_info/TCGA.ALL.donors.list \
+> $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.mc3.list
+cat $( find $WRKDIR/data/TCGA_CNA -name "*seg.seg.txt" | paste -s ) \
+| fgrep -v "Num_Probes" | cut -f1-3 -d\- | sort | uniq \
+| fgrep -wvf - $WRKDIR/data/sample_info/TCGA.ALL.donors.list \
+> $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.cna.list
+cat \
+  $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.mc3.list \
+  $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.cna.list \
+| sort | uniq \
+> $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.list
 # Curate somatic data
 $CODEDIR/scripts/data_processing/preprocess_tcga_somatic.py \
   --mc3-tsv $WRKDIR/data/mc3.v0.2.8.PUBLIC.SKCM_PDAC_CRAD.maf.gz \
@@ -252,10 +266,12 @@ $CODEDIR/scripts/data_processing/preprocess_tcga_somatic.py \
 # Summarize somatic variant status by gene & cancer type
 for cancer in PDAC CRAD SKCM; do
   while read gene; do
-    n_samp=$( cat ${WRKDIR}/data/sample_info/TCGA.$cancer.donors.list | wc -l )
+    n_samp=$( fgrep -wvf \
+                $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.list \
+                ${WRKDIR}/data/sample_info/TCGA.$cancer.donors.list | wc -l )
     zcat $WRKDIR/data/TCGA.somatic_variants.tsv.gz \
     | fgrep -wf ${WRKDIR}/data/sample_info/TCGA.$cancer.donors.list \
-    | awk -v gene=$gene -v FS="\t" '{ if ($8==gene && ($14~/Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/)) print $6 }' \
+    | awk -v gene=$gene -v FS="\t" '{ if ($8==gene && ($14~/AMP|DEL|Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/)) print $6 }' \
     | sort | uniq | wc -l | awk -v n=$n_samp '{ print $1/n }'
   done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 ) | paste -s -
 done

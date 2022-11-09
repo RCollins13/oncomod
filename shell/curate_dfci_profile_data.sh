@@ -95,6 +95,12 @@ wget -O /dev/stdout \
 | gunzip -c | grep -ve '^#' | sort -Vk1,1 -k4,4n -k5,5n | bgzip -c \
 > $WRKDIR/../refs/gencode.v19.annotation.gtf.gz
 tabix -f -p gff $WRKDIR/../refs/gencode.v19.annotation.gtf.gz
+# Write list of donors missing somatic data
+$TMPDIR/find_dfci_profile_missing_somatic.py \
+  --mutation-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_MUTATION_RESULTS.csv.gz \
+  --cna-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_CNV_RESULTS.csv.gz \
+  --samples-list $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
+  --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab
 # Curate somatic data
 $CODEDIR/scripts/data_processing/preprocess_dfci_profile_somatic.py \
   --mutation-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_MUTATION_RESULTS.csv.gz \
