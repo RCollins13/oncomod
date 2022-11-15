@@ -96,11 +96,12 @@ wget -O /dev/stdout \
 > $WRKDIR/../refs/gencode.v19.annotation.gtf.gz
 tabix -f -p gff $WRKDIR/../refs/gencode.v19.annotation.gtf.gz
 # Write list of donors missing somatic data
-$TMPDIR/find_dfci_profile_missing_somatic.py \
+$CODEDIR/scripts/data_processing/find_dfci_profile_missing_somatic.py \
   --mutation-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_MUTATION_RESULTS.csv.gz \
   --cna-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_CNV_RESULTS.csv.gz \
   --samples-list $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
-  --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab
+  --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab \
+  --outfile $WRKDIR/data/sample_info/PROFILE.ALL.samples.missing_somatic.list
 # Curate somatic data
 $CODEDIR/scripts/data_processing/preprocess_dfci_profile_somatic.py \
   --mutation-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_MUTATION_RESULTS.csv.gz \
@@ -113,12 +114,20 @@ $CODEDIR/scripts/data_processing/preprocess_dfci_profile_somatic.py \
 
 # Summarize somatic variant status by gene & cancer type
 for cancer in PDAC CRAD SKCM; do
+  n_samp=$( fgrep -wvf \
+              $WRKDIR/data/sample_info/PROFILE.ALL.samples.missing_somatic.list \
+              ${WRKDIR}/data/sample_info/PROFILE.$cancer.samples.list | wc -l )
   while read gene; do
-    n_samp=$( cat ${WRKDIR}/data/sample_info/PROFILE.$cancer.samples.list | wc -l )
     zcat $WRKDIR/data/PROFILE.somatic_variants.tsv.gz \
     | fgrep -wf ${WRKDIR}/data/sample_info/PROFILE.$cancer.samples.list \
+    | fgrep -wvf $WRKDIR/data/sample_info/PROFILE.ALL.samples.missing_somatic.list \
     | awk -v gene=$gene -v FS="\t" '{ if ($7==gene && ($14~/AMP|DEL|Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/)) print $6 }' \
     | sort | uniq | wc -l | awk -v n=$n_samp '{ print $1/n }'
-  done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 ) | paste -s -
-done
+  done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 )
+  zcat $WRKDIR/data/PROFILE.somatic_variants.tsv.gz \
+  | fgrep -wf ${WRKDIR}/data/sample_info/PROFILE.$cancer.samples.list \
+  | fgrep -wvf $WRKDIR/data/sample_info/PROFILE.ALL.samples.missing_somatic.list \
+  | awk -v FS="\t" '{ if ($7~/NRAS|HRAS|KRAS/ && ($14~/AMP|DEL|Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/)) print $6 }' \
+  | sort | uniq | wc -l | awk -v n=$n_samp '{ print $1/n }'
+done | paste - - - -
 

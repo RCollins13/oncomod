@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+
+###############################
+#    RAS Modifiers Project    #
+###############################
+
+# Copyright (c) 2022-Present Ryan L. Collins and the Van Allen/Gusev/Haigis Laboratories
+# Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
+# Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
+
+# Constants for RAS modifier project
+
+
+#' Load RAS modifier study constants
+#'
+#' Load a subset of constants for RAS modifier analyses
+#'
+#' @param susbet Vector of constant groups to load See `Details` for options.
+#'
+#' @details Recognized values for `subset` include:
+#' * `colors` : all color palettes used
+#' * `scales` : all scales and scale labels
+#' * `names` : names of various variables
+#' * `all` : load all constants
+#'
+#' @examples
+#' # Load list of color palettes
+#' get.constants("colors");
+#'
+#' # Load scales and names colors
+#' get.constants(c("scales", "names"))
+#'
+#' @export load.constants
+#' @export
+load.constants <- function(subset){
+  # Define colors
+  colors <- list("PDAC.colors" = list("dark3" = "#220829",
+                                      "dark2" = "#450F53",
+                                      "dark1" = "#68167D",
+                                      "main" = "#8A1EA6",
+                                      "light1" = "#A14BB8",
+                                      "light2" = "#B978CA",
+                                      "light3" = "#D0A5DB"),
+                 "CRAD.colors" = list("dark3" = "#081629",
+                                      "dark2" = "#0F2D53",
+                                      "dark1" = "#16437D",
+                                      "main" = "#1E59A6",
+                                      "light1" = "#4B7AB8",
+                                      "light2" = "#789BCA",
+                                      "light3" = "#A5BDDB"),
+                 "SKCM.colors" = list("dark3" = "#252908",
+                                      "dark2" = "#5D6719",
+                                      "dark1" = "#6E7D16",
+                                      "main" = "#92A61E",
+                                      "light1" = "#A8B84B",
+                                      "light2" = "#BECA78",
+                                      "light3" = "#D3DBA5"))
+
+  # Define scales
+  logscale.major <- 10^(-10:10)
+  scales <- list(
+    "logscale.major" = logscale.major,
+    "logscale.major.bp" = 10^(0:9),
+    "logscale.major.bp.labels" = c(sapply(c("bp", "kb", "Mb"),
+                                          function(suf){paste(c(1, 10, 100), suf, sep="")}),
+                                   "1 Gb"),
+    "logscale.demi" = as.numeric(sapply(logscale.major, function(e){c(1, 5)*e})),
+    "logscale.demi.bp" = as.numeric(sapply(10^(0:9), function(e){c(1, 5)*e})),
+    "logscale.demi.bp.labels" = c(paste(c(1, 5, 10, 50, 100, 500), "bp", sep=""),
+                                  paste(c(1, 5, 10, 50, 100, 500), "kb", sep=""),
+                                  paste(c(1, 5, 10, 50, 100, 500), "Mb", sep=""),
+                                  paste(c(1, 5), "Gb", sep="")),
+    "logscale.minor" = as.numeric(sapply(logscale.major, function(e){(1:9)*e}))
+  )
+
+  # Define names
+  rasmod.names <- list(
+    "cancer.names.short" = c("PDAC" = "Pancreatic",
+                             "CRAD" = "Colorectal",
+                             "SKCM" = "Melanoma"),
+    "cancer.names.long" = c("PDAC" = "Pancreatic Adenocarcinoma",
+                            "CRAD" = "Colorectal Adenocarcinoma",
+                            "SKCM" = "Skin Cutaneous Melanoma"),
+    "cohort.names" = c("TCGA" = "The Cancer Genome Atlas",
+                       "PROFILE" = "Dana-Farber Profile")
+  )
+
+  # Assign constants to global environment
+  if(length(intersect(subset, c("colors", "all"))) > 0){
+    for(variable in names(colors)){
+      assign(variable, colors[[variable]], envir=.GlobalEnv)
+    }
+  }
+  if(length(intersect(subset, c("scales", "all"))) > 0){
+    for(variable in names(scales)){
+      assign(variable, scales[[variable]], envir=.GlobalEnv)
+    }
+  }
+  if(length(intersect(subset, c("names", "all"))) > 0){
+    for(variable in names(rasmod.names)){
+      assign(variable, rasmod.names[[variable]], envir=.GlobalEnv)
+    }
+  }
+}
