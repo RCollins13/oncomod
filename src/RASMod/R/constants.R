@@ -11,7 +11,7 @@
 # Constants for RAS modifier project
 
 
-#' Load RAS modifier study constants
+#' Load RAS Modifier Study Constants
 #'
 #' Load a subset of constants for RAS modifier analyses
 #'

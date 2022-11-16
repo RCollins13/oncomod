@@ -2,20 +2,21 @@
 % Please edit documentation in R/io.R
 \name{load.patient.metadata}
 \alias{load.patient.metadata}
-\title{Load patient metadata}
+\title{Load Patient Metadata}
 \usage{
-load.patient.metadata(file, fill.missing = NA)
+load.patient.metadata(file, fill.missing = NA, missing.columns = NULL)
 }
 \arguments{
 \item{file}{Path to input patient metadata .tsv}
 
 \item{fill.missing}{Behavior for handling missing values. See \code{Details}. [default: NA]}
 
-\item{fill.columns}{Specify in which columns missing values should be filled.
-See \code{Details}. [default: NULL]}
+\item{fill.columns}{Specify in which columns missing values should be filled.}
+
+\item{See}{\code{Details}. [default: NULL]}
 }
 \value{
-data.frame
+data.frame of patient metadata
 }
 \description{
 Load a standard patient metadata file for a single cohort
@@ -34,7 +35,7 @@ columns with numeric values (e.g., age, BMI, etc.). For non-numeric columns,
 the behavior of \code{fill.missing = "mode"} will always be applied unless \code{fill.missing}
 is set to \code{NA} (the default\).
 
-All columns will be subjected to automated missing value imputation unless \code{fill.columns}
-is also supplied, in which case only the column names passed to \code{fill.columns}
-will be filled.
+All columns will be subjected to automated missing value imputation unless a
+non-\code{NULL} value is supplied to \code{fill.columns}, in which case only the column
+names passed to \code{fill.columns}will be filled.
 }

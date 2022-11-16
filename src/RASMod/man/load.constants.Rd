@@ -2,7 +2,7 @@
 % Please edit documentation in R/constants.R
 \name{load.constants}
 \alias{load.constants}
-\title{Load RAS modifier study constants}
+\title{Load RAS Modifier Study Constants}
 \usage{
 load.constants(subset)
 }

@@ -8,16 +8,17 @@
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
-# Data I/O handlers
+# Data I/O handlers and basic curation/cleaning steps
 
 
-#' Load patient metadata
+#' Load Patient Metadata
 #'
 #' Load a standard patient metadata file for a single cohort
 #'
 #' @param file Path to input patient metadata .tsv
 #' @param fill.missing Behavior for handling missing values. See `Details`. \[default: NA\]
 #' @param fill.columns Specify in which columns missing values should be filled.
+#' @param
 #' See `Details`. \[default: NULL\]
 #'
 #' @details Recognized values for `fill.missing` include:
@@ -41,5 +42,35 @@
 #' @export
 load.patient.metadata <- function(file, fill.missing=NA, missing.columns=NULL){
   # Read contents of file
-  df <- read.table(file, header=T, sep="\t", comment.)
+  df <- read.table(file, header=T, sep="\t", comment.char="",
+                   na.strings=c(".", "<NA>"), check.names=F)
+  colnames(df)[1] <- gsub("#", "", colnames(df)[1], fixed=T)
+
+  # Fill missing values, if optioned
+  if(!is.na(fill.missing)){
+    categorical.action <- RASMod::mode
+    if(fill.missing == "mean"){
+      numeric.action <- mean
+    }else if(fill.missing == "median"){
+      numeric.action <- median
+    }else if(fill.missing == "mode"){
+      numeric.action <- mode
+    }
+
+    if(is.null(missing.columns)){
+      missing.columns <- colnames(df)[-1]
+    }
+    for(col in missing.columns){
+      na.idxs <- which(is.na(df[, col]))
+      if(length(na.idxs) > 0 & length(na.idxs) < nrow(df)){
+        if(is.numeric(df[, col])){
+          col[na.idxs] <- numeric.action(df[-na.idxs, col])
+        }else{
+          col[na.idxs] <- categorical.action(df[-na.idxs, col], break.ties="first")
+        }
+      }
+    }
+  }
+
+  return(df)
 }
