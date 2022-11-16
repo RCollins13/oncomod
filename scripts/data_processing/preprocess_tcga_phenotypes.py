@@ -63,6 +63,11 @@ def load_clinical(cdr_in, tcga_study_table_in, bmi_in, id_map):
     main_df['PRIMARY_CANCER_DIAGNOSIS'] = main_df.type.map(study_map)
     bmi_df = pd.read_csv(bmi_in, sep='\t', header=None)
     bmi_df[0] = bmi_df[0].apply(_parse_donor)
+    # Assume any BMIs > 100 were miscoded by a single decimal
+    # In practice, we only found a single instance where this was the case
+    # (BMI reported as 271, when 27.1 would be a perfectly reasonable value)
+    bad_bmis = bmi_df[1] > 100
+    bmi_df.loc[bad_bmis, 1] = bmi_df.loc[bad_bmis, 1] / 10 
     bmi_map = bmi_df.set_index(0, drop=True).to_dict()[1]
     main_df['BMI'] = main_df.bcr_patient_barcode.map(bmi_map)
 
