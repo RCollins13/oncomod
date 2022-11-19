@@ -99,10 +99,10 @@ if(is.null(args$cohort_name)){
 }
 out.prefix <- args$out_prefix
 
-# Dev
-meta.in <- c("TCGA" = "~/scratch/TCGA.ALL.sample_metadata.tsv.gz",
-             "DFCI" = "~/scratch/PROFILE.ALL.sample_metadata.tsv.gz")
-out.prefix <- "~/scratch/rasmod.test"
+# # Dev
+# meta.in <- c("TCGA" = "~/scratch/TCGA.ALL.sample_metadata.tsv.gz",
+#              "DFCI" = "~/scratch/PROFILE.ALL.sample_metadata.tsv.gz")
+# out.prefix <- "~/scratch/rasmod.test"
 
 # Load metadata
 meta <- lapply(meta.in, load.patient.metadata)
