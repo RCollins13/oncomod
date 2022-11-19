@@ -11,9 +11,8 @@ load.patient.metadata(file, fill.missing = NA, missing.columns = NULL)
 
 \item{fill.missing}{Behavior for handling missing values. See \code{Details}. [default: NA]}
 
-\item{fill.columns}{Specify in which columns missing values should be filled.}
-
-\item{See}{\code{Details}. [default: NULL]}
+\item{fill.columns}{Specify in which columns missing values should be filled.
+See \code{Details}. [default: NULL]}
 }
 \value{
 data.frame of patient metadata

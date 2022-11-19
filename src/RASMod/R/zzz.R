@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env R
 
 ###############################
 #    RAS Modifiers Project    #
@@ -14,6 +14,6 @@
   options(scipen=1000, stringsAsFactors=F, family="sans")
 }
 
-.onAttach <- function(libname, pkgname){
-  load.constants("all")
-}
+# .onAttach <- function(libname, pkgname){
+#   load.constants("all")
+# }

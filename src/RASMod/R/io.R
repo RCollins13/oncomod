@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env R
 
 ###############################
 #    RAS Modifiers Project    #
@@ -18,7 +18,6 @@
 #' @param file Path to input patient metadata .tsv
 #' @param fill.missing Behavior for handling missing values. See `Details`. \[default: NA\]
 #' @param fill.columns Specify in which columns missing values should be filled.
-#' @param
 #' See `Details`. \[default: NULL\]
 #'
 #' @details Recognized values for `fill.missing` include:
@@ -43,7 +42,7 @@
 load.patient.metadata <- function(file, fill.missing=NA, missing.columns=NULL){
   # Read contents of file
   df <- read.table(file, header=T, sep="\t", comment.char="",
-                   na.strings=c(".", "<NA>"), check.names=F)
+                   quote='"', na.strings=c(".", "<NA>"), check.names=F)
   colnames(df)[1] <- gsub("#", "", colnames(df)[1], fixed=T)
 
   # Fill missing values, if optioned
