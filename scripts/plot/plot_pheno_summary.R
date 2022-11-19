@@ -20,11 +20,6 @@ require(argparse, quietly=TRUE)
 RASMod::load.constants("all")
 
 
-##################
-# Data functions #
-##################
-
-
 ######################
 # Plotting functions #
 ######################
@@ -106,6 +101,7 @@ out.prefix <- args$out_prefix
 
 # Load metadata
 meta <- lapply(meta.in, load.patient.metadata)
+meta <- lapply(meta, function(df){df$APPROX_STAGE[which(df$APPROX_STAGE == 0)] <- NA; return(df)})
 
 
 #####################

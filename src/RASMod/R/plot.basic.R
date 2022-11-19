@@ -138,6 +138,7 @@ scaled.bars <- function(values, colors, group.names=NULL, sep.wex=0.05,
     stop("Names of 'colors' must cover all values of 'values'")
   }
   colors <- colors[which(names(colors) %in% elig.vals)]
+  legend.names <- legend.names[which(names(legend.names) %in% elig.vals)]
   if(is.null(group.names)){
     group.names <- names(values)
   }
