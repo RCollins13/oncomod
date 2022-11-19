@@ -187,6 +187,11 @@ def add_health_history(main_df, hx_csv):
     hx_df = hx_df.sort_values('D_START_DT').drop_duplicates('DFCI_MRN', keep='first')
     
     # Extract BMI values
+    # Assume any BMIs > 100 were miscoded by a single decimal
+    # In practice, we only found two instances where this was the case
+    # (BMIs reported as 156 and 137, when 15.6 and 13.7 are more reasonable values)
+    bad_bmi = hx_df[hx_df.HEALTH_HISTORY_TYPE == 'BMI'].RESULTS.astype(float) > 100
+    hx_df.loc[bad_bmi, 'RESULTS'] = hx_df.loc[bad_bmi, 'RESULTS'].astype(float) / 10
     bmi_map = hx_df[hx_df.HEALTH_HISTORY_TYPE == 'BMI'].set_index('DFCI_MRN').RESULTS.to_dict()
     bmi_map = {k : float(v) for k, v in bmi_map.items()}
     main_df['BMI'] = main_df.DFCI_MRN.map(bmi_map)

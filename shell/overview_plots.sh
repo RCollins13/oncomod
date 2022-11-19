@@ -30,9 +30,14 @@ done
 
 
 ### Ensure most recent version of RASMod R package is installed from source
-Rscript -e "install.packages('$CODEDIR/src/RASMod_0.1.tar.gz', type='source', repos=NULL)"
+Rscript -e "install.packages('$CODEDIR/src/RASMod_0.1.tar.gz', \
+                             lib='~/R/x86_64-pc-linux-gnu-library/3.6', \
+                             type='source', repos=NULL)"
 
 
 ### Plot patient metadata summaries
-$CODEDIR
+$CODEDIR/scripts/plot/plot_pheno_summary.R \
+  --cohort-name TCGA --metadata $TCGADIR/data/sample_info/TCGA.ALL.sample_metadata.tsv.gz \
+  --cohort-name DFCI --metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
+  --out-prefix $WRKDIR/plots/overview/cohort_summary
 
