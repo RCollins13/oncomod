@@ -64,6 +64,8 @@ def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None):
     genomic_df = pd.read_csv(genomic_csv, sep=',', low_memory=False, 
                              usecols=genomic_cols_to_keep.split())
     genomic_df.rename(columns={'SAMPLE_ACCESSION_NBR' : 'BL_ID'}, inplace=True)
+    genomic_df.loc[genomic_df.TUMOR_PURITY < 0, 'TUMOR_PURITY'] = pd.NA
+    genomic_df.TUMOR_PURITY = genomic_df.TUMOR_PURITY / 100
 
     # Load all ID mappings
     id_cols_to_keep = 'DFCI_MRN SAMPLE_ACCESSION_NBR PBP'

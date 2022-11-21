@@ -94,6 +94,9 @@ load.constants <- function(subset){
     "cancer.colors" = c("PDAC" = PDAC.colors[["main"]],
                         "CRAD" = CRAD.colors[["main"]],
                         "SKCM" = SKCM.colors[["main"]]),
+    "cancer.palettes" = list("PDAC" = PDAC.colors,
+                             "CRAD" = CRAD.colors,
+                             "SKCM" = SKCM.colors),
     "PDAC.colors" = PDAC.colors,
     "CRAD.colors" = CRAD.colors,
     "SKCM.colors" = SKCM.colors,
@@ -115,7 +118,9 @@ load.constants <- function(subset){
                        "1" = "#F8FAA7",
                        "2" = "#FFCC66",
                        "3" = "#FE8002",
-                       "4" = "#ED3823"))
+                       "4" = "#ED3823"),
+    "cohort.color.prefixes" = c("TCGA" = "light1",
+                                "DFCI" = "dark1"))
 
   # Define scales
   logscale.major <- 10^(-10:10)
@@ -143,9 +148,9 @@ load.constants <- function(subset){
                             "CRAD" = "Colorectal Adenocarcinoma",
                             "SKCM" = "Skin Cutaneous Melanoma"),
     "cohort.names.long" = c("TCGA" = "The Cancer Genome Atlas",
-                            "PROFILE" = "Dana-Farber Profile"),
+                            "DFCI" = "Dana-Farber PROFILE"),
     "cohort.names.short" = c("TCGA" = "TCGA",
-                             "PROFILE" = "DFCI"),
+                             "DFCI" = "DFCI"),
     "pop.names.short" = c("AFR" = "African",
                           "AMR" = "American",
                           "EAS" = "E. Asian",
@@ -179,4 +184,26 @@ load.constants <- function(subset){
       assign(variable, all.names[[variable]], envir=.GlobalEnv)
     }
   }
+}
+
+
+#' Get Multi-Cohort Color Palette
+#'
+#' Extract color shades from an existing palette corresponding to specific cohort labels
+#'
+#' @param palette Palette of colors to be sampled
+#' @param cohorts Character vector of cohorts to extract
+#'
+#' @examples
+#' load.constants("colors")
+#' get.cohort.palette(PDAC.colors, c("DFCI", "TCGA"))
+#'
+#' @seealso [RASMod::load.constants]
+#'
+#' @export get.cohort.palette
+#' @export
+get.cohort.palette <- function(palette, cohorts){
+  newPal <- sapply(cohorts, function(cohort){
+    palette[[cohort.color.prefixes[[cohort]]]]
+  })
 }

@@ -169,5 +169,24 @@ sapply(cancer.types, function(cancer){
   scaled.bars(lapply(meta.sub, function(df){df$APPROX_STAGE}),
               colors=stage.colors, legend.names=stage.names, title="Stage")
   dev.off()
+
+  # Plot distribution of age-at-diagnosis per cohort
+  pdf(paste(sub.prefix, cancer, "age_at_dx_by_cohort.swarm.pdf", sep="."),
+      height=3, width=2.75)
+  scaled.swarm(lapply(meta.sub, function(df){df$AGE_AT_DIAGNOSIS}),
+               colors=get.cohort.palette(cancer.palettes[[cancer]], names(meta.sub)),
+               y.title="Age at Diagnosis (Years)")
+  dev.off()
+
+  # Plot distribution of tumor purity per cohort
+  pdf(paste(sub.prefix, cancer, "purity_by_cohort.swarm.pdf", sep="."),
+      height=3, width=3)
+  scaled.swarm(lapply(meta.sub, function(df){df$TUMOR_PURITY}),
+               colors=get.cohort.palette(cancer.palettes[[cancer]], names(meta.sub)),
+               y.title="Tumor Purity", y.title.line=1,
+               y.axis.at=seq(0, 1, 0.25),
+               y.axis.labels=paste(seq(0, 100, 25), "%"),
+               parmar=c(1, 3, 0.25, 0.25))
+  dev.off()
 })
 

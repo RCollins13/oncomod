@@ -39,13 +39,13 @@ prep.plot.area <- function(xlims, ylims, parmar, xaxs="i", yaxs="i"){
 #' Print a clean axis using visually pleasing defaults
 #'
 #' @param side Value passed to `axis()`. See `?axis` for details.
-#' @param at Positions where axis ticks should be plotted \[default: `axTicks(1)`\]
+#' @param at Positions where axis ticks should be plotted \[default: `axTicks(side)`\]
 #' @param labels Labels for axis ticks \[default: values of `at`\]
 #' @param title Axis title
 #' @param tck Value passed to `axis()`. See `?axis` for details. \[default: -0.025\]
 #' @param cex.axis Value passed to `axis()`. See `?axis` for details. \[default: 5/6\]
 #' @param label.line `line` parameter for axis labels \[default: -0.65\]
-#' @param title.line `line` parameter for axis title
+#' @param title.line `line` parameter for axis title \[default: 0.5 and 1 for X and Y axes, respectively\]
 #' @param infinite Indicator for the axis to be extended infinitely (without ticks) \[default: FALSE\]
 #'
 #' @returns NULL
@@ -60,14 +60,23 @@ clean.axis <- function(side, at=NULL, labels=NULL, title=NULL, tck=-0.025,
   if(is.null(labels)){labels <- at}
   if(side %in% c(2, 4)){
     las <- 2
-    title.line <- 1
+    if(is.null(title.line)){
+      title.line <- 1
+    }
   }else{
     las <- 1
-    title.line <- 0.5
+    if(is.null(title.line)){
+      title.line <- 0.5
+    }
   }
   axis(side, at=at, labels=NA, tck=tck)
   sapply(1:length(at), function(i){
-    axis(side, at=at[i], labels=labels[i], tick=F, cex.axis=cex.axis,
+    if(is.numeric(labels[i])){
+      label <- prettyNum(labels[i], big.mark=",")
+    }else{
+      label <- labels[i]
+    }
+    axis(side, at=at[i], labels=label, tick=F, cex.axis=cex.axis,
          las=las, line=label.line)
   })
   axis(side, at=mean(at), tick=F, labels=title, line=title.line)
@@ -107,7 +116,6 @@ yaxis.legend <- function(legend.names, x, y.positions, sep.wex,
 }
 
 
-
 #' Scale-Aware Barplot Cluster
 #'
 #' Plot a set of stacked barplots scaled proportional to set size
@@ -115,7 +123,7 @@ yaxis.legend <- function(legend.names, x, y.positions, sep.wex,
 #' @param values List of character vectors of values to plot
 #' @param colors Named vector of colors to map to `values`
 #' @param group.names (Optional) group names to assign to each list element in `values`
-#' @param sep.cex Relative width scalar for whitespace on the X-axis
+#' @param sep.wex Relative width scalar for whitespace on the X-axis
 #' between groups \[default: 0.05\]
 #' @param title (Optional) title to be printed in top-right corner
 #' @param legend Should a legend be plotted?
@@ -125,6 +133,8 @@ yaxis.legend <- function(legend.names, x, y.positions, sep.wex,
 #' @details If `values` is supplied as a named list, those names will be used as
 #' `group.names` unless `group.names` is explicitly specified. Otherwise, `group.names`
 #' will be set to the ordinal value of each group in `values`.
+#'
+#' @seealso [RASMod::scaled.swarm], [RASMod::clean.axis]
 #'
 #' @export scaled.bars
 #' @export
@@ -169,10 +179,8 @@ scaled.bars <- function(values, colors, group.names=NULL, sep.wex=0.05,
   axis(1, at=x.axis.at, line=-1, tick=F, labels=group.names, xpd=T)
 
   # Add Y axis
-  y.ax.at <- seq(0, 1, 0.25)
-  axis(2, at=y.ax.at, tck=-0.025, labels=NA)
-  axis(2, at=y.ax.at, tick=F, las=2, cex.axis=5/6, line=-0.7,
-       labels=rev(paste(100*y.ax.at, "%", sep="")))
+  clean.axis(2, at=seq(0, 1, 0.25), labels=rev(paste(seq(0, 100, 25), "%", sep="")),
+             cex.axis=5/6, infinite=FALSE, label.line=-0.7)
 
   # Add top scale bar
   scale.k <- floor(log10(sum(group.size)))
@@ -213,6 +221,97 @@ scaled.bars <- function(values, colors, group.names=NULL, sep.wex=0.05,
          ybottom=c(0, cumpct.df[-n.elig.vals, i]), ytop=cumpct.df[, i],
          col=colors, border=NA, bty="n")
     rect(xleft=group.lefts[i], xright=group.rights[i], ybottom=0, ytop=1, col=NA, xpd=T)
+  })
+}
+
+
+#' Scale-Aware Beeswarm Cluster
+#'
+#' Plot a set of beeswarm distributions scaled proportional to set size
+#'
+#' @param values List of numeric vectors of values to plot
+#' @param colors Vector of colors for the list elements in `values`
+#' @param group.names (Optional) group names to assign to each list element in `values`
+#' @param sep.wex Relative width scalar for whitespace on the X-axis
+#' between groups \[default: 0.05\]
+#' @param pch Value passed to `beeswarm`
+#' @param pt.cex Value of `cex` passed to `beeswarm`
+#' @param y.title Title of Y-axis
+#' @param y.title.line Value of `line` for `y.title`
+#' @param y.axis.at Custom Y-axis tick positions, if desired
+#' @param y.axis.labels Custom Y-axis tick labels, if desired
+#' @param parmar Margin values passed to par()
+#'
+#' @details If `values` is supplied as a named list, those names will be used as
+#' `group.names` unless `group.names` is explicitly specified. Otherwise, `group.names`
+#' will be set to the ordinal value of each group in `values`.
+#'
+#' @seealso [RASMod::scaled.bars], [RASMod::clean.axis]
+#'
+#' @export scaled.swarm
+#' @export
+scaled.swarm <- function(values, colors, group.names=NULL, sep.wex=0.05,
+                         pch=19, pt.cex=0.2, y.title=NULL, y.title.line=0.5,
+                         y.axis.at=NULL, y.axis.labels=NULL,
+                         parmar=c(1, 2.5, 0.25, 0.25)){
+  # Summarize plotting data
+  values <- lapply(values, function(v){as.numeric(v[!is.na(v)])})
+  if(is.null(group.names)){
+    group.names <- names(values)
+  }
+  drop.groups <- sapply(values, length) == 0
+  if(any(drop.groups)){
+    drop.group.idx <- which(drop.groups)
+    values <- values[-drop.group.idx]
+    colors <- colors[-drop.group.idx]
+    group.names <- group.names[-drop.group.idx]
+  }
+  n.groups <- length(values)
+  group.size <- sapply(values, length)
+
+  # Get plot dimensions
+  group.widths <- group.size / sum(group.size)
+  group.lefts <- c(0, group.widths[-n.groups]) + (sep.wex * (0:(n.groups-1)))
+  group.rights <- group.widths + group.lefts
+  group.mids <- (group.lefts + group.rights) / 2
+  xlims <- c(-sep.wex, max(group.rights))
+  ylims <- range(unlist(values), na.rm=T)
+
+  # Prep plot area
+  prep.plot.area(xlims, ylims, parmar, xaxs="r", yaxs="r")
+
+  # Add X axis
+  x.axis.at <- smart.spacing(group.mids, min.dist=0.15)
+  axis(1, at=x.axis.at, line=-1, tick=F, labels=group.names, xpd=T)
+
+  # Add Y axis
+  clean.axis(2, at=y.axis.at, labels=y.axis.labels,
+             cex.axis=5/6, infinite=TRUE, label.line=-0.7,
+             title.line=y.title.line, title=y.title)
+
+  # Add boxplots and swarms
+  sapply(1:n.groups, function(i){
+    if(length(values[[i]] > 0)){
+      box.buffer <- min(group.widths[i] / 8, sep.wex / 2)
+      metrics <- summary(values[[i]])
+      box.x <- (group.lefts + group.mids)[i]/2
+      q1q3 <- metrics[c("1st Qu.", "3rd Qu.")]
+      segments(x0=box.x, x1=box.x,
+               y0=max(metrics["Min."], q1q3[1] - (1.5 * diff(q1q3))),
+               y1=min(metrics["Max."], q1q3[2] + (1.5 * diff(q1q3))),
+               lwd=3, lend="butt", col=colors[i])
+      rect(xleft=group.lefts[i] + box.buffer,
+           xright=group.mids[i] - box.buffer,
+           ybottom=q1q3[1], ytop=q1q3[2],
+           border=NA, bty="n", col=colors[i])
+      segments(x0=group.lefts[i],  x1=group.mids[i],
+               y0=metrics["Median"], y1=metrics["Median"],
+               col="white", lend="butt", lwd=1.5)
+      beeswarm(values[[i]], at=group.mids[i], side=1,
+               pch=pch, cex=pt.cex, col=colors[i],
+               corral="wrap", corralWidth=group.widths[i]/2,
+               method="swarm", priority="density", add=T)
+    }
   })
 }
 

@@ -19,7 +19,7 @@ clean.axis(
 \arguments{
 \item{side}{Value passed to \code{axis()}. See \code{?axis} for details.}
 
-\item{at}{Positions where axis ticks should be plotted [default: \code{axTicks(1)}]}
+\item{at}{Positions where axis ticks should be plotted [default: \code{axTicks(side)}]}
 
 \item{labels}{Labels for axis ticks [default: values of \code{at}]}
 
@@ -31,7 +31,7 @@ clean.axis(
 
 \item{label.line}{\code{line} parameter for axis labels [default: -0.65]}
 
-\item{title.line}{\code{line} parameter for axis title}
+\item{title.line}{\code{line} parameter for axis title [default: 0.5 and 1 for X and Y axes, respectively]}
 
 \item{infinite}{Indicator for the axis to be extended infinitely (without ticks) [default: FALSE]}
 }

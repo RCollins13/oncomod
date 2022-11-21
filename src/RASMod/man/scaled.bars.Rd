@@ -22,6 +22,9 @@ scaled.bars(
 
 \item{group.names}{(Optional) group names to assign to each list element in \code{values}}
 
+\item{sep.wex}{Relative width scalar for whitespace on the X-axis
+between groups [default: 0.05]}
+
 \item{title}{(Optional) title to be printed in top-right corner}
 
 \item{legend}{Should a legend be plotted?}
@@ -29,9 +32,6 @@ scaled.bars(
 \item{legend.names}{(Optional) mapping of \code{values} to labels for legend}
 
 \item{parmar}{Margin values passed to par()}
-
-\item{sep.cex}{Relative width scalar for whitespace on the X-axis
-between groups [default: 0.05]}
 }
 \description{
 Plot a set of stacked barplots scaled proportional to set size
@@ -40,4 +40,7 @@ Plot a set of stacked barplots scaled proportional to set size
 If \code{values} is supplied as a named list, those names will be used as
 \code{group.names} unless \code{group.names} is explicitly specified. Otherwise, \code{group.names}
 will be set to the ordinal value of each group in \code{values}.
+}
+\seealso{
+\link{scaled.swarm}, \link{clean.axis}
 }
