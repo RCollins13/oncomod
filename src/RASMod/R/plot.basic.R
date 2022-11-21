@@ -254,6 +254,9 @@ scaled.swarm <- function(values, colors, group.names=NULL, sep.wex=0.05,
                          pch=19, pt.cex=0.2, y.title=NULL, y.title.line=0.5,
                          y.axis.at=NULL, y.axis.labels=NULL,
                          parmar=c(1, 2.5, 0.25, 0.25)){
+  # Ensure beeswarm library is loaded
+  require(beeswarm, quietly=TRUE)
+
   # Summarize plotting data
   values <- lapply(values, function(v){as.numeric(v[!is.na(v)])})
   if(is.null(group.names)){
