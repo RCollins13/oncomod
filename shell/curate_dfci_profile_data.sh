@@ -35,7 +35,7 @@ done
 tabix -H $GTDIR/PROFILE_COMB.22.HQ.vcf.gz \
 | fgrep -v "##" | cut -f10- | sed 's/\t/\n/g' \
 > $WRKDIR/data/sample_info/PROFILE.vcf.samples.list
-# Get list of patients from cancer types of interest
+# Curate EHR and get list of patients from cancer types of interest
 $CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
   --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab \
   --genomic-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_SPECIMEN.csv.gz \

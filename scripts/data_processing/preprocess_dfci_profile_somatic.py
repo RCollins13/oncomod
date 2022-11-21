@@ -43,7 +43,7 @@ def load_mutation_data(mutation_csv, id_map):
                    'CANONICAL_VARIANT_CLASS HARMONIZED_VARIANT_CLASS CANONICAL_EXON ' + \
                    'CANONICAL_ENSEMBL_TSCP_ID CANONICAL_REF_SEQ_TSCP_ID ' + \
                    'HARMONIZED_TRANSCRIPT_ID PATHOLOGIST_PATHOGENICITY ' + \
-                   'ALLELE_FRACTION COVERAGE MAX_GNOMAD_FREQUENCY TUMOR_PURITY ' + \
+                   'ALLELE_FRACTION COVERAGE MAX_GNOMAD_FREQUENCY ' + \
                    'TEST_TYPE PANEL_VERSION'
     mut_df = pd.read_csv(mutation_csv, sep=',', usecols=cols_to_keep.split(), 
                          low_memory=False)
@@ -67,7 +67,7 @@ def add_cna_data(cna_csv, mut_df, id_map, genes_gtf=None):
     """
 
     cols_to_keep = 'GENE CNV_TYPE_CD COPY_COUNT CNV_CALL_ID SAMPLE_ACCESSION_NBR ' + \
-                    'HARMONIZED_HUGO_GENE_NAME TUMOR_PURITY TEST_TYPE PANEL_VERSION'
+                    'HARMONIZED_HUGO_GENE_NAME TEST_TYPE PANEL_VERSION'
     cna_df = pd.read_csv(cna_csv, sep=',', usecols=cols_to_keep.split())
 
     # Remap IDs and drop to samples of interest

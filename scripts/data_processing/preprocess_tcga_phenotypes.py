@@ -95,6 +95,21 @@ def add_ancestry_info(main_df, ancestry_in, pcs_in, id_map):
     return main_df
 
 
+def add_purity(main_df, purity_tsv):
+    """
+    Add tumor purity info
+    """
+
+    # Append purity data
+    purity_df = pd.read_csv(purity_tsv, sep='\t', header=0)
+    purity_df['Sample ID'] = purity_df['Sample ID'].apply(_parse_donor)
+    purity_map = purity_df.set_index('Sample ID', drop=True).to_dict()['CPE']
+    main_df['TUMOR_PURITY'] = main_df.bcr_patient_barcode.map(purity_map)
+
+    return main_df
+
+
+
 def clean_output_df(main_df):
     """
     Clean up main patient data frame before writing to output file
@@ -121,7 +136,7 @@ def clean_output_df(main_df):
                 'AJCC_STAGE APPROX_STAGE DIAGNOSIS_DATE AGE_AT_DIAGNOSIS ' + \
                 'DIAGNOSIS_YEAR IS_ALIVE LAST_ALIVE_DATE DAYS_SURVIVED ' + \
                 'CAUSE_OF_DEATH PC1 PC2 PC3 PC4 PC5 PC6 PC7 PC8 PC9 PC10 ' + \
-                'BIOPSY_SITE BIOPSY_SITE_TYPE'
+                'BIOPSY_SITE BIOPSY_SITE_TYPE TUMOR_PURITY'
     sort_cols = 'CANCER_TYPE AGE_AT_DIAGNOSIS POPULATION'
 
     return main_df[col_order.split()].sort_values(sort_cols.split())
@@ -140,6 +155,7 @@ def main():
     parser.add_argument('--bmi-tsv', help='TCGA BMI .tsv', required=True)
     parser.add_argument('--ancestry-tsv', help='Ancestry .tsv', required=True)
     parser.add_argument('--pcs-txt', help='Principal components .txt', required=True)
+    parser.add_argument('--purity-tsv', help='Tumor purity .tsv', required=True)
     parser.add_argument('--out-prefix', help='Prefix for output files', required=True)
     args = parser.parse_args()
 
@@ -152,6 +168,9 @@ def main():
 
     # Add ancestry information
     main_df = add_ancestry_info(main_df, args.ancestry_tsv, args.pcs_txt, id_map)
+
+    # Add tumor purity
+    main_df = add_purity(main_df, args.purity_tsv)
 
     # Clean up output dataframe
     main_df = clean_output_df(main_df)

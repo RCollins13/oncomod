@@ -18,7 +18,7 @@ from harmonize_tcga_samples import _parse_donor
 from sys import stdout
 
 
-def load_mutation_data(mc3_tsv, donors, purity_tsv, key_genes=None):
+def load_mutation_data(mc3_tsv, donors, key_genes=None):
     """
     Load & curate mutation data for donors of interest
     """
@@ -52,12 +52,6 @@ def load_mutation_data(mc3_tsv, donors, purity_tsv, key_genes=None):
         mut_df = mut_df.loc[mut_df.Hugo_Symbol.isin(key_genes) | \
                             mut_df.SYMBOL.isin(key_genes)]
 
-    # Append purity data
-    purity_df = pd.read_csv(purity_tsv, sep='\t', header=0)
-    purity_df['Sample ID'] = purity_df['Sample ID'].apply(_parse_donor)
-    purity_map = purity_df.set_index('Sample ID', drop=True).to_dict()['CPE']
-    mut_df['TUMOR_PURITY'] = mut_df.DONOR_ID.map(purity_map)
-
     # Remap column names
     mut_df.rename(columns={'Chromosome' : 'CHROMOSOME',
                            'Start_Position' : 'POSITION',
@@ -88,10 +82,10 @@ def load_mutation_data(mc3_tsv, donors, purity_tsv, key_genes=None):
                 'HARMONIZED_TRANSCRIPT_ID PATHOLOGIST_PATHOGENICITY ALLELE_FRACTION ' + \
                 'COVERAGE MAX_GNOMAD_FREQUENCY TUMOR_PURITY TEST_TYPE PANEL_VERSION'
     
-    return mut_df.sort_values('CHROMOSOME POSITION'.split())[col_order.split()], purity_map
+    return mut_df.sort_values('CHROMOSOME POSITION'.split())[col_order.split()]
 
 
-def add_cna_data(mut_df, cna_bed, genes_gtf, donors, purity_map, key_genes=None):
+def add_cna_data(mut_df, cna_bed, genes_gtf, donors, key_genes=None):
     """
     Load CNA data, transform to gene-level results, and merge with mut_df
     """
@@ -137,7 +131,6 @@ def add_cna_data(mut_df, cna_bed, genes_gtf, donors, purity_map, key_genes=None)
               'COVERAGE MAX_GNOMAD_FREQUENCY PANEL_VERSION'
     for colname in na_cols.split():
         hit_df[colname] = pd.NA
-    hit_df['TUMOR_PURITY'] = hit_df.DONOR_ID.map(purity_map)
     hit_df['TEST_TYPE'] = 'AFFY_SNP_6.0'
     
     # Add CNA data to mut_df, sort by position, and return
@@ -157,7 +150,6 @@ def main():
     parser.add_argument('--mc3-tsv', help='Somatic mutation .tsv', required=True)
     parser.add_argument('--cna-bed', help='Copy number alteration .bed', required=True)
     parser.add_argument('--donors-list', help='List of donors to evaluate', required=True)
-    parser.add_argument('--purity-tsv', help='Tumor purity .tsv', required=True)
     parser.add_argument('--genes-gtf', help='.gtf of gene annotations', required=True)
     parser.add_argument('--priority-genes', help='If provided, will subset all data ' + 
                         'to only variants in these genes [default: keep all genes]')
@@ -177,12 +169,10 @@ def main():
         key_genes = None
 
     # Load mutation data and subset to samples of interest
-    mut_df, purity_map = load_mutation_data(args.mc3_tsv, donors, 
-                                            args.purity_tsv, key_genes)
+    mut_df = load_mutation_data(args.mc3_tsv, donors, key_genes)
     
     # Add CNA data to mut_df
-    mut_df = add_cna_data(mut_df, args.cna_bed, args.genes_gtf, donors, 
-                          purity_map, key_genes)
+    mut_df = add_cna_data(mut_df, args.cna_bed, args.genes_gtf, donors, key_genes)
     
     # Write somatic mutation data to output file
     if args.outfile in '- stdout'.split():

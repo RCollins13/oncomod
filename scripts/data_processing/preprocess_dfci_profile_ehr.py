@@ -59,7 +59,8 @@ def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None):
 
     # Load genomic information
     genomic_cols_to_keep = 'DFCI_MRN SAMPLE_ACCESSION_NBR PRIMARY_CANCER_DIAGNOSIS ' + \
-                           'BIOPSY_SITE BIOPSY_SITE_TYPE PANEL_VERSION CANCER_TYPE'
+                           'BIOPSY_SITE BIOPSY_SITE_TYPE PANEL_VERSION CANCER_TYPE ' + \
+                           'TUMOR_PURITY'
     genomic_df = pd.read_csv(genomic_csv, sep=',', low_memory=False, 
                              usecols=genomic_cols_to_keep.split())
     genomic_df.rename(columns={'SAMPLE_ACCESSION_NBR' : 'BL_ID'}, inplace=True)
@@ -249,7 +250,7 @@ def clean_output_df(main_df):
                 'AJCC_STAGE APPROX_STAGE DIAGNOSIS_DATE AGE_AT_DIAGNOSIS ' + \
                 'DIAGNOSIS_YEAR IS_ALIVE LAST_ALIVE_DATE DAYS_SURVIVED ' + \
                 'CAUSE_OF_DEATH PC1 PC2 PC3 PC4 PC5 PC6 PC7 PC8 PC9 PC10 ' + \
-                'BIOPSY_SITE BIOPSY_SITE_TYPE'
+                'BIOPSY_SITE BIOPSY_SITE_TYPE TUMOR_PURITY'
     sort_cols = 'CANCER_TYPE AGE_AT_DIAGNOSIS POPULATION'
 
     return main_df[col_order.split()].sort_values(sort_cols.split())

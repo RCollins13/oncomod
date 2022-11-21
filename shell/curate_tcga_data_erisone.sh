@@ -115,6 +115,7 @@ $CODEDIR/scripts/data_processing/preprocess_tcga_phenotypes.py \
   --bmi-tsv $WRKDIR/data/sample_info/TCGA_BMI/TCGA.BMI.tsv.gz \
   --ancestry-tsv $WRKDIR/data/TCGA.ancestry.tsv.gz \
   --pcs-txt $GTDIR/TCGA.COMBINED.QC.NORMAL.eigenvec \
+  --purity-tsv $WRKDIR/data/TCGA.tumor_purity.Aran_2015.tsv.gz \
   --out-prefix $WRKDIR/data/sample_info/TCGA.
 
 
@@ -257,7 +258,6 @@ $CODEDIR/scripts/data_processing/preprocess_tcga_somatic.py \
   --mc3-tsv $WRKDIR/data/mc3.v0.2.8.PUBLIC.SKCM_PDAC_CRAD.maf.gz \
   --cna-bed $WRKDIR/data/TCGA.CNA.b19.bed.gz \
   --donors-list $WRKDIR/data/sample_info/TCGA.ALL.donors.list \
-  --purity-tsv $WRKDIR/data/TCGA.tumor_purity.Aran_2015.tsv.gz \
   --genes-gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
   --priority-genes $WRKDIR/../refs/COSMIC.all_GCG.Nov8_2022.genes.list \
   --outfile $WRKDIR/data/TCGA.somatic_variants.tsv.gz
