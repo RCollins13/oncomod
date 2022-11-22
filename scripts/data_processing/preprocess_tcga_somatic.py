@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import pybedtools as pbt
 from harmonize_tcga_samples import _parse_donor
+from somatic_df_to_vcf import mutdf_to_vcf
 from sys import stdout
 
 
@@ -43,6 +44,7 @@ def load_mutation_data(mc3_tsv, donors, key_genes=None):
     for col in na_cols.split():
         mut_df[col] = pd.NA
     mut_df['CANONICAL_EXON'] = mut_df.EXON.astype(str).apply(lambda x: x.split('/')[0])
+    mut_df['END'] = pd.NA
 
     # Subset to PASS variants and donors in donor list
     mut_df = mut_df.loc[mut_df.DONOR_ID.isin(donors) & (mut_df.FILTER == 'PASS'), :]
@@ -73,14 +75,14 @@ def load_mutation_data(mc3_tsv, donors, key_genes=None):
         mut_df['CANONICAL_' + suf] = mut_df['HARMONIZED_' + suf]
 
     # Return data frame sorted by chrom/pos and with reordered columns
-    col_order = 'CHROMOSOME POSITION REF_ALLELE ALT_ALLELE VARIANT_CALL_ID DONOR_ID ' + \
-                'TUMOR_ID CANONICAL_GENE HARMONIZED_HUGO_GENE_NAME ' + \
+    col_order = 'CHROMOSOME POSITION END REF_ALLELE ALT_ALLELE VARIANT_CALL_ID ' + \
+                'DONOR_ID TUMOR_ID CANONICAL_GENE HARMONIZED_HUGO_GENE_NAME ' + \
                 'CANONICAL_PROTEIN_CHANGE HARMONIZED_PROTEIN_CHANGE ' + \
                 'CANONICAL_CDNA_CHANGE HARMONIZED_CDNA_CHANGE ' + \
                 'CANONICAL_VARIANT_CLASS HARMONIZED_VARIANT_CLASS CANONICAL_EXON ' + \
                 'CANONICAL_ENSEMBL_TSCP_ID CANONICAL_REF_SEQ_TSCP_ID ' + \
                 'HARMONIZED_TRANSCRIPT_ID PATHOLOGIST_PATHOGENICITY ALLELE_FRACTION ' + \
-                'COVERAGE MAX_GNOMAD_FREQUENCY TUMOR_PURITY TEST_TYPE PANEL_VERSION'
+                'COVERAGE MAX_GNOMAD_FREQUENCY TEST_TYPE PANEL_VERSION'
     
     return mut_df.sort_values('CHROMOSOME POSITION'.split())[col_order.split()]
 
@@ -115,8 +117,8 @@ def add_cna_data(mut_df, cna_bed, genes_gtf, donors, key_genes=None):
     keep_cols = 'CHROMOSOME cnv TUMOR_ID DONOR_ID gene_start gene_end attrs'
     drop_cols = [k for k in tmp_df_names.split() if k not in keep_cols.split()]
     hit_df.drop(drop_cols, axis=1, inplace=True)
-    hit_df['POSITION'] = \
-        hit_df['gene_start gene_end'.split()].apply(np.nanmean, axis=1).astype(int)
+    hit_df['POSITION'] = hit_df['gene_start'].astype(int)
+    hit_df['END'] = hit_df['gene_end'].astype(int)
     hit_df['REF_ALLELE'] = 'N'
     hit_df['ALT_ALLELE'] = hit_df.cnv.apply(lambda x: '<{}>'.format(x))
     for gcol in 'CANONICAL_GENE HARMONIZED_HUGO_GENE_NAME'.split():
@@ -150,11 +152,15 @@ def main():
     parser.add_argument('--mc3-tsv', help='Somatic mutation .tsv', required=True)
     parser.add_argument('--cna-bed', help='Copy number alteration .bed', required=True)
     parser.add_argument('--donors-list', help='List of donors to evaluate', required=True)
+    parser.add_argument('--no-mutation-data', help='List of donors missing ' +
+                        'mutation data')
+    parser.add_argument('--no-cna-data', help='List of donors missing CNA data')
     parser.add_argument('--genes-gtf', help='.gtf of gene annotations', required=True)
     parser.add_argument('--priority-genes', help='If provided, will subset all data ' + 
                         'to only variants in these genes [default: keep all genes]')
+    parser.add_argument('--header', help='Header to use for output .vcf', required=True)
     parser.add_argument('-o', '--outfile', default='stdout', help='path to somatic ' +
-                        'variation .tsv [default: stdout]')
+                        'variation .vcf [default: stdout]')
     args = parser.parse_args()
 
     # Load donors of interest
@@ -173,14 +179,20 @@ def main():
     
     # Add CNA data to mut_df
     mut_df = add_cna_data(mut_df, args.cna_bed, args.genes_gtf, donors, key_genes)
-    
-    # Write somatic mutation data to output file
-    if args.outfile in '- stdout'.split():
-        fout = stdout
+
+    # Load lists of donors missing mutation and/or CNA data
+    # These samples will be included in the VCF but reported as null GT for all records
+    if args.no_mutation_data is not None:
+        no_mut = [l.rstrip() for l in open(args.no_mutation_data).readlines()]
     else:
-        fout = args.outfile
-    mut_df = mut_df.rename(columns={'CHROMOSOME' : '#CHROMOSOME'})
-    mut_df.to_csv(fout, sep='\t', index=False, na_rep='.')
+        no_mut = []
+    if args.no_cna_data is not None:
+        no_cna = [l.rstrip() for l in open(args.no_cna_data).readlines()]
+    else:
+        no_cna = []
+
+    # Convert mut_df to VCF
+    mutdf_to_vcf(mut_df, set(donors + no_mut + no_cna), args.header, args.outfile)
 
 
 if __name__ == '__main__':

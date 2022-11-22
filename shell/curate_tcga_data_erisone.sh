@@ -255,12 +255,16 @@ cat \
 > $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.list
 # Curate somatic data
 $CODEDIR/scripts/data_processing/preprocess_tcga_somatic.py \
+$TMPDIR/preprocess_tcga_somatic.py \
   --mc3-tsv $WRKDIR/data/mc3.v0.2.8.PUBLIC.SKCM_PDAC_CRAD.maf.gz \
   --cna-bed $WRKDIR/data/TCGA.CNA.b19.bed.gz \
   --donors-list $WRKDIR/data/sample_info/TCGA.ALL.donors.list \
+  --no-mutation-data $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.mc3.list \
+  --no-cna-data $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.cna.list \
   --genes-gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
   --priority-genes $WRKDIR/../refs/COSMIC.all_GCG.Nov8_2022.genes.list \
-  --outfile $WRKDIR/data/TCGA.somatic_variants.tsv.gz
+  --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
+  --outfile $WRKDIR/data/TCGA.somatic_variants.vcf.gz
 
 
 # Summarize somatic variant status by gene & cancer type
