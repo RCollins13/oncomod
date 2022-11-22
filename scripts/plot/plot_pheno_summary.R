@@ -20,6 +20,18 @@ require(argparse, quietly=TRUE)
 RASMod::load.constants("all")
 
 
+##################
+# Data functions #
+##################
+# Create uncorrected survival model for a single cohort
+calc.survival <- function(df){
+  require(survival, quietly=TRUE)
+  dead <- 1 - df$IS_ALIVE
+  time <- df$DAYS_SURVIVED
+  summary(survfit(Surv(time, dead) ~ 0))
+}
+
+
 ######################
 # Plotting functions #
 ######################
@@ -187,6 +199,13 @@ sapply(cancer.types, function(cancer){
                y.axis.at=seq(0, 1, 0.25),
                y.axis.labels=paste(seq(0, 100, 25), "%"),
                parmar=c(1, 3, 0.25, 0.25))
+  dev.off()
+
+  # Plot survival curves for all cohorts
+  pdf(paste(sub.prefix, cancer, "survival_by_cohort.km.pdf", sep="."),
+      height=3, width=3.25)
+  km.curve(lapply(meta.sub, calc.survival),
+           colors=get.cohort.palette(cancer.palettes[[cancer]], names(meta.sub)))
   dev.off()
 })
 

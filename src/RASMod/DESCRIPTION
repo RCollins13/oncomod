@@ -15,4 +15,5 @@ Roxygen: list(markdown = TRUE)
 URL: https://github.com/RCollins13/ras_modifiers
 RoxygenNote: 7.1.2
 Imports: 
-  beeswarm
+  beeswarm,
+  survival

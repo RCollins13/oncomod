@@ -8,112 +8,8 @@
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
-# Basic plotting functions
-
-
-#' Prepare Plot Area
-#'
-#' Prepare a standardized & formatted plot area
-#'
-#' @param xlims Range of values for X axis
-#' @param ylims Range of values for Y axis
-#' @param parmar Margin values passed to par()
-#' @param xaxs Value of `xaxs` passed to plot()
-#' @param yaxs Value of `yaxs` passed to plot()
-#'
-#' @examples
-#' prep.plot.area(xlims=c(0, 5), ylims=(-10, 10), parmar=rep(3, 4));
-#'
-#' @export prep.plot.area
-#' @export
-prep.plot.area <- function(xlims, ylims, parmar, xaxs="i", yaxs="i"){
-  par(mar=parmar, bty="n")
-  plot(NA, xlim=xlims, ylim=ylims, type="n",
-       xaxs=xaxs, xlab="", xaxt="n",
-       yaxs=yaxs, ylab="", yaxt="n")
-}
-
-
-#' Clean axis
-#'
-#' Print a clean axis using visually pleasing defaults
-#'
-#' @param side Value passed to `axis()`. See `?axis` for details.
-#' @param at Positions where axis ticks should be plotted \[default: `axTicks(side)`\]
-#' @param labels Labels for axis ticks \[default: values of `at`\]
-#' @param title Axis title
-#' @param tck Value passed to `axis()`. See `?axis` for details. \[default: -0.025\]
-#' @param cex.axis Value passed to `axis()`. See `?axis` for details. \[default: 5/6\]
-#' @param label.line `line` parameter for axis labels \[default: -0.65\]
-#' @param title.line `line` parameter for axis title \[default: 0.5 and 1 for X and Y axes, respectively\]
-#' @param infinite Indicator for the axis to be extended infinitely (without ticks) \[default: FALSE\]
-#'
-#' @returns NULL
-#'
-#' @export clean.axis
-#' @export
-clean.axis <- function(side, at=NULL, labels=NULL, title=NULL, tck=-0.025,
-                       cex.axis=5/6, label.line=-0.65, title.line=NULL,
-                       infinite=FALSE){
-  if(infinite){axis(side, at=c(-10e10, 10e10), tck=0, labels=NA)}
-  if(is.null(at)){at <- axTicks(side)}
-  if(is.null(labels)){labels <- at}
-  if(side %in% c(2, 4)){
-    las <- 2
-    if(is.null(title.line)){
-      title.line <- 1
-    }
-  }else{
-    las <- 1
-    if(is.null(title.line)){
-      title.line <- 0.5
-    }
-  }
-  axis(side, at=at, labels=NA, tck=tck)
-  sapply(1:length(at), function(i){
-    if(is.numeric(labels[i])){
-      label <- prettyNum(labels[i], big.mark=",")
-    }else{
-      label <- labels[i]
-    }
-    axis(side, at=at[i], labels=label, tick=F, cex.axis=cex.axis,
-         las=las, line=label.line)
-  })
-  axis(side, at=mean(at), tick=F, labels=title, line=title.line)
-}
-
-
-#' Legend-Axis Hybrid
-#'
-#' Add a legend to the right Y-axis with lines connecting legend labels to
-#' specified Y positions
-#'
-#' @param legend.names Labels to be printed in legend
-#' @param x Where the legend will connect to the rest of the plot (in X-axis units)
-#' @param y.positions Where should the legend labels be placed (in Y-axis units)
-#' @param sep.wex Width expansion term for text relative to `x`
-#' @param min.label.spacing Minimum distance between any two labels (in Y-axis units) \[default: 0.1\]
-#' @param lower.limit No label will be placed below this value on the Y-axis \[default: no limit\]
-#' @param upper.limit No label will be placed above this value on the Y-axis \[default: no limit\]
-#' @param colors Line colors connecting labels to plot body \[default: all black\]
-#' @param lwd Width of line connecting labels to plot body \[default: 3\]
-#'
-#' @return NULL
-#'
-#' @export yaxis.legend
-#' @export
-yaxis.legend <- function(legend.names, x, y.positions, sep.wex,
-                         min.label.spacing=0.1, lower.limit=-Inf,
-                         upper.limit=Inf, colors=NULL, lwd=3){
-  if(is.null(colors)){
-    colors <- "black"
-  }
-  leg.at <- smart.spacing(y.positions, min.dist=min.label.spacing,
-                          lower.limit=lower.limit, upper.limit=upper.limit)
-  text(x=x + sep.wex, y=leg.at, labels=legend.names, xpd=T, pos=4)
-  segments(x0=x, x1=x + (1.5*sep.wex), y0=y.positions, y1=leg.at,
-           lwd=lwd, col=colors, xpd=T, lend="round")
-}
+# Basic plotting functions to generate entire plots
+# See plot.helpers.R for smaller subroutines used to generate certain plot elements
 
 
 #' Scale-Aware Barplot Cluster
@@ -148,7 +44,6 @@ scaled.bars <- function(values, colors, group.names=NULL, sep.wex=0.05,
     stop("Names of 'colors' must cover all values of 'values'")
   }
   colors <- colors[which(names(colors) %in% elig.vals)]
-  legend.names <- legend.names[which(names(legend.names) %in% elig.vals)]
   if(is.null(group.names)){
     group.names <- names(values)
   }
@@ -318,3 +213,68 @@ scaled.swarm <- function(values, colors, group.names=NULL, sep.wex=0.05,
   })
 }
 
+
+#' Kaplan-Meier Curves
+#'
+#' Plot Kaplan-Meier curves for one or more datasets or strata
+#'
+#' @param surv.models List of one or more [`survival::summary.survfit`] objects
+#' @param colors Vector of colors for the list elements in `surv.models`
+#' @param group.names (Optional) group names to assign to each list element in `surv.models`
+#' @param ci.alpha Transparency value `alpha` for confidence interval shading \[default: 0.15\]
+#' @param legend Should a legend be plotted?
+#' @param legend.names (Optional) mapping of `values` to labels for legend
+#' @param parmar Margin values passed to par()
+#'
+#' @seealso [`survival::Surv`], [`survival::survfit`], [`survival::summary.survfit`]
+#'
+#' @export km.curve
+#' @export
+km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
+                     legend=TRUE, legend.names=NULL, parmar=c(2, 3.5, 0.25, 3.5)){
+  # Ensure survival library and RASMod scale constants are loaded within function scope
+  require(survival, quietly=TRUE)
+  RASMod::load.constants("scales", envir=environment())
+
+  # Get plotting values
+  if(is.null(group.names)){
+    group.names <- names(surv.models)
+  }
+  n.groups <- length(surv.models)
+  if(is.null(legend.names)){
+    legend.names <- names(surv.models)
+  }
+  xlims <- c(0, max(sapply(surv.models, function(ss){max(ss$time, na.rm=T)})))
+
+  # Prep plot area
+  prep.plot.area(xlims, c(0,1), parmar)
+  x.ax.step <- floor(xlims[2] / (365*6))
+  x.ax.years <- seq(0, xlims[2]/365, by=x.ax.step)
+  clean.axis(1, at=x.ax.years*365, labels=x.ax.years, infinite=TRUE,
+             title="Years", label.line=-0.75, title.line=0)
+  clean.axis(2, title="Survival Probability", infinite=FALSE)
+
+  # Add confidence intervals
+  sapply(1:n.groups, function(i){
+    n.times <- length(surv.models[[i]]$time)
+    x.bottom <- c(0, RASMod::stretch.vector(surv.models[[i]]$time, 2)[-2*n.times])
+    x.top <- rev(x.bottom)
+    y.bottom <- c(1, 1, RASMod::stretch.vector(surv.models[[i]]$lower, 2)[-c(2*n.times-c(0, 1))])
+    y.top <- rev(c(1, 1, RASMod::stretch.vector(surv.models[[i]]$upper, 2)[-c(2*n.times-c(0, 1))]))
+    polygon(x=c(x.bottom, x.top), y=c(y.bottom, y.top),
+            border=NA, bty="n", col=adjustcolor(colors[[i]], alpha=ci.alpha))
+  })
+
+  # Add K-M curves
+  sapply(1:n.groups, function(i){
+    n.times <- length(surv.models[[i]]$time)
+    x <- c(0, RASMod::stretch.vector(surv.models[[i]]$time, 2)[-2*n.times])
+    y <- c(1, 1, RASMod::stretch.vector(surv.models[[i]]$surv, 2)[-c(2*n.times-c(0, 1))])
+    points(x, y, type="l", col=colors[[i]], lwd=2, xpd=T)
+  })
+
+  # Add legend
+  final.y <- sapply(surv.models, function(ss){tail(ss$surv, 2)[1]})
+  yaxis.legend(legend.names, x=xlims[2] + (0.05*diff(xlims)), y.positions=final.y,
+               sep.wex=0.05*diff(xlims), colors=colors)
+}

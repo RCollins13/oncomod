@@ -16,6 +16,7 @@
 #' Load a subset of constants for RAS modifier analyses
 #'
 #' @param susbet Vector of constant groups to load See `Details` for options.
+#' @param envir Environment passed to [base::assign] \[default: .GlobalEnv\]
 #'
 #' @details Recognized values for `subset` include:
 #' * `colors` : all color palettes used
@@ -30,9 +31,11 @@
 #' # Load scales and names colors
 #' get.constants(c("scales", "names"))
 #'
+#' @seealso [base::assign]
+#'
 #' @export load.constants
 #' @export
-load.constants <- function(subset){
+load.constants <- function(subset, envir=.GlobalEnv){
   # Define colors
   PDAC.colors <- c("dark3" = "#240E29",
                    "dark2" = "#481D53",
@@ -136,7 +139,10 @@ load.constants <- function(subset){
                                   paste(c(1, 5, 10, 50, 100, 500), "kb", sep=""),
                                   paste(c(1, 5, 10, 50, 100, 500), "Mb", sep=""),
                                   paste(c(1, 5), "Gb", sep="")),
-    "logscale.minor" = as.numeric(sapply(logscale.major, function(e){(1:9)*e}))
+    "logscale.minor" = as.numeric(sapply(logscale.major, function(e){(1:9)*e})),
+    "yearscale.major" = 0:100 * 365,
+    "yearscale.demi" = seq(0, 100, 0.5) * 365,
+    "yearscale.minor" = seq(0, 100, 1/12) * 365
   )
 
   # Define names
@@ -171,17 +177,17 @@ load.constants <- function(subset){
   # Assign constants to global environment
   if(length(intersect(subset, c("colors", "all"))) > 0){
     for(variable in names(colors)){
-      assign(variable, colors[[variable]], envir=.GlobalEnv)
+      assign(variable, colors[[variable]], envir=envir)
     }
   }
   if(length(intersect(subset, c("scales", "all"))) > 0){
     for(variable in names(scales)){
-      assign(variable, scales[[variable]], envir=.GlobalEnv)
+      assign(variable, scales[[variable]], envir=envir)
     }
   }
   if(length(intersect(subset, c("names", "all"))) > 0){
     for(variable in names(all.names)){
-      assign(variable, all.names[[variable]], envir=.GlobalEnv)
+      assign(variable, all.names[[variable]], envir=envir)
     }
   }
 }

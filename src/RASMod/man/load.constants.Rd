@@ -4,9 +4,11 @@
 \alias{load.constants}
 \title{Load RAS Modifier Study Constants}
 \usage{
-load.constants(subset)
+load.constants(subset, envir = .GlobalEnv)
 }
 \arguments{
+\item{envir}{Environment passed to \link[base:assign]{base::assign} [default: .GlobalEnv]}
+
 \item{susbet}{Vector of constant groups to load See \code{Details} for options.}
 }
 \description{
@@ -28,4 +30,7 @@ get.constants("colors");
 # Load scales and names colors
 get.constants(c("scales", "names"))
 
+}
+\seealso{
+\link[base:assign]{base::assign}
 }
