@@ -231,7 +231,7 @@ scaled.swarm <- function(values, colors, group.names=NULL, sep.wex=0.05,
 #' @export km.curve
 #' @export
 km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
-                     legend=TRUE, legend.names=NULL, parmar=c(2, 3.5, 0.25, 3.5)){
+                     legend=TRUE, legend.names=NULL, parmar=c(2, 3, 0.25, 4)){
   # Ensure survival library and RASMod scale constants are loaded within function scope
   require(survival, quietly=TRUE)
   RASMod::load.constants("scales", envir=environment())
