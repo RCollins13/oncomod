@@ -52,8 +52,8 @@ def mutdf_to_vcf(mut_df, samples, header_in, outfile, fasta_file,
             continue
 
         new_rec = outvcf.new_record(contig=vdata['CHROM'], start=vdata['POS'], 
-                                        stop=vdata['END'], alleles=vdata['ALLELES'], 
-                                        id=vid)
+                                    stop=vdata['END'], alleles=vdata['ALLELES'], 
+                                    id=vid)
 
         # Add INFO
         for key, value in vdata['INFO'].items():
@@ -107,7 +107,7 @@ def format_alleles(item, ref_fa, verbose=False):
     Also correct ref/alt nomenclature for indels and update positions as needed
     """
 
-    alleles = (item.REF_ALLELE, item.ALT_ALLELE)
+    alleles = (item.REF_ALLELE, item.ALT_ALLELE.split(':')[0])
 
     # Handle insertions
     if alleles[0] == '-':
