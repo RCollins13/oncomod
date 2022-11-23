@@ -255,7 +255,6 @@ cat \
 > $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.list
 # Curate somatic data
 $CODEDIR/scripts/data_processing/preprocess_tcga_somatic.py \
-$TMPDIR/preprocess_tcga_somatic.py \
   --mc3-tsv $WRKDIR/data/mc3.v0.2.8.PUBLIC.SKCM_PDAC_CRAD.maf.gz \
   --cna-bed $WRKDIR/data/TCGA.CNA.b19.bed.gz \
   --donors-list $WRKDIR/data/sample_info/TCGA.ALL.donors.list \

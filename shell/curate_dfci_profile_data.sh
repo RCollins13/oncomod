@@ -104,7 +104,6 @@ $CODEDIR/scripts/data_processing/find_dfci_profile_missing_somatic.py \
   --out-prefix $WRKDIR/data/sample_info/PROFILE.ALL.samples.missing_somatic
 # Curate somatic data
 $CODEDIR/scripts/data_processing/preprocess_dfci_profile_somatic.py \
-$TMPDIR/preprocess_dfci_profile_somatic.py \
   --mutation-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_MUTATION_RESULTS.csv.gz \
   --cna-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_CNV_RESULTS.csv.gz \
   --samples-list $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \

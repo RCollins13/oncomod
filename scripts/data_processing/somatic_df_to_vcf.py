@@ -89,15 +89,13 @@ def get_variant_id(series):
     Build a unique variant ID from a single row in mut_df
     """
 
-    if pd.isna(series.END):
-        vid_cols = 'CHROMOSOME POSITION REF_ALLELE ALT_ALLELE'.split()
-    else:
-        vid_cols = 'CHROMOSOME POSITION END CANONICAL_CDNA_CHANGE'.split()
-
+    vid_values = [re.sub('<|>', '', str(x)) for x in \
+                  [series.CHROMOSOME, series.POSITION, *series.ALLELES]]
+    
     return '_'.join(series[vid_cols].astype(str).values.tolist())
 
 
-def format_alleles(item, ref_fa, verbose=True):
+def format_alleles(item, ref_fa, verbose=False):
     """
     Get (ref, alt) allele tuple for a single variant
     Also correct ref/alt nomenclature for indels and update positions as needed
@@ -143,6 +141,7 @@ def compile_variant_dict(mut_df, ref_fa, sample_column='DONOR_ID'):
 
     for idx, item in mut_df.iterrows():
         
+        item = format_alleles(item, ref_fa)
         vid = get_variant_id(item)
 
         if vid not in variant_dict.keys():
@@ -152,7 +151,6 @@ def compile_variant_dict(mut_df, ref_fa, sample_column='DONOR_ID'):
             else:
                 end_val = item.END
 
-            item = format_alleles(item, ref_fa) 
             variant_dict[vid] = {'ORDER' : i,
                                  'CHROM' : item.CHROMOSOME,
                                  'POS' : item.POSITION - 1,
@@ -167,7 +165,4 @@ def compile_variant_dict(mut_df, ref_fa, sample_column='DONOR_ID'):
             variant_dict[vid]['CARRIERS'].add(item[sample_column])
 
     return variant_dict
-
-
-
 
