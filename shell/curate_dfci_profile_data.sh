@@ -23,7 +23,7 @@ cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in data data/sample_info LSF LSF/scripts LSF/logs ../refs; do
+for SUBDIR in data data/sample_info LSF LSF/scripts LSF/logs ../refs refs; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -101,15 +101,20 @@ $CODEDIR/scripts/data_processing/find_dfci_profile_missing_somatic.py \
   --cna-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_CNV_RESULTS.csv.gz \
   --samples-list $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
   --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab \
-  --outfile $WRKDIR/data/sample_info/PROFILE.ALL.samples.missing_somatic.list
+  --out-prefix $WRKDIR/data/sample_info/PROFILE.ALL.samples.missing_somatic
 # Curate somatic data
 $CODEDIR/scripts/data_processing/preprocess_dfci_profile_somatic.py \
+$TMPDIR/preprocess_dfci_profile_somatic.py \
   --mutation-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_MUTATION_RESULTS.csv.gz \
   --cna-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_CNV_RESULTS.csv.gz \
   --samples-list $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
+  --no-mutation-data $WRKDIR/data/sample_info/PROFILE.ALL.samples.missing_somatic.mut.list \
+  --no-cna-data $WRKDIR/data/sample_info/PROFILE.ALL.samples.missing_somatic.cna.list \
   --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab \
   --genes-gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
-  --outfile $WRKDIR/data/PROFILE.somatic_variants.tsv.gz
+  --ref-fasta $WRKDIR/refs/GRCh37.fa \
+  --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
+  --outfile $WRKDIR/data/PROFILE.somatic_variants.vcf.gz
 
 
 # Summarize somatic variant status by gene & cancer type

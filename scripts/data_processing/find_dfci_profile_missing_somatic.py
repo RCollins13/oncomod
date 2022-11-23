@@ -13,7 +13,6 @@ Identify DFCI-PROFILE donors who are missing somatic mutation data
 import argparse
 import pandas as pd
 from preprocess_dfci_profile_somatic import load_id_map
-from sys import stdout
 
 
 def load_and_subset_ids(fin, id_map, id_column='SAMPLE_ACCESSION_NBR'):
@@ -38,12 +37,12 @@ def main():
     parser.add_argument('--cna-csv', help='Copy number alteration .csv', required=True)
     parser.add_argument('--samples-list', help='List of samples to evaluate', required=True)
     parser.add_argument('--id-map-tsv', help='.tsv mapping between various IDs', required=True)
-    parser.add_argument('-o', '--outfile', default='stdout', help='path to somatic ' +
-                        'variation .tsv [default: stdout]')
+    parser.add_argument('-o', '--out-prefix', help='Prefix for output files', required=True)
     args = parser.parse_args()
 
     # Load ID map for samples of interest
     id_map = load_id_map(args.samples_list, args.id_map_tsv)
+    all_ids = set(id_map.values())
 
     # Load samples present in both mutation and CNA files
     mut_ids = load_and_subset_ids(args.mutation_csv, id_map)
@@ -51,17 +50,16 @@ def main():
     somatic_ids = mut_ids.intersection(cna_ids)
 
     # Find exclusion set of samples lacking both mutation and CNA data
-    no_somatic = set(id_map.values()).difference(somatic_ids)
+    no_mut = all_ids.difference(mut_ids)
+    no_cna = all_ids.difference(cna_ids)
+    no_somatic = all_ids.difference(somatic_ids)
 
-    # Write list of samples missing somatic data to output file
-    if args.outfile in '- stdout'.split():
-        fout = stdout
-    else:
-        fout = open(args.outfile, 'w')
-    for sample in no_somatic:
-        fout.write(sample + '\n')
-    fout.close()
-
+    # Write list of samples missing somatic data to output files
+    for slist, suffix in [(no_mut, '.mut.list'), (no_cna, '.cna.list'), (no_somatic, '.list')]:
+        fout = open(args.out_prefix + suffix, 'w')
+        for sample in slist:
+            fout.write(sample + '\n')
+        fout.close()
 
 if __name__ == '__main__':
     main()

@@ -158,6 +158,7 @@ def main():
     parser.add_argument('--genes-gtf', help='.gtf of gene annotations', required=True)
     parser.add_argument('--priority-genes', help='If provided, will subset all data ' + 
                         'to only variants in these genes [default: keep all genes]')
+    parser.add_argument('--ref-fasta', help='Reference .fasta', required=True)
     parser.add_argument('--header', help='Header to use for output .vcf', required=True)
     parser.add_argument('-o', '--outfile', default='stdout', help='path to somatic ' +
                         'variation .vcf [default: stdout]')
@@ -192,7 +193,8 @@ def main():
         no_cna = []
 
     # Convert mut_df to VCF
-    mutdf_to_vcf(mut_df, set(donors + no_mut + no_cna), args.header, args.outfile)
+    mutdf_to_vcf(mut_df, set(donors + no_mut + no_cna), args.header, 
+                 args.outfile, args.ref_fasta)
 
 
 if __name__ == '__main__':

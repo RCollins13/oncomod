@@ -14,6 +14,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import pybedtools as pbt
+from somatic_df_to_vcf import mutdf_to_vcf
 from sys import stdout
 
 
@@ -54,9 +55,10 @@ def load_mutation_data(mutation_csv, id_map):
     mut_df.drop('SAMPLE_ACCESSION_NBR', axis=1, inplace=True)
 
     # Sort columns and rows
-    ordered_cols = cols_to_keep.split()
+    ordered_cols = cols_to_keep.replace(' POSITION ', ' POSITION END ').split()
     i = ordered_cols.index('SAMPLE_ACCESSION_NBR')
     ordered_cols = ordered_cols[:i] + ['PBP'] + ordered_cols[i+1:]
+    mut_df['END'] = pd.NA
 
     return mut_df.sort_values('CHROMOSOME POSITION'.split())[ordered_cols]
 
@@ -75,13 +77,15 @@ def add_cna_data(cna_csv, mut_df, id_map, genes_gtf=None):
     cna_df = cna_df.loc[~cna_df.PBP.isna()]
     cna_df.drop('SAMPLE_ACCESSION_NBR', axis=1, inplace=True)
 
-    # If genes_gtf provided, build a map of chrom:pos for each gene
+    # If genes_gtf provided, build a map of chrom:(start, end) for each gene
     gene_map = {}
     if genes_gtf is not None:
         for feature in pbt.BedTool(genes_gtf):
             if feature.fields[2] == 'gene':
                 gene = feature.attrs['gene_name']
-                gene_map[gene] = [feature.chrom.replace('chr', ''), np.nanmean([feature.start, feature.end])]
+                gene_map[gene] = [feature.chrom.replace('chr', ''), 
+                                  int(feature.start), 
+                                  int(feature.end)]
 
     # Convert alt alleles
     cna_df['REF_ALLELE'] = 'N'
@@ -123,10 +127,10 @@ def add_cna_data(cna_csv, mut_df, id_map, genes_gtf=None):
     gvals = cna_df.CANONICAL_GENE.map(gene_map)
     backup_gvals = cna_df.HARMONIZED_HUGO_GENE_NAME.map(gene_map).to_dict()
     gvals.fillna(backup_gvals, inplace=True)
-    gvals = gvals.apply(lambda v: v if isinstance(v, list) else [pd.NA, pd.NA])
+    gvals = gvals.apply(lambda v: v if isinstance(v, list) else [pd.NA, pd.NA, pd.NA])
     gvals_df = pd.DataFrame.from_dict(dict(zip(gvals.index, gvals.values)), 
                                       orient='index', dtype='object',
-                                      columns='CHROMOSOME POSITION'.split())
+                                      columns='CHROMOSOME POSITION END'.split())
     cna_df = cna_df.merge(gvals_df, how='left', left_index=True, right_index=True)
 
     # Final cleanup (subset to columns in mut_df, merge with mut_df, and resort by chrom/pos)
@@ -145,15 +149,22 @@ def main():
     parser.add_argument('--mutation-csv', help='Somatic mutation .csv', required=True)
     parser.add_argument('--cna-csv', help='Copy number alteration .csv', required=True)
     parser.add_argument('--samples-list', help='List of samples to evaluate', required=True)
+    parser.add_argument('--no-mutation-data', help='List of samples missing ' +
+                        'mutation data')
+    parser.add_argument('--no-cna-data', help='List of samples missing CNA data')
     parser.add_argument('--id-map-tsv', help='.tsv mapping between various IDs', required=True)
     parser.add_argument('--genes-gtf', help='.gtf of gene annotations. If provided, ' +
                         'will be used to add approximate coordinates to CNA rows.')
+    parser.add_argument('--ref-fasta', help='Reference .fasta', required=True)
+    parser.add_argument('--header', help='Header to use for output .vcf', required=True)
     parser.add_argument('-o', '--outfile', default='stdout', help='path to somatic ' +
-                        'variation .tsv [default: stdout]')
+                        'variation .vcf [default: stdout]')
+
     args = parser.parse_args()
 
     # Load ID map for samples of interest
     id_map = load_id_map(args.samples_list, args.id_map_tsv)
+    samples = list(id_map.values())
 
     # Load mutation data and subset to samples of interest
     mut_df = load_mutation_data(args.mutation_csv, id_map)
@@ -161,13 +172,20 @@ def main():
     # Load CNA data, subset to samples of interest, and merge with mut_df
     mut_df = add_cna_data(args.cna_csv, mut_df, id_map, args.genes_gtf)
 
-    # Write merged somatic data to output file
-    if args.outfile in '- stdout'.split():
-        fout = stdout
+    # Load lists of samples missing mutation and/or CNA data
+    # These samples will be included in the VCF but reported as null GT for all records
+    if args.no_mutation_data is not None:
+        no_mut = [l.rstrip() for l in open(args.no_mutation_data).readlines()]
     else:
-        fout = args.outfile
-    mut_df = mut_df.rename(columns={'CHROMOSOME' : '#CHROMOSOME'})
-    mut_df.to_csv(fout, sep='\t', index=False, na_rep='.')
+        no_mut = []
+    if args.no_cna_data is not None:
+        no_cna = [l.rstrip() for l in open(args.no_cna_data).readlines()]
+    else:
+        no_cna = []
+
+    # Convert mut_df to VCF
+    mutdf_to_vcf(mut_df, set(samples + no_mut + no_cna), args.header, 
+                 args.outfile, args.ref_fasta, sample_column='PBP')
 
 
 if __name__ == '__main__':

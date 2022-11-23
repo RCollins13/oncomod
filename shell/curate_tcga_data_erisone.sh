@@ -263,6 +263,7 @@ $TMPDIR/preprocess_tcga_somatic.py \
   --no-cna-data $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.cna.list \
   --genes-gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
   --priority-genes $WRKDIR/../refs/COSMIC.all_GCG.Nov8_2022.genes.list \
+  --ref-fasta $WRKDIR/refs/GRCh37.fa \
   --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
   --outfile $WRKDIR/data/TCGA.somatic_variants.vcf.gz
 
