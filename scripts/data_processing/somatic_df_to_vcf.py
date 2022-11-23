@@ -45,9 +45,15 @@ def mutdf_to_vcf(mut_df, samples, header_in, outfile, fasta_file,
 
     # Iterate over unique variants and inject one VCF record for each into outvcf
     for vid, vdata in sorted(vdict.items(), key=lambda x: x[1]['ORDER']):
+        # Skip variants on contigs not present in primary assembly
+        if pd.isna(vdata['CHROM']) or pd.isna(vdata['POS']):
+            continue
+        if vdata['CHROM'] not in outvcf.header.contigs.keys():
+            continue
+
         new_rec = outvcf.new_record(contig=vdata['CHROM'], start=vdata['POS'], 
-                                    stop=vdata['END'], alleles=vdata['ALLELES'], 
-                                    id=vid)
+                                        stop=vdata['END'], alleles=vdata['ALLELES'], 
+                                        id=vid)
 
         # Add INFO
         for key, value in vdata['INFO'].items():
