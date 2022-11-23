@@ -107,7 +107,10 @@ def format_alleles(item, ref_fa, verbose=False):
     Also correct ref/alt nomenclature for indels and update positions as needed
     """
 
-    alleles = (item.REF_ALLELE, item.ALT_ALLELE.split(':')[0])
+    alleles = [item.REF_ALLELE, item.ALT_ALLELE.split(':')[0]]
+    if alleles[1].startswith('<') and not alleles[1].endswith('>'):
+        alleles[1] = alleles[1] + '>'
+    alleles = tuple(alleles)
 
     # Handle insertions
     if alleles[0] == '-':
