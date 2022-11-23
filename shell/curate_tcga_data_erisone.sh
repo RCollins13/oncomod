@@ -265,6 +265,7 @@ $CODEDIR/scripts/data_processing/preprocess_tcga_somatic.py \
   --ref-fasta $WRKDIR/refs/GRCh37.fa \
   --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
   --outfile $WRKDIR/data/TCGA.somatic_variants.vcf.gz
+tabix -p vcf -f $WRKDIR/data/TCGA.somatic_variants.vcf.gz
 
 
 # Summarize somatic variant status by gene & cancer type

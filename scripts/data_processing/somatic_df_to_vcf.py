@@ -92,7 +92,7 @@ def get_variant_id(series):
     vid_values = [re.sub('<|>', '', str(x)) for x in \
                   [series.CHROMOSOME, series.POSITION, *series.ALLELES]]
     
-    return '_'.join(series[vid_cols].astype(str).values.tolist())
+    return '_'.join(vid_values)
 
 
 def format_alleles(item, ref_fa, verbose=False):
