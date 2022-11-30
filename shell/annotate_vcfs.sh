@@ -22,7 +22,7 @@ cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in LSF LSF/logs; do
+for SUBDIR in LSF LSF/logs LSF/scripts; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -78,14 +78,34 @@ bsub \
    unzip dbNSFP4.3a.zip"
 zcat $WRKDIR/../refs/vep_cache/dbNSFP4.3a_variant.chr1.gz \
 | head -n1 > $TMPDIR/dbNSFP_header
+cat <<EOF > $WRKDIR/LSF/scripts/prep_dbNSFP.grch38.sh
+#!/usr/bin/env bash
+. /PHShome/rlc47/.bashrc
+cd $WRKDIR
 zgrep -h -v ^#chr $WRKDIR/../refs/vep_cache/dbNSFP4.3a_variant.chr* \
 | sort -T $TMPDIR -k1,1 -k2,2n - | cat $TMPDIR/dbNSFP_header - \
 | bgzip -c > $WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch38.gz
-tabix -s 1 -b 2 -e 2 $WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch38.gz
+tabix -s 1 -b 2 -e 2 -f $WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch38.gz
+EOF
+cat <<EOF > $WRKDIR/LSF/scripts/prep_dbNSFP.grch37.sh
+#!/usr/bin/env bash
+. /PHShome/rlc47/.bashrc
+cd $WRKDIR
 zgrep -h -v ^#chr $WRKDIR/../refs/vep_cache/dbNSFP4.3a_variant.chr* \
-| awk '$8 != "." ' | sort -T $TMPDIR -k8,8 -k9,9n - | cat $TMPDIR/dbNSFP_header - \
+| awk '\$8 != "." ' | sort -T $TMPDIR -k8,8 -k9,9n - | cat $TMPDIR/dbNSFP_header - \
 | bgzip -c > $WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch37.gz
-tabix -s 8 -b 9 -e 9 $WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch37.gz
+tabix -s 8 -b 9 -e 9 -f $WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch37.gz
+EOF
+for ref in 37 38; do
+  script=$WRKDIR/LSF/scripts/prep_dbNSFP.grch$ref.sh
+  chmod a+x $script
+  rm $WRKDIR/LSF/logs/prep_dbNSFP.grch$ref.*
+  bsub \
+    -q normal -J prep_dbNSFP.grch$ref \
+    -o $WRKDIR/LSF/logs/prep_dbNSFP.grch$ref.log \
+    -e $WRKDIR/LSF/logs/prep_dbNSFP.grch$ref.err \
+    $WRKDIR/LSF/scripts/prep_dbNSFP.grch$ref.sh
+done
 # LOFTEE
 # TODO: implement this
 # ABC
