@@ -68,6 +68,12 @@ cd $WRKDIR
 
 
 ### Curate custom datasets for use by VEP
+# Prep subdirectories
+for subdir in UTRAnnotator gnomad loftee CADD clinvar cosmic; do
+  if ! [ -e $WRKDIR/../refs/vep_cache/$subdir ]; then
+    mkdir $WRKDIR/../refs/vep_cache/$subdir
+  fi
+done
 # dbNSFP
 bsub \
   -q normal -J dbNSFP_cache_download \
@@ -107,14 +113,61 @@ for ref in 37 38; do
     $WRKDIR/LSF/scripts/prep_dbNSFP.grch$ref.sh
 done
 # LOFTEE
-# TODO: implement this
+for file in $WRKDIR/../code/vep_plugins/loftee/*; do
+  ln -fs $( echo -e $file ) $WRKDIR/../code/vep_plugins/$( basename $file )
+done
+for suffix in gz gz.fai gz.gzi; do
+  bsub \
+    -q normal -J dl_loftee_ancestor_fa$suffix \
+    -o $WRKDIR/LSF/logs/dl_loftee_ancestor_fa$suffix.log \
+    -e $WRKDIR/LSF/logs/dl_loftee_ancestor_fa$suffix.err \
+    "cd $WRKDIR/../refs/vep_cache/loftee && \
+     wget https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.$suffix"
+done
+bsub \
+  -q normal -J dl_loftee_conservation_db \
+  -o $WRKDIR/LSF/logs/dl_loftee_conservation_db.log \
+  -e $WRKDIR/LSF/logs/dl_loftee_conservation_db.err \
+  "cd $WRKDIR/../refs/vep_cache/loftee && \
+   wget https://personal.broadinstitute.org/konradk/loftee_data/GRCh37/phylocsf_gerp.sql.gz && \
+   gunzip phylocsf_gerp.sql.gz"
+# CADD
+for prefix in whole_genome_SNVs InDels; do
+  for suffix in gz gz.tbi; do
+    bsub \
+      -q normal -J dl_cadd_$prefix.tsv.$suffix \
+      -o $WRKDIR/LSF/logs/dl_cadd_$prefix.tsv.$suffix.log \
+      -e $WRKDIR/LSF/logs/dl_cadd_$prefix.tsv.$suffix.err \
+      "cd $WRKDIR/../refs/vep_cache/CADD && \
+       wget https://krishna.gs.washington.edu/download/CADD/v1.6/GRCh37/$prefix.tsv.$suffix"
+  done
+done
+# ClinVar
+wget \
+  -P $WRKDIR/../refs/vep_cache/clinvar/ \
+  https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz \
+  https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz.tbi
+# COSMIC
+# Note: first need to generate a COSMIC command line access key
+# See https://cancer.sanger.ac.uk/cosmic/download for instructions
+# Need to assign this to variable $my_access_code for these commands to work
+curl \
+  -H "Authorization: Basic $my_access_code" \
+  https://cancer.sanger.ac.uk/cosmic/file_download/GRCh38/cosmic/v97/CMC.tar \
+| jq .url | tr -d '"' \
+| xargs -I {} wget --no-check-certificate -P $TMPDIR/ {}
+mkdir $TMPDIR/cosmic/ && tar -xvf $TMPDIR/CMC.tar* -C $TMPDIR/cosmic/
+$CODEDIR/scripts/data_processing/cmc_to_vcf.py \
+$TMPDIR/cmc_to_vcf.py \
+  --cmc $TMPDIR/cosmic/cmc_export.tsv.gz \
+  --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
+  --ref-fasta $TCGADIR/refs/GRCh37.fa \
+| bcftools sort -O z -o $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz
+tabix -p vcf -f $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz
 # ABC
 # TODO: implement this
 # ftp://ftp.broadinstitute.org/outgoing/lincRNA/ABC/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz
 # gnomAD
-if ! [ -e $WRKDIR/../refs/vep_cache/gnomad ]; then
-  mkdir $WRKDIR/../refs/vep_cache/gnomad
-fi
 for subset in exomes genomes; do
   bsub \
     -q normal -J gnomad_${subset}_cache_download \
@@ -126,7 +179,8 @@ for subset in exomes genomes; do
 done
 
 
-### Build generic VEP function call with plugins and options
+### Build script for generic VEP function call with plugins and options
+export PERL5LIB=$WRKDIR/../code/vep_plugins/loftee:$PERL5LIB
 annotate_vcf () {
   $WRKDIR/../code/ensembl-vep/vep \
     --input_file $1 \
@@ -156,10 +210,17 @@ annotate_vcf () {
     --symbol \
     --canonical \
     --domains \
-    --af_gnomadg \
-    --plugin UTRAnnotator,file=$WRKDIR/../refs/vep_cache/UTRAnnotator/uORF_5UTR_GRCh37_PUBLIC.txt
+    --plugin UTRAnnotator,file=$WRKDIR/../refs/vep_cache/UTRAnnotator/uORF_5UTR_GRCh37_PUBLIC.txt \
+    --plugin dbNSFP,$WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch37.gz,SIFT_score,Polyphen2_HDIV_score,FATHMM_score,PrimateAI_score,REVEL_score,MPC_score,CADD_raw_hg19,GM12878_fitCons_score,GERP++_RS,bStatistic \
+    --plugin LoF,loftee_path:$WRKDIR/../code/vep_plugins/loftee,human_ancestor_fa:$WRKDIR/../refs/vep_cache/loftee/human_ancestor.fa.gz,conservation_file:$WRKDIR/../refs/vep_cache/loftee/phylocsf_gerp.sql \
+    --custom $WRKDIR/../refs/vep_cache/gnomad/gnomad.genomes.r2.0.1.sites.noVEP.vcf.gz,gnomADg,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
+    --custom $WRKDIR/../refs/vep_cache/gnomad/gnomad.exomes.r2.0.1.sites.noVEP.vcf.gz,gnomADe,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
+    --custom $WRKDIR/../refs/vep_cache/clinvar/clinvar.vcf.gz,ClinVar,vcf,exact,0,CLNSIG,CLNREVSTAT,CLNDN \
+    --custom $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz,COSMIC,vcf,exact,0,COSMIC_GENE,COSMIC_AA_CHANGE,COSMIC_GENE_TIER,COSMIC_MUT_SIG,COSMIC_MUT_FREQ
 }
-# --plugin dbNSFP,$WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch37.gz,LRT_score,GERP++_RS
+    # --plugin CADD,$WRKDIR/../refs/vep_cache/CADD/whole_genome_SNVs.tsv.gz,$WRKDIR/../refs/vep_cache/CADD/InDels.tsv.gz \
+# DEV:
+annotate_vcf $TMPDIR/test.vcf.gz $TMPDIR/test.anno.vcf.gz
 
 
 ### Annotate TCGA VCFs

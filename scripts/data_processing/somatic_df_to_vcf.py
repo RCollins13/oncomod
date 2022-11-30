@@ -101,7 +101,7 @@ def get_variant_id(series):
     return '_'.join(vid_values)
 
 
-def format_alleles(item, ref_fa, verbose=False):
+def format_alleles(item, ref_fa, del_pos_adj=0, verbose=False):
     """
     Get (ref, alt) allele tuple for a single variant
     Also correct ref/alt nomenclature for indels and update positions as needed
@@ -129,6 +129,7 @@ def format_alleles(item, ref_fa, verbose=False):
         new_alt = new_ref[0]
         alleles = (new_ref, new_alt)
         size = len(new_ref) - len(new_alt)
+        item['POSITION'] = item.POSITION + del_pos_adj
         item.END = item.POSITION + size
         if verbose:
             msg = 'Correcting deletion at {}:{}. Originally {}>{}, revised to {}>{}'
