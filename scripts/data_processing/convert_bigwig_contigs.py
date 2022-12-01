@@ -32,10 +32,11 @@ for contig, n_bp in old.chroms().items():
         vals = pd.DataFrame(old.intervals(contig, start, end),
                             columns='start end value'.split())
         vals['contig'] = contig_map[contig]
-        new.addEntries(vals.contig.values.tolist(),
-                       vals.start.values.tolist(),
-                       ends=vals.end.values.tolist(),
-                       values=vals.value.values.tolist())
+        if len(vals) > 0:
+            new.addEntries(vals.contig.values.tolist(),
+                           vals.start.values.tolist(),
+                           ends=vals.end.values.tolist(),
+                           values=vals.value.values.tolist())
 
 # Close new to clear buffer
 new.close()
