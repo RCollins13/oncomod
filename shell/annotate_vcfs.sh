@@ -218,6 +218,12 @@ while read url; do
     -e $WRKDIR/LSF/logs/dl_$( basename $url ).err \
     "wget -P $VEP_CACHE/ $url"
 done < $TMPDIR/conservation_bw_urls.list
+while read url; do
+  old=$VEP_CACHE/$( basename $url )
+  new=$( echo $old | sed 's/hg19/GRCh37/g' )
+  
+  echo -e "$TMPDIR/convert_bigwig_contigs.py $old $new"
+done < $TMPDIR/conservation_bw_urls.list
 # GTEx eQTL
 bsub \
   -q normal -J dl_GTEx_eQTL \
@@ -225,13 +231,15 @@ bsub \
   -e $WRKDIR/LSF/logs/dl_GTEx_eQTL.err \
   "wget -P $TMPDIR/ https://storage.googleapis.com/gtex_analysis_v7/single_tissue_eqtl_data/GTEx_Analysis_v7_eQTL.tar.gz"
 tar -xzf $TMPDIR/GTEx_Analysis_v7_eQTL.tar.gz -C $TMPDIR/
-$TMPDIR/gtex_eqtl_to_vcf.py \
+$CODEDIR/scripts/data_processing/gtex_eqtl_to_vcf.py \
   --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Pancreas.v7.signif_variant_gene_pairs.txt.gz \
   --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Skin_Sun_Exposed_Lower_leg.v7.signif_variant_gene_pairs.txt.gz \
   --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Skin_Not_Sun_Exposed_Suprapubic.v7.signif_variant_gene_pairs.txt.gz \
   --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Colon_Sigmoid.v7.signif_variant_gene_pairs.txt.gz \
   --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Colon_Transverse.v7.signif_variant_gene_pairs.txt.gz \
-  --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz
+  --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
+| bcftools sort -O z -o $VEP_CACHE/GTEx_eQTLs.vcf.gz
+tabix -p vcf -f $VEP_CACHE/GTEx_eQTLs.vcf.gz
 
 
 
@@ -243,14 +251,15 @@ annotate_vcf () {
     --input_file $1 \
     --format vcf \
     --output_file $2 \
+    --fork 2 \
     --vcf \
     --compress_output bgzip \
     --force_overwrite \
     --species homo_sapiens \
     --assembly GRCh37 \
+    --max_sv_size 1000 \
     --offline \
     --no_stats \
-    --fork 2 \
     --cache \
     --dir_cache $VEP_CACHE/ \
     --cache_version 108 \
@@ -271,9 +280,6 @@ annotate_vcf () {
     --plugin dbNSFP,$VEP_CACHE/dbNSFP4.3a_grch37.gz,SIFT_score,Polyphen2_HDIV_score,FATHMM_score,MPC_score,GERP++_RS \
     --plugin CADD,$VEP_CACHE/CADD/whole_genome_SNVs.tsv.gz,$VEP_CACHE/CADD/InDels.tsv.gz \
     --plugin LoF,loftee_path:$VEP_PLUGINS/loftee,human_ancestor_fa:$VEP_CACHE/loftee/human_ancestor.fa.gz,conservation_file:$VEP_CACHE/loftee/phylocsf_gerp.sql \
-    --custom $VEP_CACHE/All_hg19_RS.bw,GERP,bigwig \
-    --custom $VEP_CACHE/hg19.100way.phastCons.bw,phastCons,bigwig \
-    --custom $VEP_CACHE/hg19.100way.phyloP100way.bw,phyloP,bigwig \
     --custom $VEP_CACHE/gnomad/gnomad.genomes.r2.0.1.sites.noVEP.vcf.gz,gnomADg,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
     --custom $VEP_CACHE/gnomad/gnomad.exomes.r2.0.1.sites.noVEP.vcf.gz,gnomADe,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
     --custom $VEP_CACHE/clinvar/clinvar.vcf.gz,ClinVar,vcf,exact,0,CLNSIG,CLNREVSTAT,CLNDN \
@@ -281,9 +287,15 @@ annotate_vcf () {
     --custom $VEP_CACHE/gencode_promoters.bed.gz,promoters,bed,exact,0 \
     --custom $VEP_CACHE/ABC_enhancers.bed.gz,ABC_ehnahcers,bed,exact,0 \
     --custom $VEP_CACHE/CCR.bed.gz,CCR,bed,exact,0 \
-    --custom $VEP_CACHE/samocha_regional_constraint.bed.gz,ExAC_regional_constraint,bed,exact,0
+    --custom $VEP_CACHE/samocha_regional_constraint.bed.gz,ExAC_regional_constraint,bed,exact,0 \
+    --custom $VEP_CACHE/GTEx_eQTLs.vcf.gz,GTEx,vcf,exact,0,GTEx_eGene,GTEx_eQTL_beta,GTEx_eQTL_tissue
 }
     
+
+    # /data/talkowski/tools/bin/bigWigToWig $VEP_CACHE/All_hg19_RS.bw /dev/stdout | sed 's/=chr//g' | /data/talkowski/tools/bin/wigToBigWig /dev/stdin $VEP_CACHE/All_GRCH37_RS.bw
+     # \
+    # --custom ,GERP,bigwig \
+    # --custom $VEP_CACHE/hg19.100way.phyloP100way.bw,phyloP,bigwig \
 # DEV:
 annotate_vcf $TMPDIR/test.vcf.gz $TMPDIR/test.anno.vcf.gz
 
