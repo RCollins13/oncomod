@@ -157,15 +157,24 @@ curl \
 | jq .url | tr -d '"' \
 | xargs -I {} wget --no-check-certificate -P $TMPDIR/ {}
 mkdir $TMPDIR/cosmic/ && tar -xvf $TMPDIR/CMC.tar* -C $TMPDIR/cosmic/
-$CODEDIR/scripts/data_processing/cmc_to_vcf.py \
-$TMPDIR/cmc_to_vcf.py \
-  --cmc $TMPDIR/cosmic/cmc_export.tsv.gz \
-  --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
-  --ref-fasta $TCGADIR/refs/GRCh37.fa \
-| bcftools sort -O z -o $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz
-tabix -p vcf -f $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz
+bsub \
+  -q normal -J cmc_to_vcf \
+  -o $WRKDIR/LSF/logs/cmc_to_vcf.log \
+  -e $WRKDIR/LSF/logs/cmc_to_vcf.err \
+  "$CODEDIR/scripts/data_processing/cmc_to_vcf.py \
+     --cmc $TMPDIR/cosmic/cmc_export.tsv.gz \
+     --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
+     --ref-fasta $TCGADIR/refs/GRCh37.fa \
+   | bcftools sort -O z -o $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz && \
+   tabix -p vcf -f $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz"
 # ABC
-# TODO: implement this
+wget -P $TMPDIR/ \
+  ftp://ftp.broadinstitute.org/outgoing/lincRNA/ABC/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz
+zcat $TMPDIR/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz
+zcat $TMPDIR/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz \
+| awk '{ print $NF }' | sort | uniq -c
+# Tissues of interest: pancreas-Roadmap Panc1-ENCODE body_of_pancreas-ENCODE
+# sigmoid_colon-ENCODE transverse_colon-ENCODE keratinocyte-Roadmap fibroblast_of_dermis-Roadmap fibroblast_of_arm-ENCODE
 # ftp://ftp.broadinstitute.org/outgoing/lincRNA/ABC/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz
 # gnomAD
 for subset in exomes genomes; do
@@ -177,10 +186,15 @@ for subset in exomes genomes; do
      wget https://ftp.ensembl.org/pub/data_files/homo_sapiens/GRCh37/variation_genotype/gnomad.$subset.r2.0.1.sites.noVEP.vcf.gz && \
      wget https://ftp.ensembl.org/pub/data_files/homo_sapiens/GRCh37/variation_genotype/gnomad.$subset.r2.0.1.sites.noVEP.vcf.gz.tbi"
 done
+# Gene promoters (defined as +2kb upstream of TSS)
+$CODEDIR/scripts/data_processing/make_promoters.py \
+  --gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
+  --coding-only \
+| bgzip -c > $WRKDIR/../refs/vep_cache/gencode_promoters.bed.gz
 
 
 ### Build script for generic VEP function call with plugins and options
-export PERL5LIB=$WRKDIR/../code/vep_plugins/loftee:$PERL5LIB
+# export PERL5LIB=$WRKDIR/../code/vep_plugins/loftee:$PERL5LIB
 annotate_vcf () {
   $WRKDIR/../code/ensembl-vep/vep \
     --input_file $1 \
@@ -211,14 +225,15 @@ annotate_vcf () {
     --canonical \
     --domains \
     --plugin UTRAnnotator,file=$WRKDIR/../refs/vep_cache/UTRAnnotator/uORF_5UTR_GRCh37_PUBLIC.txt \
-    --plugin dbNSFP,$WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch37.gz,SIFT_score,Polyphen2_HDIV_score,FATHMM_score,PrimateAI_score,REVEL_score,MPC_score,CADD_raw_hg19,GM12878_fitCons_score,GERP++_RS,bStatistic \
+    --plugin dbNSFP,$WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch37.gz,SIFT_score,Polyphen2_HDIV_score,FATHMM_score,MPC_score,GERP++_RS \
+    --plugin CADD,$WRKDIR/../refs/vep_cache/CADD/whole_genome_SNVs.tsv.gz,$WRKDIR/../refs/vep_cache/CADD/InDels.tsv.gz \
     --plugin LoF,loftee_path:$WRKDIR/../code/vep_plugins/loftee,human_ancestor_fa:$WRKDIR/../refs/vep_cache/loftee/human_ancestor.fa.gz,conservation_file:$WRKDIR/../refs/vep_cache/loftee/phylocsf_gerp.sql \
     --custom $WRKDIR/../refs/vep_cache/gnomad/gnomad.genomes.r2.0.1.sites.noVEP.vcf.gz,gnomADg,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
     --custom $WRKDIR/../refs/vep_cache/gnomad/gnomad.exomes.r2.0.1.sites.noVEP.vcf.gz,gnomADe,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
     --custom $WRKDIR/../refs/vep_cache/clinvar/clinvar.vcf.gz,ClinVar,vcf,exact,0,CLNSIG,CLNREVSTAT,CLNDN \
     --custom $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz,COSMIC,vcf,exact,0,COSMIC_GENE,COSMIC_AA_CHANGE,COSMIC_GENE_TIER,COSMIC_MUT_SIG,COSMIC_MUT_FREQ
 }
-    # --plugin CADD,$WRKDIR/../refs/vep_cache/CADD/whole_genome_SNVs.tsv.gz,$WRKDIR/../refs/vep_cache/CADD/InDels.tsv.gz \
+    
 # DEV:
 annotate_vcf $TMPDIR/test.vcf.gz $TMPDIR/test.anno.vcf.gz
 
