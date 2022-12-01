@@ -40,7 +40,7 @@ def main():
     # Iterate over gene features in gtf
     for feature in pbt.BedTool(args.gtf).filter(lambda x: x[2] == 'gene'):
 
-        if args.coding_only and x.attr['gene_type'] != 'protein_coding':
+        if args.coding_only and feature.attrs.get('gene_type', 'unk') != 'protein_coding':
             continue
         
         chrom = str(feature.chrom)
