@@ -190,7 +190,9 @@ done
 $CODEDIR/scripts/data_processing/make_promoters.py \
   --gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
   --coding-only \
-| bgzip -c > $WRKDIR/../refs/vep_cache/gencode_promoters.bed.gz
+| sort -Vk1,1 -k2,2n -k3,3n | bgzip -c \
+> $WRKDIR/../refs/vep_cache/gencode_promoters.bed.gz
+tabix -p bed -f $WRKDIR/../refs/vep_cache/gencode_promoters.bed.gz
 
 
 ### Build script for generic VEP function call with plugins and options
@@ -231,7 +233,8 @@ annotate_vcf () {
     --custom $WRKDIR/../refs/vep_cache/gnomad/gnomad.genomes.r2.0.1.sites.noVEP.vcf.gz,gnomADg,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
     --custom $WRKDIR/../refs/vep_cache/gnomad/gnomad.exomes.r2.0.1.sites.noVEP.vcf.gz,gnomADe,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
     --custom $WRKDIR/../refs/vep_cache/clinvar/clinvar.vcf.gz,ClinVar,vcf,exact,0,CLNSIG,CLNREVSTAT,CLNDN \
-    --custom $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz,COSMIC,vcf,exact,0,COSMIC_GENE,COSMIC_AA_CHANGE,COSMIC_GENE_TIER,COSMIC_MUT_SIG,COSMIC_MUT_FREQ
+    --custom $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz,COSMIC,vcf,exact,0,COSMIC_GENE,COSMIC_AA_CHANGE,COSMIC_GENE_TIER,COSMIC_MUT_SIG,COSMIC_MUT_FREQ \
+    --custom $WRKDIR/../refs/vep_cache/gencode_promoters.bed.gz,promoters,bed,exact,0
 }
     
 # DEV:

@@ -12,6 +12,7 @@ Create a BED file of gene promoters from an input GTF
 
 import argparse
 import pybedtools as pbt
+import re
 from sys import stdout
 
 
@@ -43,7 +44,7 @@ def main():
         if args.coding_only and feature.attrs.get('gene_type', 'unk') != 'protein_coding':
             continue
         
-        chrom = str(feature.chrom)
+        chrom = re.sub('^chr', '', str(feature.chrom))
         gene = feature.attrs.get('gene_name')
         tx = feature.attrs.get('transcript_id')
         
