@@ -18,6 +18,8 @@ export TCGADIR=/data/gusev/USERS/rlc47/TCGA
 export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
 export CODEDIR=$WRKDIR/../code/ras_modifiers
+export VEP_CACHE=$WRKDIR/../refs/vep_cache
+export VEP_PLUGINS=$WRKDIR/../code/vep_plugins
 cd $WRKDIR
 
 
@@ -27,24 +29,24 @@ for SUBDIR in LSF LSF/logs LSF/scripts; do
     mkdir $WRKDIR/$SUBDIR
   fi
 done
+if ! [ -e $VEP_CACHE ]; then
+  mkdir $VEP_CACHE
+fi
+if ! [ -e $VEP_PLUGINS ]; then
+  mkdir $VEP_PLUGINS
+fi
 
 
 ### Download & install VEP and associated plugins
 # Prep directory structure
-if ! [ -e $WRKDIR/../refs/vep_cache ]; then
-  mkdir $WRKDIR/../refs/vep_cache
-fi
-if ! [ -e $WRKDIR/../code/vep_plugins ]; then
-  mkdir $WRKDIR/../code/vep_plugins
-fi
 cd $WRKDIR/../code/ && \
 git clone https://github.com/Ensembl/ensembl-vep.git && \
 cd ensembl-vep && \
 perl INSTALL.pl \
   --NO_HTSLIB \
   --CONVERT \
-  --CACHEDIR $WRKDIR/../refs/vep_cache/ \
-  --PLUGINSDIR $WRKDIR/../code/vep_plugins/ && \
+  --CACHEDIR $VEP_CACHE/ \
+  --PLUGINSDIR $VEP_PLUGINS/ && \
 cd $WRKDIR
 # Download GRCh37 & GRCh38 indexed VEP caches
 for ref in GRCh37 GRCh38; do
@@ -52,7 +54,7 @@ for ref in GRCh37 GRCh38; do
     -q normal -J ${ref}_VEP_cache_download \
     -o $WRKDIR/LSF/logs/${ref}_VEP_cache_download.log \
     -e $WRKDIR/LSF/logs/${ref}_VEP_cache_download.err \
-    "cd $WRKDIR/../refs/vep_cache && \
+    "cd $VEP_CACHE && \
      wget https://ftp.ensembl.org/pub/release-108/variation/indexed_vep_cache/homo_sapiens_vep_108_${ref}.tar.gz && \
      tar -xzf homo_sapiens_vep_108_${ref}.tar.gz"
 done
@@ -61,7 +63,7 @@ cd $WRKDIR/../code/ensembl-vep && \
 ./vep \
   -i examples/homo_sapiens_GRCh37.vcf \
   --cache \
-  --dir_cache $WRKDIR/../refs/vep_cache/ \
+  --dir_cache $VEP_CACHE/ \
   --cache_version 108 \
   --offline && \
 cd $WRKDIR
@@ -70,8 +72,8 @@ cd $WRKDIR
 ### Curate custom datasets for use by VEP
 # Prep subdirectories
 for subdir in UTRAnnotator gnomad loftee CADD clinvar cosmic; do
-  if ! [ -e $WRKDIR/../refs/vep_cache/$subdir ]; then
-    mkdir $WRKDIR/../refs/vep_cache/$subdir
+  if ! [ -e $VEP_CACHE/$subdir ]; then
+    mkdir $VEP_CACHE/$subdir
   fi
 done
 # dbNSFP
@@ -79,28 +81,28 @@ bsub \
   -q normal -J dbNSFP_cache_download \
   -o $WRKDIR/LSF/logs/dbNSFP_cache_download.log \
   -e $WRKDIR/LSF/logs/dbNSFP_cache_download.err \
-  "cd $WRKDIR/../refs/vep_cache && \
+  "cd $VEP_CACHE && \
    wget ftp://dbnsfp:dbnsfp@dbnsfp.softgenetics.com/dbNSFP4.3a.zip && \
    unzip dbNSFP4.3a.zip"
-zcat $WRKDIR/../refs/vep_cache/dbNSFP4.3a_variant.chr1.gz \
+zcat $VEP_CACHE/dbNSFP4.3a_variant.chr1.gz \
 | head -n1 > $TMPDIR/dbNSFP_header
 cat <<EOF > $WRKDIR/LSF/scripts/prep_dbNSFP.grch38.sh
 #!/usr/bin/env bash
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
-zgrep -h -v ^#chr $WRKDIR/../refs/vep_cache/dbNSFP4.3a_variant.chr* \
+zgrep -h -v ^#chr $VEP_CACHE/dbNSFP4.3a_variant.chr* \
 | sort -T $TMPDIR -k1,1 -k2,2n - | cat $TMPDIR/dbNSFP_header - \
-| bgzip -c > $WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch38.gz
-tabix -s 1 -b 2 -e 2 -f $WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch38.gz
+| bgzip -c > $VEP_CACHE/dbNSFP4.3a_grch38.gz
+tabix -s 1 -b 2 -e 2 -f $VEP_CACHE/dbNSFP4.3a_grch38.gz
 EOF
 cat <<EOF > $WRKDIR/LSF/scripts/prep_dbNSFP.grch37.sh
 #!/usr/bin/env bash
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
-zgrep -h -v ^#chr $WRKDIR/../refs/vep_cache/dbNSFP4.3a_variant.chr* \
+zgrep -h -v ^#chr $VEP_CACHE/dbNSFP4.3a_variant.chr* \
 | awk '\$8 != "." ' | sort -T $TMPDIR -k8,8 -k9,9n - | cat $TMPDIR/dbNSFP_header - \
-| bgzip -c > $WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch37.gz
-tabix -s 8 -b 9 -e 9 -f $WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch37.gz
+| bgzip -c > $VEP_CACHE/dbNSFP4.3a_grch37.gz
+tabix -s 8 -b 9 -e 9 -f $VEP_CACHE/dbNSFP4.3a_grch37.gz
 EOF
 for ref in 37 38; do
   script=$WRKDIR/LSF/scripts/prep_dbNSFP.grch$ref.sh
@@ -113,22 +115,22 @@ for ref in 37 38; do
     $WRKDIR/LSF/scripts/prep_dbNSFP.grch$ref.sh
 done
 # LOFTEE
-for file in $WRKDIR/../code/vep_plugins/loftee/*; do
-  ln -fs $( echo -e $file ) $WRKDIR/../code/vep_plugins/$( basename $file )
+for file in $VEP_PLUGINS/loftee/*; do
+  ln -fs $( echo -e $file ) $VEP_PLUGINS/$( basename $file )
 done
 for suffix in gz gz.fai gz.gzi; do
   bsub \
     -q normal -J dl_loftee_ancestor_fa$suffix \
     -o $WRKDIR/LSF/logs/dl_loftee_ancestor_fa$suffix.log \
     -e $WRKDIR/LSF/logs/dl_loftee_ancestor_fa$suffix.err \
-    "cd $WRKDIR/../refs/vep_cache/loftee && \
+    "cd $VEP_CACHE/loftee && \
      wget https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.$suffix"
 done
 bsub \
   -q normal -J dl_loftee_conservation_db \
   -o $WRKDIR/LSF/logs/dl_loftee_conservation_db.log \
   -e $WRKDIR/LSF/logs/dl_loftee_conservation_db.err \
-  "cd $WRKDIR/../refs/vep_cache/loftee && \
+  "cd $VEP_CACHE/loftee && \
    wget https://personal.broadinstitute.org/konradk/loftee_data/GRCh37/phylocsf_gerp.sql.gz && \
    gunzip phylocsf_gerp.sql.gz"
 # CADD
@@ -138,13 +140,13 @@ for prefix in whole_genome_SNVs InDels; do
       -q normal -J dl_cadd_$prefix.tsv.$suffix \
       -o $WRKDIR/LSF/logs/dl_cadd_$prefix.tsv.$suffix.log \
       -e $WRKDIR/LSF/logs/dl_cadd_$prefix.tsv.$suffix.err \
-      "cd $WRKDIR/../refs/vep_cache/CADD && \
+      "cd $VEP_CACHE/CADD && \
        wget https://krishna.gs.washington.edu/download/CADD/v1.6/GRCh37/$prefix.tsv.$suffix"
   done
 done
 # ClinVar
 wget \
-  -P $WRKDIR/../refs/vep_cache/clinvar/ \
+  -P $VEP_CACHE/clinvar/ \
   https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz \
   https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz.tbi
 # COSMIC
@@ -165,23 +167,23 @@ bsub \
      --cmc $TMPDIR/cosmic/cmc_export.tsv.gz \
      --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
      --ref-fasta $TCGADIR/refs/GRCh37.fa \
-   | bcftools sort -O z -o $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz && \
-   tabix -p vcf -f $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz"
+   | bcftools sort -O z -o $VEP_CACHE/cosmic/cmc.vcf.gz && \
+   tabix -p vcf -f $VEP_CACHE/cosmic/cmc.vcf.gz"
 # ABC
 wget -P $TMPDIR/ \
   ftp://ftp.broadinstitute.org/outgoing/lincRNA/ABC/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz
 $CODEDIR/scripts/data_processing/prep_ABC.py \
   --abc $TMPDIR/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz \
 | sort -Vk1,1 -k2,2n -k3,3n | bgzip -c \
-> $WRKDIR/../refs/vep_cache/ABC_enhancers.bed.gz
-tabix -p bed -f $WRKDIR/../refs/vep_cache/ABC_enhancers.bed.gz
+> $VEP_CACHE/ABC_enhancers.bed.gz
+tabix -p bed -f $VEP_CACHE/ABC_enhancers.bed.gz
 # gnomAD
 for subset in exomes genomes; do
   bsub \
     -q normal -J gnomad_${subset}_cache_download \
     -o $WRKDIR/LSF/logs/gnomad_${subset}_cache_download.log \
     -e $WRKDIR/LSF/logs/gnomad_${subset}_cache_download.err \
-    "cd $WRKDIR/../refs/vep_cache/gnomad && \
+    "cd $VEP_CACHE/gnomad && \
      wget https://ftp.ensembl.org/pub/data_files/homo_sapiens/GRCh37/variation_genotype/gnomad.$subset.r2.0.1.sites.noVEP.vcf.gz && \
      wget https://ftp.ensembl.org/pub/data_files/homo_sapiens/GRCh37/variation_genotype/gnomad.$subset.r2.0.1.sites.noVEP.vcf.gz.tbi"
 done
@@ -190,12 +192,52 @@ $CODEDIR/scripts/data_processing/make_promoters.py \
   --gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
   --coding-only \
 | sort -Vk1,1 -k2,2n -k3,3n | bgzip -c \
-> $WRKDIR/../refs/vep_cache/gencode_promoters.bed.gz
-tabix -p bed -f $WRKDIR/../refs/vep_cache/gencode_promoters.bed.gz
+> $VEP_CACHE/gencode_promoters.bed.gz
+tabix -p bed -f $VEP_CACHE/gencode_promoters.bed.gz
+# CCRs
+wget -P $TMPDIR/ \
+  https://s3.us-east-2.amazonaws.com/ccrs/ccrs/ccrs.autosomes.v2.20180420.bed.gz \
+  https://s3.us-east-2.amazonaws.com/ccrs/ccrs/ccrs.xchrom.v2.20180420.bed.gz
+zcat \
+  $TMPDIR/ccrs.autosomes.v2.20180420.bed.gz \
+  $TMPDIR/ccrs.xchrom.v2.20180420.bed.gz \
+| awk -v OFS="\t" '{ print $1, $2, $3, $5"|"$4 }' \
+| grep -ve '^#' | sort -Vk1,1 -k2,2n -k3,3 | bgzip -c \
+> $VEP_CACHE/CCR.bed.gz
+tabix -f -p bed $VEP_CACHE/CCR.bed.gz
+# GERP, phastCons, phyloP
+cat << EOF > $TMPDIR/conservation_bw_urls.list
+http://hgdownload.soe.ucsc.edu/gbdb/hg19/bbi/All_hg19_RS.bw
+http://hgdownload.soe.ucsc.edu/goldenPath/hg19/phastCons100way/hg19.100way.phastCons.bw
+http://hgdownload.soe.ucsc.edu/goldenPath/hg19/phyloP100way/hg19.100way.phyloP100way.bw
+EOF
+while read url; do
+  bsub \
+    -q normal -J dl_$( basename $url ) \
+    -o $WRKDIR/LSF/logs/dl_$( basename $url ).log \
+    -e $WRKDIR/LSF/logs/dl_$( basename $url ).err \
+    "wget -P $VEP_CACHE/ $url"
+done < $TMPDIR/conservation_bw_urls.list
+# GTEx eQTL
+bsub \
+  -q normal -J dl_GTEx_eQTL \
+  -o $WRKDIR/LSF/logs/dl_GTEx_eQTL.log \
+  -e $WRKDIR/LSF/logs/dl_GTEx_eQTL.err \
+  "wget -P $TMPDIR/ https://storage.googleapis.com/gtex_analysis_v7/single_tissue_eqtl_data/GTEx_Analysis_v7_eQTL.tar.gz"
+tar -xzf $TMPDIR/GTEx_Analysis_v7_eQTL.tar.gz -C $TMPDIR/
+$TMPDIR/gtex_eqtl_to_vcf.py \
+  --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Pancreas.v7.signif_variant_gene_pairs.txt.gz \
+  --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Skin_Sun_Exposed_Lower_leg.v7.signif_variant_gene_pairs.txt.gz \
+  --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Skin_Not_Sun_Exposed_Suprapubic.v7.signif_variant_gene_pairs.txt.gz \
+  --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Colon_Sigmoid.v7.signif_variant_gene_pairs.txt.gz \
+  --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Colon_Transverse.v7.signif_variant_gene_pairs.txt.gz \
+  --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz
+
+
 
 
 ### Build script for generic VEP function call with plugins and options
-# export PERL5LIB=$WRKDIR/../code/vep_plugins/loftee:$PERL5LIB
+# export PERL5LIB=$VEP_PLUGINS/loftee:$PERL5LIB
 annotate_vcf () {
   $WRKDIR/../code/ensembl-vep/vep \
     --input_file $1 \
@@ -210,9 +252,9 @@ annotate_vcf () {
     --no_stats \
     --fork 2 \
     --cache \
-    --dir_cache $WRKDIR/../refs/vep_cache/ \
+    --dir_cache $VEP_CACHE/ \
     --cache_version 108 \
-    --dir_plugins $WRKDIR/../code/vep_plugins/ \
+    --dir_plugins $VEP_PLUGINS/ \
     --fasta $TCGADIR/refs/GRCh37.fa \
     --minimal \
     --sift b \
@@ -225,16 +267,21 @@ annotate_vcf () {
     --symbol \
     --canonical \
     --domains \
-    --plugin UTRAnnotator,file=$WRKDIR/../refs/vep_cache/UTRAnnotator/uORF_5UTR_GRCh37_PUBLIC.txt \
-    --plugin dbNSFP,$WRKDIR/../refs/vep_cache/dbNSFP4.3a_grch37.gz,SIFT_score,Polyphen2_HDIV_score,FATHMM_score,MPC_score,GERP++_RS \
-    --plugin CADD,$WRKDIR/../refs/vep_cache/CADD/whole_genome_SNVs.tsv.gz,$WRKDIR/../refs/vep_cache/CADD/InDels.tsv.gz \
-    --plugin LoF,loftee_path:$WRKDIR/../code/vep_plugins/loftee,human_ancestor_fa:$WRKDIR/../refs/vep_cache/loftee/human_ancestor.fa.gz,conservation_file:$WRKDIR/../refs/vep_cache/loftee/phylocsf_gerp.sql \
-    --custom $WRKDIR/../refs/vep_cache/gnomad/gnomad.genomes.r2.0.1.sites.noVEP.vcf.gz,gnomADg,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
-    --custom $WRKDIR/../refs/vep_cache/gnomad/gnomad.exomes.r2.0.1.sites.noVEP.vcf.gz,gnomADe,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
-    --custom $WRKDIR/../refs/vep_cache/clinvar/clinvar.vcf.gz,ClinVar,vcf,exact,0,CLNSIG,CLNREVSTAT,CLNDN \
-    --custom $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz,COSMIC,vcf,exact,0,COSMIC_GENE,COSMIC_AA_CHANGE,COSMIC_GENE_TIER,COSMIC_MUT_SIG,COSMIC_MUT_FREQ \
-    --custom $WRKDIR/../refs/vep_cache/gencode_promoters.bed.gz,promoters,bed,exact,0 \
-    --custom $WRKDIR/../refs/vep_cache/ABC_enhancers.bed.gz,ABC_ehnahcers,bed,exact,0
+    --plugin UTRAnnotator,file=$VEP_CACHE/UTRAnnotator/uORF_5UTR_GRCh37_PUBLIC.txt \
+    --plugin dbNSFP,$VEP_CACHE/dbNSFP4.3a_grch37.gz,SIFT_score,Polyphen2_HDIV_score,FATHMM_score,MPC_score,GERP++_RS \
+    --plugin CADD,$VEP_CACHE/CADD/whole_genome_SNVs.tsv.gz,$VEP_CACHE/CADD/InDels.tsv.gz \
+    --plugin LoF,loftee_path:$VEP_PLUGINS/loftee,human_ancestor_fa:$VEP_CACHE/loftee/human_ancestor.fa.gz,conservation_file:$VEP_CACHE/loftee/phylocsf_gerp.sql \
+    --custom $VEP_CACHE/All_hg19_RS.bw,GERP,bigwig \
+    --custom $VEP_CACHE/hg19.100way.phastCons.bw,phastCons,bigwig \
+    --custom $VEP_CACHE/hg19.100way.phyloP100way.bw,phyloP,bigwig \
+    --custom $VEP_CACHE/gnomad/gnomad.genomes.r2.0.1.sites.noVEP.vcf.gz,gnomADg,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
+    --custom $VEP_CACHE/gnomad/gnomad.exomes.r2.0.1.sites.noVEP.vcf.gz,gnomADe,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
+    --custom $VEP_CACHE/clinvar/clinvar.vcf.gz,ClinVar,vcf,exact,0,CLNSIG,CLNREVSTAT,CLNDN \
+    --custom $VEP_CACHE/cosmic/cmc.vcf.gz,COSMIC,vcf,exact,0,COSMIC_GENE,COSMIC_AA_CHANGE,COSMIC_GENE_TIER,COSMIC_MUT_SIG,COSMIC_MUT_FREQ \
+    --custom $VEP_CACHE/gencode_promoters.bed.gz,promoters,bed,exact,0 \
+    --custom $VEP_CACHE/ABC_enhancers.bed.gz,ABC_ehnahcers,bed,exact,0 \
+    --custom $VEP_CACHE/CCR.bed.gz,CCR,bed,exact,0 \
+    --custom $VEP_CACHE/samocha_regional_constraint.bed.gz,ExAC_regional_constraint,bed,exact,0
 }
     
 # DEV:

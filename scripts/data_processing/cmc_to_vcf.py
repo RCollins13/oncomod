@@ -30,7 +30,6 @@ def load_header(header_in):
 
     # Load
     header = pysam.VariantFile(header_in).header
-    # header.add_sample('dummy')
 
     # Add COSMIC INFO fields
     header.add_line('##INFO=<ID=COSMIC_GENE,Number=.,Type=String,Description="COSMIC gene">')
@@ -134,7 +133,7 @@ def main():
                         '[default: stdout]')
     args = parser.parse_args()
 
-    # Load VCF header and open connection to output file
+    # Load VCF header
     header = load_header(args.header)
 
     # Open connection to output file
