@@ -170,12 +170,11 @@ bsub \
 # ABC
 wget -P $TMPDIR/ \
   ftp://ftp.broadinstitute.org/outgoing/lincRNA/ABC/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz
-zcat $TMPDIR/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz
-zcat $TMPDIR/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz \
-| awk '{ print $NF }' | sort | uniq -c
-# Tissues of interest: pancreas-Roadmap Panc1-ENCODE body_of_pancreas-ENCODE
-# sigmoid_colon-ENCODE transverse_colon-ENCODE keratinocyte-Roadmap fibroblast_of_dermis-Roadmap fibroblast_of_arm-ENCODE
-# ftp://ftp.broadinstitute.org/outgoing/lincRNA/ABC/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz
+$CODEDIR/scripts/data_processing/prep_ABC.py \
+  --abc $TMPDIR/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz \
+| sort -Vk1,1 -k2,2n -k3,3n | bgzip -c \
+> $WRKDIR/../refs/vep_cache/ABC_enhancers.bed.gz
+tabix -p bed -f $WRKDIR/../refs/vep_cache/ABC_enhancers.bed.gz
 # gnomAD
 for subset in exomes genomes; do
   bsub \
@@ -234,7 +233,8 @@ annotate_vcf () {
     --custom $WRKDIR/../refs/vep_cache/gnomad/gnomad.exomes.r2.0.1.sites.noVEP.vcf.gz,gnomADe,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
     --custom $WRKDIR/../refs/vep_cache/clinvar/clinvar.vcf.gz,ClinVar,vcf,exact,0,CLNSIG,CLNREVSTAT,CLNDN \
     --custom $WRKDIR/../refs/vep_cache/cosmic/cmc.vcf.gz,COSMIC,vcf,exact,0,COSMIC_GENE,COSMIC_AA_CHANGE,COSMIC_GENE_TIER,COSMIC_MUT_SIG,COSMIC_MUT_FREQ \
-    --custom $WRKDIR/../refs/vep_cache/gencode_promoters.bed.gz,promoters,bed,exact,0
+    --custom $WRKDIR/../refs/vep_cache/gencode_promoters.bed.gz,promoters,bed,exact,0 \
+    --custom $WRKDIR/../refs/vep_cache/ABC_enhancers.bed.gz,ABC_ehnahcers,bed,exact,0
 }
     
 # DEV:
