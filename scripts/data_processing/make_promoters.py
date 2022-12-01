@@ -56,7 +56,7 @@ def main():
             end = start + args.distance
         
         if not any(x is None for x in [gene, tx]):
-            outfile.write('{}\t{}\t{}\t{}|{}\n'.format(chrom, start, end, gene, tx))
+            outfile.write('{}\t{}\t{}\t{}:{}\n'.format(chrom, start, end, gene, tx))
 
     # Close connection to outfile to clear buffer
     outfile.close()

@@ -61,7 +61,7 @@ def main():
         outfile = open(args.outfile, 'w')
 
     # Iterate over features in input file
-    ofmt = '{}\t{}\t{}\t{}|{}|{}|{}\n'
+    ofmt = '{}\t{}\t{}\t{}:{}:{}:{}\n'
     for idx, edata in get_abc_iterables(args.abc):
         outfile.write(ofmt.format(*edata.values))
 

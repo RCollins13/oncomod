@@ -12,7 +12,19 @@ Clean up verbose VEP output for RASMod VCFs
 
 import argparse
 import pysam
-from sys import stdout
+from sys import stdin, stdout
+
+
+
+def parse_vep_map(invcf):
+    """
+    Parse VEP field mappings to variable names
+    """
+
+    vep_text = invcf.header.info.get('CSQ').description
+    vep_fields = vep_text.split('Format: ')[1].replace('\'', '').split('|')
+
+    return {i : k for i, k in enumerate(vep_fields)}
 
 
 def reformat_header(invcf):
@@ -20,15 +32,21 @@ def reformat_header(invcf):
     Reformat header for output VCF
     """
 
-    out_header = copy(invcf.header)
+    out_header = invcf.header
 
     return out_header
 
 
-def cleanup(record):
+def cleanup(record, vep_map):
     """
     Simplify VEP entry for a single record
     """
+
+    vep_vals = {}
+    for i, vep_str in enumerate(record.info.get('CSQ')):
+        vep_vals[i] = {k : v for k, v in zip(vep_map.values(), vep_str.split('|'))}
+
+    
 
     import pdb; pdb.set_trace()
 
@@ -41,24 +59,30 @@ def main():
     parser = argparse.ArgumentParser(
              description=__doc__,
              formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--vcf', help='input VEP-annotated .vcf', required=True)
-    parser.add_argument('-o', '--outfile', default='stdout', help='output .vcf ' +
-                        '[default: stdout]')
+    parser.add_argument('vcf_in', help='input VEP-annotated .vcf [default: stdin]',
+                        default='stdin')
+    parser.add_argument('vcf_out', help='output .vcf [default: stdout]', default='stdout')
     args = parser.parse_args()
 
     # Open connection to input vcf
-    invcf = pysam.VariantFile(args.vcf)
-    out_header = reformat_header(invcf)
+    if args.vcf_in in '- stdin /dev/stdin'.split():
+        invcf = pysam.VariantFile(stdin)
+    else:
+        invcf = pysam.VariantFile(args.vcf_in)
+
+    # Parse mapping of VEP fields
+    vep_map = parse_vep_map(invcf)
     
     # Open connection to output file
-    if args.outfile in '- stdout /dev/stdout'.split():
+    out_header = reformat_header(invcf)
+    if args.vcf_out in '- stdout /dev/stdout'.split():
         outvcf = pysam.VariantFile(stdout, 'w', header=out_header)
     else:
-        outvcf = pysam.VariantFile(args.outfile, 'w', header=out_header)
+        outvcf = pysam.VariantFile(args.vcf_out, 'w', header=out_header)
 
     # Iterate over records in invcf, clean up each, and write to outvcf
     for record in invcf.fetch():
-        record = cleanup(record)
+        record = cleanup(record, vep_map)
         outvcf.write(record)
 
     # Close connection to output VCF to clear buffer

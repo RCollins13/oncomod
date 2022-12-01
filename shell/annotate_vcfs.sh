@@ -201,7 +201,7 @@ wget -P $TMPDIR/ \
 zcat \
   $TMPDIR/ccrs.autosomes.v2.20180420.bed.gz \
   $TMPDIR/ccrs.xchrom.v2.20180420.bed.gz \
-| awk -v OFS="\t" '{ print $1, $2, $3, $5"|"$4 }' \
+| awk -v OFS="\t" '{ print $1, $2, $3, $5":"$4 }' \
 | grep -ve '^#' | sort -Vk1,1 -k2,2n -k3,3 | bgzip -c \
 > $VEP_CACHE/CCR.bed.gz
 tabix -f -p bed $VEP_CACHE/CCR.bed.gz
@@ -221,8 +221,11 @@ done < $TMPDIR/conservation_bw_urls.list
 while read url; do
   old=$VEP_CACHE/$( basename $url )
   new=$( echo $old | sed 's/hg19/GRCh37/g' )
-  
-  echo -e "$TMPDIR/convert_bigwig_contigs.py $old $new"
+  bsub \
+    -q normal -J convert_$( basename $old )_contigs \
+    -o $WRKDIR/LSF/logs/convert_$( basename $old )_contigs.log \
+    -e $WRKDIR/LSF/logs/convert_$( basename $old )_contigs.err \
+    "$CODEDIR/scripts/data_processing/convert_bigwig_contigs.py $old $new"
 done < $TMPDIR/conservation_bw_urls.list
 # GTEx eQTL
 bsub \
@@ -242,69 +245,91 @@ $CODEDIR/scripts/data_processing/gtex_eqtl_to_vcf.py \
 tabix -p vcf -f $VEP_CACHE/GTEx_eQTLs.vcf.gz
 
 
-
-
 ### Build script for generic VEP function call with plugins and options
 # export PERL5LIB=$VEP_PLUGINS/loftee:$PERL5LIB
-annotate_vcf () {
-  $WRKDIR/../code/ensembl-vep/vep \
-    --input_file $1 \
-    --format vcf \
-    --output_file $2 \
-    --fork 2 \
-    --vcf \
-    --compress_output bgzip \
-    --force_overwrite \
-    --species homo_sapiens \
-    --assembly GRCh37 \
-    --max_sv_size 1000 \
-    --offline \
-    --no_stats \
-    --cache \
-    --dir_cache $VEP_CACHE/ \
-    --cache_version 108 \
-    --dir_plugins $VEP_PLUGINS/ \
-    --fasta $TCGADIR/refs/GRCh37.fa \
-    --minimal \
-    --sift b \
-    --polyphen b \
-    --nearest gene \
-    --regulatory \
-    --cell_type pancreas,endocrine_pancreas,sigmoid_colon,foreskin_melanocyte_1,foreskin_melanocyte_2 \
-    --numbers \
-    --hgvs \
-    --symbol \
-    --canonical \
-    --domains \
-    --plugin UTRAnnotator,file=$VEP_CACHE/UTRAnnotator/uORF_5UTR_GRCh37_PUBLIC.txt \
-    --plugin dbNSFP,$VEP_CACHE/dbNSFP4.3a_grch37.gz,SIFT_score,Polyphen2_HDIV_score,FATHMM_score,MPC_score,GERP++_RS \
-    --plugin CADD,$VEP_CACHE/CADD/whole_genome_SNVs.tsv.gz,$VEP_CACHE/CADD/InDels.tsv.gz \
-    --plugin LoF,loftee_path:$VEP_PLUGINS/loftee,human_ancestor_fa:$VEP_CACHE/loftee/human_ancestor.fa.gz,conservation_file:$VEP_CACHE/loftee/phylocsf_gerp.sql \
-    --custom $VEP_CACHE/gnomad/gnomad.genomes.r2.0.1.sites.noVEP.vcf.gz,gnomADg,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
-    --custom $VEP_CACHE/gnomad/gnomad.exomes.r2.0.1.sites.noVEP.vcf.gz,gnomADe,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
-    --custom $VEP_CACHE/clinvar/clinvar.vcf.gz,ClinVar,vcf,exact,0,CLNSIG,CLNREVSTAT,CLNDN \
-    --custom $VEP_CACHE/cosmic/cmc.vcf.gz,COSMIC,vcf,exact,0,COSMIC_GENE,COSMIC_AA_CHANGE,COSMIC_GENE_TIER,COSMIC_MUT_SIG,COSMIC_MUT_FREQ \
-    --custom $VEP_CACHE/gencode_promoters.bed.gz,promoters,bed,exact,0 \
-    --custom $VEP_CACHE/ABC_enhancers.bed.gz,ABC_ehnahcers,bed,exact,0 \
-    --custom $VEP_CACHE/CCR.bed.gz,CCR,bed,exact,0 \
-    --custom $VEP_CACHE/samocha_regional_constraint.bed.gz,ExAC_regional_constraint,bed,exact,0 \
-    --custom $VEP_CACHE/GTEx_eQTLs.vcf.gz,GTEx,vcf,exact,0,GTEx_eGene,GTEx_eQTL_beta,GTEx_eQTL_tissue
-}
+cat <<EOF > $WRKDIR/LSF/scripts/run_VEP.sh
+#!/usr/bin/env bash
+
+# Annotate with VEP
+$WRKDIR/../code/ensembl-vep/vep \
+  --input_file \$1 \
+  --format vcf \
+  --output_file STDOUT \
+  --fork 2 \
+  --vcf \
+  --force_overwrite \
+  --species homo_sapiens \
+  --assembly GRCh37 \
+  --max_sv_size 1000 \
+  --offline \
+  --no_stats \
+  --cache \
+  --dir_cache $VEP_CACHE/ \
+  --cache_version 108 \
+  --dir_plugins $VEP_PLUGINS/ \
+  --fasta $TCGADIR/refs/GRCh37.fa \
+  --minimal \
+  --sift b \
+  --polyphen b \
+  --nearest gene \
+  --numbers \
+  --hgvs \
+  --symbol \
+  --canonical \
+  --domains \
+  --plugin UTRAnnotator,file=$VEP_CACHE/UTRAnnotator/uORF_5UTR_GRCh37_PUBLIC.txt \
+  --plugin dbNSFP,$VEP_CACHE/dbNSFP4.3a_grch37.gz,SIFT_score,Polyphen2_HDIV_score,FATHMM_score,MPC_score \
+  --plugin CADD,$VEP_CACHE/CADD/whole_genome_SNVs.tsv.gz,$VEP_CACHE/CADD/InDels.tsv.gz \
+  --plugin LoF,loftee_path:$VEP_PLUGINS/loftee,human_ancestor_fa:$VEP_CACHE/loftee/human_ancestor.fa.gz,conservation_file:$VEP_CACHE/loftee/phylocsf_gerp.sql \
+  --custom $VEP_CACHE/All_GRCh37_RS.bw,GERP,bigwig \
+  --custom $VEP_CACHE/gnomad/gnomad.genomes.r2.0.1.sites.noVEP.vcf.gz,gnomADg,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
+  --custom $VEP_CACHE/gnomad/gnomad.exomes.r2.0.1.sites.noVEP.vcf.gz,gnomADe,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
+  --custom $VEP_CACHE/clinvar/clinvar.vcf.gz,ClinVar,vcf,exact,0,CLNSIG \
+  --custom $VEP_CACHE/cosmic/cmc.vcf.gz,COSMIC,vcf,exact,0,COSMIC_GENE,COSMIC_AA_CHANGE,COSMIC_GENE_TIER,COSMIC_MUT_SIG,COSMIC_MUT_FREQ \
+  --custom $VEP_CACHE/gencode_promoters.bed.gz,promoters,bed,exact,0 \
+  --custom $VEP_CACHE/ABC_enhancers.bed.gz,ABC_ehnahcers,bed,exact,0 \
+  --custom $VEP_CACHE/CCR.bed.gz,CCR,bed,exact,0 \
+  --custom $VEP_CACHE/samocha_regional_constraint.bed.gz,ExAC_regional_constraint,bed,exact,0 \
+  --custom $VEP_CACHE/GTEx_eQTLs.vcf.gz,GTEx,vcf,exact,0,GTEx_eGene,GTEx_eQTL_beta,GTEx_eQTL_tissue \
+| $TMPDIR/cleanup_vep.py \
+  - - \
+| bcftools sort -O z -o \$2
+tabix -p vcf -f \$2
+EOF
+chmod a+x $WRKDIR/LSF/scripts/run_VEP.sh
     
 
-    # /data/talkowski/tools/bin/bigWigToWig $VEP_CACHE/All_hg19_RS.bw /dev/stdout | sed 's/=chr//g' | /data/talkowski/tools/bin/wigToBigWig /dev/stdin $VEP_CACHE/All_GRCH37_RS.bw
-     # \
-    # --custom ,GERP,bigwig \
+    # --custom $VEP_CACHE/GRCh37.100way.phastCons.bw,phastCons,bigwig \
     # --custom $VEP_CACHE/hg19.100way.phyloP100way.bw,phyloP,bigwig \
 # DEV:
-annotate_vcf $TMPDIR/test.vcf.gz $TMPDIR/test.anno.vcf.gz
+$WRKDIR/LSF/scripts/run_VEP.sh $TMPDIR/test.vcf.gz $TMPDIR/test.anno.vcf.gz
+tabix -p vcf -f $TMPDIR/test.anno.vcf.gz
+tabix -H $TMPDIR/test.anno.vcf.gz | fgrep "##INFO=<ID=CSQ" \
+| sed 's/Format\:\ /\n/g' | fgrep -v "#" | tr -d '">' | sed 's/|/\t/g' > $TMPDIR/VEP_vals.tsv
+bcftools query -f '%CSQ\n' $TMPDIR/test.anno.vcf.gz | sed 's/,/\n/g' | sed 's/|/\t/g' >> $TMPDIR/VEP_vals.tsv
+$TMPDIR/cleanup_vep.py $TMPDIR/test.anno.vcf.gz $TMPDIR/test.anno.clean.vcf.gz
 
 
 ### Annotate TCGA VCFs
-annotate_vcf \
-  $TCGADIR/data/TCGA.RAS_loci.vcf.gz \
-  $TCGADIR/data/TCGA.RAS_loci.anno.vcf.gz
+for subset in somatic_variants RAS_loci; do
+  bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+    -J VEP_TCGA_$subset \
+    -o $WRKDIR/LSF/logs/VEP_TCGA_$subset.log \
+    -e $WRKDIR/LSF/logs/VEP_TCGA_$subset.err \
+    "$WRKDIR/LSF/scripts/run_VEP.sh \
+       $TCGADIR/data/TCGA.$subset.vcf.gz \
+       $TCGADIR/data/TCGA.$subset.anno.vcf.gz"
+done
+
 
 ### Annotate PROFILE VCFs
-# TODO: implement this
+for subset in somatic_variants RAS_loci; do
+  bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+    -J VEP_PROFILE_$subset \
+    -o $WRKDIR/LSF/logs/VEP_PROFILE_$subset.log \
+    -e $WRKDIR/LSF/logs/VEP_PROFILE_$subset.err \
+    "$WRKDIR/LSF/scripts/run_VEP.sh \
+       $PROFILEDIR/data/PROFILE.$subset.vcf.gz \
+       $PROFILEDIR/data/PROFILE.$subset.anno.vcf.gz"
+done
 
