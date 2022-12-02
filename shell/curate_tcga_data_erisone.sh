@@ -122,8 +122,7 @@ $CODEDIR/scripts/data_processing/preprocess_tcga_phenotypes.py \
 ### Subset VCFs to patients of interest and RAS loci
 # Extract samples & loci of interest from genotyped and imputed arrays
 while read contig start end gene; do
-  # for tech in array_typed array_imputed; do
-  for tech in array_imputed; do
+  for tech in array_typed array_imputed; do
     bcftools_options="--min-ac 1"
     case $tech in
       array_typed)
@@ -173,7 +172,7 @@ while read contig start end gene; do
 done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
 # Use bcftools to stream WES data from gs:// bucket for samples & loci of interest
 gsutil -m cp \
-  gs://fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz.tbi \
+  gs://terra-workspace-archive-lifecycle/fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz.tbi \
   $WRKDIR/data/
 gcloud auth application-default login
 export GCS_OAUTH_TOKEN=`gcloud auth application-default print-access-token`
@@ -184,7 +183,7 @@ while read contig start end gene; do
     --min-ac 1 \
     --samples-file $WRKDIR/data/sample_info/TCGA.ALL.exome.samples.list \
     --regions-file $WRKDIR/refs/TCGA_WES.covered_intervals.$gene.bed.gz \
-    gs://fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz
+    gs://terra-workspace-archive-lifecycle/fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz
   tabix -p vcf -f $WRKDIR/data/TCGA.$gene.exome.vcf.gz
 done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
 # Merge VCFs for exomes and arrays for each gene
@@ -228,7 +227,7 @@ cat \
   <( zcat $WRKDIR/data/mc3.v0.2.8.PUBLIC.maf.gz | head -n1 ) \
   <( zcat $WRKDIR/data/mc3.v0.2.8.PUBLIC.maf.gz \
      | fgrep -wf $WRKDIR/data/sample_info/TCGA.ALL.donors.list ) \
-| gzip -c > $WRKDIR/data/mc3.v0.2.8.PUBLIC.SKCM_PDAC_CRAD.maf.gz
+| gzip -c > $WRKDIR/data/mc3.v0.2.8.PUBLIC.PDAC_CRAD_LUAD_SKCM.maf.gz
 # Pre-filter Affy SNP array CNA calls
 # Note: must have been downloaded by cancer type from GDAC Firehose
 # and uploaded to $WRKDIR/data/TCGA_CNA
@@ -240,7 +239,7 @@ cat $( find $WRKDIR/data/TCGA_CNA -name "*seg.seg.txt" | paste -s ) \
 | cat <( echo -e "#chrom\tstart\tend\tCNA\tsample" ) - | bgzip -c \
 > $WRKDIR/data/TCGA.CNA.b19.bed.gz
 # Write lists of donors with no somatic data available callset
-zcat $WRKDIR/data/mc3.v0.2.8.PUBLIC.SKCM_PDAC_CRAD.maf.gz \
+zcat $WRKDIR/data/mc3.v0.2.8.PUBLIC.PDAC_CRAD_LUAD_SKCM.maf.gz \
 | cut -f16 | cut -f1-3 -d\- | sort | uniq \
 | fgrep -wvf - $WRKDIR/data/sample_info/TCGA.ALL.donors.list \
 > $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.mc3.list
@@ -255,7 +254,7 @@ cat \
 > $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.list
 # Curate somatic data
 $CODEDIR/scripts/data_processing/preprocess_tcga_somatic.py \
-  --mc3-tsv $WRKDIR/data/mc3.v0.2.8.PUBLIC.SKCM_PDAC_CRAD.maf.gz \
+  --mc3-tsv $WRKDIR/data/mc3.v0.2.8.PUBLIC.PDAC_CRAD_LUAD_SKCM.maf.gz \
   --cna-bed $WRKDIR/data/TCGA.CNA.b19.bed.gz \
   --donors-list $WRKDIR/data/sample_info/TCGA.ALL.donors.list \
   --no-mutation-data $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.mc3.list \
@@ -264,11 +263,13 @@ $CODEDIR/scripts/data_processing/preprocess_tcga_somatic.py \
   --priority-genes $WRKDIR/../refs/COSMIC.all_GCG.Nov8_2022.genes.list \
   --ref-fasta $WRKDIR/refs/GRCh37.fa \
   --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
-  --outfile $WRKDIR/data/TCGA.somatic_variants.vcf.gz
+  --outfile $WRKDIR/data/TCGA.somatic_variants.vcf.gz \
+  --out-tsv $WRKDIR/data/TCGA.somatic_variants.tsv.gz
 tabix -p vcf -f $WRKDIR/data/TCGA.somatic_variants.vcf.gz
 
 
 # Summarize somatic variant status by gene & cancer type
+# TODO: update this to work for VCF instead of .tsv
 for cancer in PDAC CRAD SKCM; do
   n_samp=$( fgrep -wvf \
               $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.list \
