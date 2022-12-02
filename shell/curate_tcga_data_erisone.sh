@@ -269,7 +269,7 @@ tabix -p vcf -f $WRKDIR/data/TCGA.somatic_variants.vcf.gz
 
 
 # Summarize somatic variant status by gene & cancer type
-for cancer in PDAC CRAD SKCM; do
+for cancer in PDAC CRAD LUAD SKCM; do
   n_samp=$( fgrep -wvf \
               $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.list \
               ${WRKDIR}/data/sample_info/TCGA.$cancer.donors.list | wc -l )
@@ -277,13 +277,13 @@ for cancer in PDAC CRAD SKCM; do
     zcat $WRKDIR/data/TCGA.somatic_variants.tsv.gz \
     | fgrep -wf ${WRKDIR}/data/sample_info/TCGA.$cancer.donors.list \
     | fgrep -wvf $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.list \
-    | awk -v gene=$gene -v FS="\t" '{ if ($8==gene && ($14~/AMP|DEL|Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/)) print $6 }' \
+    | awk -v gene=$gene -v FS="\t" '{ if ($8==gene && ($12~/AMP|DEL|Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/)) print $6 }' \
     | sort | uniq | wc -l | awk -v n=$n_samp '{ print $1/n }'
   done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 )
   zcat $WRKDIR/data/TCGA.somatic_variants.tsv.gz \
     | fgrep -wf ${WRKDIR}/data/sample_info/TCGA.$cancer.donors.list \
     | fgrep -wvf $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.list \
-    | awk -v FS="\t" '{ if ($8~/NRAS|HRAS|KRAS/ && $14~/AMP|DEL|Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/) print $6 }' \
+    | awk -v FS="\t" '{ if ($8~/NRAS|HRAS|KRAS/ && $12~/AMP|DEL|Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/) print $6 }' \
     | sort | uniq | wc -l | awk -v n=$n_samp '{ print $1/n }'
 done | paste - - - -
 

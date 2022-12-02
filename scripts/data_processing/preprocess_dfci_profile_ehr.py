@@ -90,9 +90,11 @@ def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None):
                 & (genomic_df.PRIMARY_CANCER_DIAGNOSIS.str.lower().str.contains('adenocarcinoma'))
     crc_hits = (genomic_df.CANCER_TYPE == 'Colorectal Cancer') \
                & (genomic_df.PRIMARY_CANCER_DIAGNOSIS.str.lower().str.contains('adenocarcinoma'))
+    lung_hits = (genomic_df.CANCER_TYPE.str.contains('Lung Cancer')) \
+                 & (genomic_df.PRIMARY_CANCER_DIAGNOSIS.str.lower().str.contains('adenocarcinoma'))
     mel_hits = (genomic_df.CANCER_TYPE == 'Melanoma') \
                & (genomic_df.PRIMARY_CANCER_DIAGNOSIS.isin('Melanoma|Cutaneous Melanoma'.split('|')))
-    genomic_df = genomic_df[(panc_hits | crc_hits | mel_hits)]
+    genomic_df = genomic_df[(panc_hits | crc_hits | lung_hits | mel_hits)]
     genomic_df.drop_duplicates('DFCI_MRN', keep='first', inplace=True)
 
     # Subset ID linker table to BL IDs present in genomic df
@@ -134,10 +136,11 @@ def add_dx_info(main_df, dx_csv):
     dx_df = dx_df[dx_df.DFCI_MRN.isin(main_df.DFCI_MRN) \
                   & (dx_df.BEHAVIOR_DESCR == 'MALIGNANT, PRIMARY')]
     panc_hits = dx_df.SITE_DESCR.str.contains('PANCR')
-    mel_hits = dx_df.SITE_DESCR.str.contains('SKIN')
     crc_hits = ((dx_df.SITE_DESCR.str.contains('COLON')) | \
                 (dx_df.SITE_DESCR.str.contains('RECTUM')))
-    dx_df = dx_df[panc_hits | mel_hits | crc_hits]
+    lung_hits = dx_df.SITE_DESCR.str.contains('LUNG')
+    mel_hits = dx_df.SITE_DESCR.str.contains('SKIN')
+    dx_df = dx_df[panc_hits | crc_hits | lung_hits | mel_hits]
     
     # For the subset of patients with multiple diagnoses, take the dx info for
     # the earliest diagnosed tumor
@@ -243,8 +246,9 @@ def clean_output_df(main_df):
     main_df.drop(drop_cols.split(), axis=1, inplace=True)
 
     # Simplify cancer types into codes
-    cancer_codes = {'Colorectal Cancer' : 'CRAD',
-                    'Pancreatic Cancer' : 'PDAC',
+    cancer_codes = {'Pancreatic Cancer' : 'PDAC',
+                    'Colorectal Cancer' : 'CRAD',
+                    'Non-Small Cell Lung Cancer' : 'LUAD',
                     'Melanoma' : 'SKCM'}
     main_df.CANCER_TYPE = main_df.CANCER_TYPE.map(cancer_codes)
 
@@ -309,7 +313,7 @@ def main():
     main_df = clean_output_df(main_df)
 
     # Write out PBP IDs per cancer type
-    for cancer in 'PDAC SKCM CRAD'.split():
+    for cancer in 'PDAC CRAD LUAD SKCM'.split():
         with open(args.out_prefix + cancer + '.samples.list', 'w') as fout:
             ids = set(main_df.PBP.astype(str)[main_df.CANCER_TYPE == cancer].to_list())
             for sample in ids:

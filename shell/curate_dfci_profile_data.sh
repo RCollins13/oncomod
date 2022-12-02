@@ -37,6 +37,7 @@ tabix -H $GTDIR/PROFILE_COMB.22.HQ.vcf.gz \
 > $WRKDIR/data/sample_info/PROFILE.vcf.samples.list
 # Curate EHR and get list of patients from cancer types of interest
 $CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
+$TMPDIR/preprocess_dfci_profile_ehr.py \
   --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab \
   --genomic-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_SPECIMEN.csv.gz \
   --dx-csv $CLINDIR/OncDRS/ALL_2021_11/CANCER_DIAGNOSIS_CAREG.csv.gz \
