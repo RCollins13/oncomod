@@ -90,7 +90,7 @@ $CODEDIR/scripts/data_processing/harmonize_tcga_samples.py \
 if [ -e $WRKDIR/data/sample_info/TCGA.BMI.tsv ]; then
   rm $WRKDIR/data/sample_info/TCGA.BMI.tsv
 fi
-for prefix in PAAD COAD READ SKCM; do
+for prefix in PAAD COAD READ LUAD SKCM; do
   wget \
     -P $WRKDIR/data/sample_info/TCGA_BMI/ \
     https://hgdownload.soe.ucsc.edu/gbdb/hg38/gdcCancer/$prefix.bb

@@ -42,7 +42,8 @@ def load_clinical(cdr_in, tcga_study_table_in, bmi_in, id_map):
 
     # Clean data
     main_df['CANCER_TYPE'] = main_df.type.map({'PAAD' : 'PDAC', 'COAD' : 'CRAD',
-                                               'READ' : 'CRAD', 'SKCM' : 'SKCM'})
+                                               'READ' : 'CRAD', 'LUAD' : 'LUAD', 
+                                               'SKCM' : 'SKCM'})
     main_df.ajcc_pathologic_tumor_stage = main_df.ajcc_pathologic_tumor_stage.str.replace('Stage ', '')
     for k, v in {'III' : '3', 'II' : '2', 'IV' : '4', 'I' : '1'}.items():
         main_df.ajcc_pathologic_tumor_stage = main_df.ajcc_pathologic_tumor_stage.str.replace(k, v)

@@ -98,15 +98,16 @@ def format_outputs(ex_df, ar_df, tss_table_in, study_table_in, out_prefix):
 
     # Remap cancer types to abbreviations used in our study
     out_df.CANCER = out_df.CANCER.map({'PAAD' : 'PDAC', 'COAD' : 'CRAD',
-                                       'READ' : 'CRAD', 'SKCM' : 'SKCM'})
+                                       'READ' : 'CRAD', 'LUAD' : 'LUAD',
+                                       'SKCM' : 'SKCM'})
 
     # Restrict to samples that have both exomes and typed arrays
     out_df = out_df[((~out_df.WES_BAM_ID.isna()) & (~out_df.ARRAY_TYPED_ID.isna()))]
 
     # Write various files for each cancer type
-    for cancer in 'ALL PDAC CRAD SKCM'.split():
+    for cancer in 'ALL PDAC CRAD LUAD SKCM'.split():
         if cancer == 'ALL':
-            keepers = out_df.CANCER.isin('PDAC CRAD SKCM'.split())
+            keepers = out_df.CANCER.isin('PDAC CRAD LUAD SKCM'.split())
         else:
             keepers = (out_df.CANCER == cancer)
 
