@@ -243,6 +243,11 @@ $CODEDIR/scripts/data_processing/gtex_eqtl_to_vcf.py \
   --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
 | bcftools sort -O z -o $VEP_CACHE/GTEx_eQTLs.vcf.gz
 tabix -p vcf -f $VEP_CACHE/GTEx_eQTLs.vcf.gz
+# Gencode map of ENSG:symbol:ENST:CDS length
+$CODEDIR/scripts/data_processing/build_gencode_table.py \
+  --gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
+| sort -Vk1,1 -k2,2V -k3,3V -k4,4n | gzip -c \
+> $TMPDIR/test.tsv.gz
 
 
 ### Build script for generic VEP function call with plugins and options
@@ -254,9 +259,10 @@ cat <<EOF > $WRKDIR/LSF/scripts/run_VEP.sh
 $WRKDIR/../code/ensembl-vep/vep \
   --input_file \$1 \
   --format vcf \
-  --output_file STDOUT \
+  --output_file \$2 \
   --fork 2 \
   --vcf \
+  --compress_output bgzip \
   --force_overwrite \
   --species homo_sapiens \
   --assembly GRCh37 \
@@ -272,43 +278,54 @@ $WRKDIR/../code/ensembl-vep/vep \
   --sift b \
   --polyphen b \
   --nearest gene \
+  --distance 100000 \
+  --regulatory \
+  --cell_type pancreas,endocrine_pancreas,sigmoid_colon,foreskin_melanocyte_1,foreskin_melanocyte_2 \
   --numbers \
   --hgvs \
   --symbol \
   --canonical \
   --domains \
   --plugin UTRAnnotator,file=$VEP_CACHE/UTRAnnotator/uORF_5UTR_GRCh37_PUBLIC.txt \
-  --plugin dbNSFP,$VEP_CACHE/dbNSFP4.3a_grch37.gz,SIFT_score,Polyphen2_HDIV_score,FATHMM_score,MPC_score \
+  --plugin dbNSFP,$VEP_CACHE/dbNSFP4.3a_grch37.gz,FATHMM_score,MPC_score \
   --plugin CADD,$VEP_CACHE/CADD/whole_genome_SNVs.tsv.gz,$VEP_CACHE/CADD/InDels.tsv.gz \
   --plugin LoF,loftee_path:$VEP_PLUGINS/loftee,human_ancestor_fa:$VEP_CACHE/loftee/human_ancestor.fa.gz,conservation_file:$VEP_CACHE/loftee/phylocsf_gerp.sql \
   --custom $VEP_CACHE/All_GRCh37_RS.bw,GERP,bigwig \
+  --custom $VEP_CACHE/GRCh37.100way.phastCons.bw,phastCons,bigwig \
+  --custom $VEP_CACHE/hg19.100way.phyloP100way.bw,phyloP,bigwig \
   --custom $VEP_CACHE/gnomad/gnomad.genomes.r2.0.1.sites.noVEP.vcf.gz,gnomADg,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
   --custom $VEP_CACHE/gnomad/gnomad.exomes.r2.0.1.sites.noVEP.vcf.gz,gnomADe,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX \
   --custom $VEP_CACHE/clinvar/clinvar.vcf.gz,ClinVar,vcf,exact,0,CLNSIG \
   --custom $VEP_CACHE/cosmic/cmc.vcf.gz,COSMIC,vcf,exact,0,COSMIC_GENE,COSMIC_AA_CHANGE,COSMIC_GENE_TIER,COSMIC_MUT_SIG,COSMIC_MUT_FREQ \
-  --custom $VEP_CACHE/gencode_promoters.bed.gz,promoters,bed,exact,0 \
-  --custom $VEP_CACHE/ABC_enhancers.bed.gz,ABC_ehnahcers,bed,exact,0 \
-  --custom $VEP_CACHE/CCR.bed.gz,CCR,bed,exact,0 \
-  --custom $VEP_CACHE/samocha_regional_constraint.bed.gz,ExAC_regional_constraint,bed,exact,0 \
-  --custom $VEP_CACHE/GTEx_eQTLs.vcf.gz,GTEx,vcf,exact,0,GTEx_eGene,GTEx_eQTL_beta,GTEx_eQTL_tissue \
-| $TMPDIR/cleanup_vep.py \
-  - - \
-| bcftools sort -O z -o \$2
-tabix -p vcf -f \$2
+  --custom $VEP_CACHE/gencode_promoters.bed.gz,promoters,bed,overlap,0 \
+  --custom $VEP_CACHE/ABC_enhancers.bed.gz,ABC_ehnahcers,bed,overlap,0 \
+  --custom $VEP_CACHE/CCR.bed.gz,CCR,bed,overlap,0 \
+  --custom $VEP_CACHE/samocha_regional_constraint.bed.gz,ExAC_regional_constraint,bed,overlap,0 \
+  --custom $VEP_CACHE/GTEx_eQTLs.vcf.gz,GTEx,vcf,exact,0,GTEx_eGene,GTEx_eQTL_beta,GTEx_eQTL_tissue
 EOF
 chmod a+x $WRKDIR/LSF/scripts/run_VEP.sh
-    
 
-    # --custom $VEP_CACHE/GRCh37.100way.phastCons.bw,phastCons,bigwig \
-    # --custom $VEP_CACHE/hg19.100way.phyloP100way.bw,phyloP,bigwig \
+## TODO: ADD THIS AND REMOVE --compress_output
+#  \
+# | $TMPDIR/cleanup_vep.py \
+#   - - \
+# | bcftools sort -O z -o \$2
+# tabix -p vcf -f \$2
+
+    
 # DEV:
 $WRKDIR/LSF/scripts/run_VEP.sh $TMPDIR/test.vcf.gz $TMPDIR/test.anno.vcf.gz
 tabix -p vcf -f $TMPDIR/test.anno.vcf.gz
-tabix -H $TMPDIR/test.anno.vcf.gz | fgrep "##INFO=<ID=CSQ" \
-| sed 's/Format\:\ /\n/g' | fgrep -v "#" | tr -d '">' | sed 's/|/\t/g' > $TMPDIR/VEP_vals.tsv
-bcftools query -f '%CSQ\n' $TMPDIR/test.anno.vcf.gz | sed 's/,/\n/g' | sed 's/|/\t/g' >> $TMPDIR/VEP_vals.tsv
+# tabix -H $TMPDIR/test.anno.vcf.gz | fgrep "##INFO=<ID=CSQ" \
+# | sed 's/Format\:\ /\n/g' | fgrep -v "#" | tr -d '">' | sed 's/|/\t/g' > $TMPDIR/VEP_vals.tsv
+# bcftools query -f '%CSQ\n' $TMPDIR/test.anno.vcf.gz | sed 's/,/\n/g' | sed 's/|/\t/g' >> $TMPDIR/VEP_vals.tsv
+# gzip -f $TMPDIR/VEP_vals.tsv
 $TMPDIR/cleanup_vep.py $TMPDIR/test.anno.vcf.gz $TMPDIR/test.anno.clean.vcf.gz
-
+# tabix -p vcf -f $TCGADIR/data/TCGA.RAS_loci.anno.vcf.gz
+# tabix -H $TCGADIR/data/TCGA.RAS_loci.anno.vcf.gz | fgrep "##INFO=<ID=CSQ" \
+# | sed 's/Format\:\ /\n/g' | fgrep -v "#" | tr -d '">' | sed 's/|/\t/g' > $TMPDIR/VEP_vals.tsv
+# bcftools query -f '%CSQ\n' $TCGADIR/data/TCGA.RAS_loci.anno.vcf.gz | sed 's/,/\n/g' | sed 's/|/\t/g' >> $TMPDIR/VEP_vals.tsv
+# gzip -f $TMPDIR/VEP_vals.tsv
 
 ### Annotate TCGA VCFs
 for subset in somatic_variants RAS_loci; do

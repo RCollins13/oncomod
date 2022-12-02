@@ -11,9 +11,57 @@ Clean up verbose VEP output for RASMod VCFs
 
 
 import argparse
+import pandas as pd
 import pysam
+from copy import deepcopy
 from sys import stdin, stdout
 
+
+# Define values used in various functions below
+vep_pop = 'Allele Existing_variation ALLELE_NUM STRAND UTRAnnotator_existing_InFrame_oORFs ' + \
+          'UTRAnnotator_existing_OutOfFrame_oORFs UTRAnnotator_existing_uORFs ' + \
+          'CADD_RAW LoF_filter LoF_flags LoF_info gnomADg gnomADe ClinVar COSMIC ' + \
+          'IMPACT FLAGS MINIMISED SYMBOL_SOURCE HGVS_OFFSET SOURCE Feature'
+vep_pop = vep_pop.split()
+vep_severity = {'transcript_ablation' : 0,
+                'splice_acceptor_variant' : 1,
+                'splice_donor_variant' : 2,
+                'stop_gained' : 3,
+                'frameshift_variant' : 4,
+                'stop_lost' : 5,
+                'start_lost' : 6,
+                'transcript_amplification' : 7,
+                'inframe_insertion' : 8,
+                'inframe_deletion' : 9,
+                'missense_variant' : 10,
+                'protein_altering_variant' : 11,
+                'splice_region_variant' : 12,
+                'splice_donor_5th_base_variant' : 13,
+                'splice_donor_region_variant' : 14,
+                'splice_polypyrimidine_tract_variant' : 15,
+                'incomplete_terminal_codon_variant' : 16,
+                'start_retained_variant' : 17,
+                'stop_retained_variant' : 18,
+                'synonymous_variant' : 19,
+                'coding_sequence_variant' : 20,
+                'mature_miRNA_variant' : 21,
+                '5_prime_UTR_variant' : 22,
+                '3_prime_UTR_variant' : 23,
+                'non_coding_transcript_exon_variant' : 24,
+                'intron_variant' : 25,
+                'NMD_transcript_variant' : 26,
+                'non_coding_transcript_variant' : 27,
+                'upstream_gene_variant' : 28,
+                'downstream_gene_variant' : 29,
+                'TFBS_ablation' : 30,
+                'TFBS_amplification' : 31,
+                'TF_binding_site_variant' : 32,
+                'regulatory_region_ablation' : 33,
+                'regulatory_region_amplification' : 34,
+                'feature_elongation' : 35,
+                'regulatory_region_variant' : 36,
+                'feature_truncation' : 37,
+                'intergenic_variant' : 38}
 
 
 def parse_vep_map(invcf):
@@ -34,6 +82,17 @@ def reformat_header(invcf):
 
     out_header = invcf.header
 
+    # Modify VEP CSQ entry to reflect removed values
+    old_vep = out_header.info.get('CSQ')
+    old_descr = old_vep.description
+    old_fields = old_descr.split('Format: ')[1].split('|')
+    new_fields = [f for f in old_fields if f not in vep_pop]
+    new_descr = old_descr.split('Format: ')[0] + 'Format: ' + '|'.join(new_fields)
+    out_header.info.remove_header('CSQ')
+    out_header.add_meta(key='INFO', items=[('ID', 'CSQ'), ('Number', '.'),
+                                           ('Type', 'String'), 
+                                           ('Description', new_descr)])
+
     return out_header
 
 
@@ -42,13 +101,29 @@ def cleanup(record, vep_map):
     Simplify VEP entry for a single record
     """
 
+    # Build pd.DataFrame of all VEP entries
+    # (Excluding keys in vep_pop, defined above)
     vep_vals = {}
     for i, vep_str in enumerate(record.info.get('CSQ')):
-        vep_vals[i] = {k : v for k, v in zip(vep_map.values(), vep_str.split('|'))}
+        vep_vals[i] = {k : v for k, v in zip(vep_map.values(), vep_str.split('|')) \
+                       if k not in vep_pop}
+    vdf = pd.DataFrame.from_dict(vep_vals, orient='index')
 
-    
+    # Select single VEP entry to retain per gene per variant
+    # Priority:
+    #   1. Always choose protein-coding over non-coding transcripts
+    #   2. Take most severe consequence, if multiple are present
+    #   3a. Take canonical transcript, if most severe consequence present on multiple
+    #   3b. Take longest transcript, if most severe consequence present on multiple
+    keep_idxs = set()
+    for gene in set(vdf.Gene.values):
 
-    import pdb; pdb.set_trace()
+        # Check for protein-coding transcripts
+        coding = (vdf.BIOTYPE == 'protein_coding')
+        # if any(coding):
+
+        # vdf[vdf.Gene == gene]
+        import pdb; pdb.set_trace()
 
 
 
