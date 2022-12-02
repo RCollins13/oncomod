@@ -269,7 +269,6 @@ tabix -p vcf -f $WRKDIR/data/TCGA.somatic_variants.vcf.gz
 
 
 # Summarize somatic variant status by gene & cancer type
-# TODO: update this to work for VCF instead of .tsv
 for cancer in PDAC CRAD SKCM; do
   n_samp=$( fgrep -wvf \
               $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.list \

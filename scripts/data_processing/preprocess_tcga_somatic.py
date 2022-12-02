@@ -195,8 +195,8 @@ def main():
 
     # Optionally, write mut_df as tsv for quick/intermediate reference
     if args.out_tsv is not None:
-        mut_df = mut_df.rename(columns={'CHROMOSOME' : '#CHROMOSOME'})
-        mut_df.to_csv(args.out_tsv, sep='\t', index=False, na_rep='.')
+        mut_df.rename(columns={'CHROMOSOME' : '#CHROMOSOME'}).\
+               to_csv(args.out_tsv, sep='\t', index=False, na_rep='.')
 
     # Convert mut_df to VCF
     mutdf_to_vcf(mut_df, set(donors + no_mut + no_cna), args.header, 
