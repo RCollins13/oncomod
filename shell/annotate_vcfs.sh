@@ -244,10 +244,20 @@ $CODEDIR/scripts/data_processing/gtex_eqtl_to_vcf.py \
 | bcftools sort -O z -o $VEP_CACHE/GTEx_eQTLs.vcf.gz
 tabix -p vcf -f $VEP_CACHE/GTEx_eQTLs.vcf.gz
 # Gencode map of ENSG:symbol:ENST:CDS length
+cat <<EOF > $WRKDIR/LSF/scripts/build_transcript_table.sh
+#!/usr/bin/env bash
 $CODEDIR/scripts/data_processing/build_gencode_table.py \
   --gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
-| sort -Vk1,1 -k2,2V -k3,3V -k4,4n | gzip -c \
-> $TMPDIR/test.tsv.gz
+  --no-header \
+| sort -Vk3,3 -k2,2V -k1,1V -k4,4n | gzip -c > \
+$WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz
+EOF
+chmod a+x $WRKDIR/LSF/scripts/build_transcript_table.sh
+bsub \
+  -q normal -J build_transcript_table \
+  -o $WRKDIR/LSF/logs/build_transcript_table.log \
+  -e $WRKDIR/LSF/logs/build_transcript_table.err \
+  $WRKDIR/LSF/scripts/build_transcript_table.sh
 
 
 ### Build script for generic VEP function call with plugins and options
@@ -320,7 +330,7 @@ tabix -p vcf -f $TMPDIR/test.anno.vcf.gz
 # | sed 's/Format\:\ /\n/g' | fgrep -v "#" | tr -d '">' | sed 's/|/\t/g' > $TMPDIR/VEP_vals.tsv
 # bcftools query -f '%CSQ\n' $TMPDIR/test.anno.vcf.gz | sed 's/,/\n/g' | sed 's/|/\t/g' >> $TMPDIR/VEP_vals.tsv
 # gzip -f $TMPDIR/VEP_vals.tsv
-$TMPDIR/cleanup_vep.py $TMPDIR/test.anno.vcf.gz $TMPDIR/test.anno.clean.vcf.gz
+$TMPDIR/cleanup_vep.py --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz $TMPDIR/test.anno.vcf.gz $TMPDIR/test.anno.clean.vcf.gz
 # tabix -p vcf -f $TCGADIR/data/TCGA.RAS_loci.anno.vcf.gz
 # tabix -H $TCGADIR/data/TCGA.RAS_loci.anno.vcf.gz | fgrep "##INFO=<ID=CSQ" \
 # | sed 's/Format\:\ /\n/g' | fgrep -v "#" | tr -d '">' | sed 's/|/\t/g' > $TMPDIR/VEP_vals.tsv

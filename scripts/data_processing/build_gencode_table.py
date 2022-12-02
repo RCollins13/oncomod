@@ -15,6 +15,21 @@ import pybedtools as pbt
 from sys import stdout
 
 
+def dump_cache(tx_dict, outfile):
+    """
+    Write all currently stored info to outfile
+    """
+
+    # Compute transcript length for each transcript and write to outfile
+    for txid, txvals in tx_dict.items():
+        if txvals.get('ENSG') is None:
+            continue
+        ex_bt = pbt.BedTool('\n'.join(tx_dict[txid]['tx_str']), from_string=True)
+        tx_len = sum(map(len, ex_bt.sort().merge()))
+        outvals = [str(x) for x in [txid, txvals['ENSG'], txvals['symbol'], tx_len]]
+        outfile.write('\t'.join(outvals) + '\n')
+
+
 def main():
     """
     Main block
@@ -28,11 +43,24 @@ def main():
     parser.add_argument('--no-header', action='store_true', help='no header on output')
     args = parser.parse_args()
 
-    tx_dict = {}
+    # Open connection to outfile
+    if args.outfile in '- stdout /dev/stdout'.split():
+        outfile = stdout
+    else:
+        outfile = open(args.outfile, 'w')
+    if not args.no_header:
+        outfile.write('#ENST\tENSG\tsymbol\ttx_length\n')
 
     # Load info from transcripts and exons into memory
+    prev_contig = ''
+    tx_dict = {}
     for feature in pbt.BedTool(args.gtf).\
                        filter(lambda x: x.fields[2] in 'transcript exon'.split()):
+
+        if feature.chrom != prev_contig:
+            dump_cache(tx_dict, outfile)
+            tx_dict = {}
+        prev_contig = feature.chrom
         
         ftype = feature.fields[2]
         txid = feature.attrs.get('transcript_id')
@@ -50,24 +78,8 @@ def main():
             cvals = [feature.chrom, feature.start, feature.end]
             tx_dict[txid]['tx_str'].append('\t'.join([str(x) for x in cvals]))
 
-    # Open connection to outfile
-    if args.outfile in '- stdout /dev/stdout'.split():
-        outfile = stdout
-    else:
-        outfile = open(args.outfile, 'w')
-    if not args.no_header:
-        outfile.write('#ENST\tENSG\tsymbol\ttx_length\n')
-
-    # Compute transcript length for each transcript and write to outfile
-    for txid, txvals in tx_dict.items():
-        if txvals.get('ENSG') is None:
-            continue
-        ex_bt = pbt.BedTool('\n'.join(tx_dict[txid]['tx_str']), from_string=True)
-        tx_len = sum(map(len, ex_bt.sort().merge()))
-        outvals = [str(x) for x in [txid, txvals['ENSG'], txvals['symbol'], tx_len]]
-        outfile.write('\t'.join(outvals) + '\n')
-
     # Close outfile to clear buffer
+    dump_cache(tx_dict, outfile)
     outfile.close()
 
 

@@ -96,7 +96,21 @@ def reformat_header(invcf):
     return out_header
 
 
-def cleanup(record, vep_map):
+def load_tx_map(tx_tsv):
+    """
+    Load --transcript-info as a dict
+    """
+
+    import pdb; pdb.set_trace()
+    
+    tx_df = pd.DataFrame(tx_tsv, sep='\t')
+    
+    return {'ENSG' : ,
+            'symbol' : ,
+            'tx_len' : }
+
+
+def cleanup(record, vep_map, tx_map):
     """
     Simplify VEP entry for a single record
     """
@@ -137,6 +151,8 @@ def main():
     parser.add_argument('vcf_in', help='input VEP-annotated .vcf [default: stdin]',
                         default='stdin')
     parser.add_argument('vcf_out', help='output .vcf [default: stdout]', default='stdout')
+    parser.add_argument('-t', '--transcript-info', required=True, help='.tsv ' + \
+                        'mapping ENST:ENSG:symbol:length')
     args = parser.parse_args()
 
     # Open connection to input vcf
@@ -145,8 +161,9 @@ def main():
     else:
         invcf = pysam.VariantFile(args.vcf_in)
 
-    # Parse mapping of VEP fields
+    # Parse mapping of VEP fields and transcript info
     vep_map = parse_vep_map(invcf)
+    tx_map = load_tx_map(args.transcript_info)
     
     # Open connection to output file
     out_header = reformat_header(invcf)
@@ -157,7 +174,7 @@ def main():
 
     # Iterate over records in invcf, clean up each, and write to outvcf
     for record in invcf.fetch():
-        record = cleanup(record, vep_map)
+        record = cleanup(record, vep_map, tx_map)
         outvcf.write(record)
 
     # Close connection to output VCF to clear buffer
