@@ -67,7 +67,7 @@ pc.scatter.w.bar <- function(df, colors, pt.cex=0.25, bar.wex=0.15,
   # Add axes
   axis(1, at=c(-10e10, pc.xlims[2]), tck=0, labels=NA)
   RASMod::clean.axis(1, at=axTicks(1)[which(axTicks(1) < pc.xlims[2])], title="PC1")
-  RASMod::clean.axis(2, infinite=TRUE, title="PC2", title.line=1.25)
+  RASMod::clean.axis(2, infinite=TRUE, title="PC2", title.line=1.15)
 
   # Add legend
   legend.y.at <- (c(ylims[1], pop.pct.scaled[-length(pop.order)]) + pop.pct.scaled) / 2
