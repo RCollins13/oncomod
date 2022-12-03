@@ -248,8 +248,12 @@ cat <<EOF > $WRKDIR/LSF/scripts/build_transcript_table.sh
 #!/usr/bin/env bash
 $CODEDIR/scripts/data_processing/build_gencode_table.py \
   --gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
-  --no-header \
-| sort -Vk3,3 -k2,2V -k1,1V -k4,4n | gzip -c > \
+  --outfile $TMPDIR/gencode.v19.annotation.transcript_info.unsorted.tsv \
+  --no-header
+
+sort -Vk3,3 -k2,2V -k1,1V -k4,4n \
+  $TMPDIR/gencode.v19.annotation.transcript_info.unsorted.tsv \
+| gzip -c > \
 $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz
 EOF
 chmod a+x $WRKDIR/LSF/scripts/build_transcript_table.sh

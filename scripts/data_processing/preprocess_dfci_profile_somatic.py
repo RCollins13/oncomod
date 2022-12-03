@@ -159,7 +159,7 @@ def main():
     parser.add_argument('--header', help='Header to use for output .vcf', required=True)
     parser.add_argument('-o', '--outfile', default='stdout', help='path to somatic ' +
                         'variation .vcf [default: stdout]')
-
+    parser.add_argument('--out-tsv', help='optional path to somatic variation .tsv')
     args = parser.parse_args()
 
     # Load ID map for samples of interest
@@ -182,6 +182,11 @@ def main():
         no_cna = [l.rstrip() for l in open(args.no_cna_data).readlines()]
     else:
         no_cna = []
+
+    # Optionally, write mut_df as tsv for quick/intermediate reference
+    if args.out_tsv is not None:
+        mut_df.rename(columns={'CHROMOSOME' : '#CHROMOSOME'}).\
+               to_csv(args.out_tsv, sep='\t', index=False, na_rep='.')
 
     # Convert mut_df to VCF
     mutdf_to_vcf(mut_df, set(samples + no_mut + no_cna), args.header, 
