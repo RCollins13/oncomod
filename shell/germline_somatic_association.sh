@@ -46,3 +46,4 @@ plink \
   --out $WRKDIR/data/all_cohorts.RAS_loci.pruned
 # Count number of variants retained after LD pruning
 wc -l $WRKDIR/data/all_cohorts.RAS_loci.pruned.prune.in
+
