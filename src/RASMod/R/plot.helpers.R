@@ -75,7 +75,9 @@ clean.axis <- function(side, at=NULL, labels=NULL, title=NULL, tck=-0.025,
     axis(side, at=at[i], labels=label, tick=F, cex.axis=cex.axis,
          las=las, line=label.line)
   })
-  axis(side, at=title.at, tick=F, labels=title, line=title.line, xpd=T)
+  if(!is.null(title)){
+    axis(side, at=title.at, tick=F, labels=title, line=title.line, xpd=T)
+  }
 }
 
 

@@ -67,7 +67,7 @@ pc.scatter.w.bar <- function(df, colors, pt.cex=0.25, bar.wex=0.15,
   # Add axes
   axis(1, at=c(-10e10, pc.xlims[2]), tck=0, labels=NA)
   RASMod::clean.axis(1, at=axTicks(1)[which(axTicks(1) < pc.xlims[2])], title="PC1")
-  RASMod::clean.axis(2, infinite=TRUE, title="PC2")
+  RASMod::clean.axis(2, infinite=TRUE, title="PC2", title.line=1.25)
 
   # Add legend
   legend.y.at <- (c(ylims[1], pop.pct.scaled[-length(pop.order)]) + pop.pct.scaled) / 2
@@ -187,7 +187,7 @@ sapply(cancer.types, function(cancer){
       height=3, width=2.75)
   scaled.swarm(lapply(meta.sub, function(df){df$AGE_AT_DIAGNOSIS}),
                colors=get.cohort.palette(cancer.palettes[[cancer]], names(meta.sub)),
-               y.title="Age at Diagnosis (Years)")
+               y.title="Age at Diagnosis (Years)", pt.cex=0.15)
   dev.off()
 
   # Plot distribution of tumor purity per cohort

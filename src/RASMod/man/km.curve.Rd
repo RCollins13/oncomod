@@ -11,7 +11,7 @@ km.curve(
   ci.alpha = 0.15,
   legend = TRUE,
   legend.names = NULL,
-  parmar = c(2, 3.5, 0.25, 4)
+  parmar = c(2, 3, 0.25, 4)
 )
 }
 \arguments{

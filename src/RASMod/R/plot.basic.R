@@ -75,7 +75,7 @@ scaled.bars <- function(values, colors, group.names=NULL, sep.wex=0.05,
 
   # Add Y axis
   clean.axis(2, at=seq(0, 1, 0.25), labels=rev(paste(seq(0, 100, 25), "%", sep="")),
-             cex.axis=5/6, infinite=FALSE, label.line=-0.7)
+             cex.axis=5/6, infinite=FALSE, label.line=-0.7, title=NULL)
 
   # Add top scale bar
   scale.k <- floor(log10(sum(group.size)))
