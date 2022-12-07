@@ -71,7 +71,7 @@ cd $WRKDIR
 
 ### Curate custom datasets for use by VEP
 # Prep subdirectories
-for subdir in UTRAnnotator gnomad loftee CADD clinvar cosmic; do
+for subdir in UTRAnnotator gnomad loftee CADD clinvar cosmic SpliceAI; do
   if ! [ -e $VEP_CACHE/$subdir ]; then
     mkdir $VEP_CACHE/$subdir
   fi
@@ -262,6 +262,13 @@ bsub \
   -o $WRKDIR/LSF/logs/build_transcript_table.log \
   -e $WRKDIR/LSF/logs/build_transcript_table.err \
   $WRKDIR/LSF/scripts/build_transcript_table.sh
+# SpliceAI
+for suf in gz gz.tbi; do
+  ln -s \
+    /data/talkowski/dg520/ref/spliceai/spliceai_scores.raw.snv.hg19.vcf.$suf \
+    $VEP_CACHE/SpliceAI/spliceai_scores.raw.snv.hg37.vcf.$suf
+done
+
 
 
 ### Build script for generic VEP function call with plugins and options
@@ -292,7 +299,7 @@ $WRKDIR/../code/ensembl-vep/vep \
   --sift b \
   --polyphen b \
   --nearest gene \
-  --distance 100000 \
+  --distance 10000 \
   --regulatory \
   --cell_type pancreas,endocrine_pancreas,sigmoid_colon,foreskin_melanocyte_1,foreskin_melanocyte_2 \
   --numbers \
@@ -304,6 +311,7 @@ $WRKDIR/../code/ensembl-vep/vep \
   --plugin dbNSFP,$VEP_CACHE/dbNSFP4.3a_grch37.gz,FATHMM_score,MPC_score \
   --plugin CADD,$VEP_CACHE/CADD/whole_genome_SNVs.tsv.gz,$VEP_CACHE/CADD/InDels.tsv.gz \
   --plugin LoF,loftee_path:$VEP_PLUGINS/loftee,human_ancestor_fa:$VEP_CACHE/loftee/human_ancestor.fa.gz,conservation_file:$VEP_CACHE/loftee/phylocsf_gerp.sql \
+  --plugin SpliceAI,snv=$VEP_CACHE/SpliceAI/spliceai_scores.raw.snv.hg37.vcf.gz,indel=$VEP_CACHE/SpliceAI/spliceai_scores.raw.indel.hg37.vcf.gz \
   --custom $VEP_CACHE/All_GRCh37_RS.bw,GERP,bigwig \
   --custom $VEP_CACHE/GRCh37.100way.phastCons.bw,phastCons,bigwig \
   --custom $VEP_CACHE/hg19.100way.phyloP100way.bw,phyloP,bigwig \
@@ -318,6 +326,7 @@ $WRKDIR/../code/ensembl-vep/vep \
   --custom $VEP_CACHE/GTEx_eQTLs.vcf.gz,GTEx,vcf,exact,0,GTEx_eGene,GTEx_eQTL_beta,GTEx_eQTL_tissue
 EOF
 chmod a+x $WRKDIR/LSF/scripts/run_VEP.sh
+
 
 ## TODO: ADD THIS AND REMOVE --compress_output
 #  \
@@ -334,7 +343,10 @@ tabix -p vcf -f $TMPDIR/test.anno.vcf.gz
 # | sed 's/Format\:\ /\n/g' | fgrep -v "#" | tr -d '">' | sed 's/|/\t/g' > $TMPDIR/VEP_vals.tsv
 # bcftools query -f '%CSQ\n' $TMPDIR/test.anno.vcf.gz | sed 's/,/\n/g' | sed 's/|/\t/g' >> $TMPDIR/VEP_vals.tsv
 # gzip -f $TMPDIR/VEP_vals.tsv
-$TMPDIR/cleanup_vep.py --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz $TMPDIR/test.anno.vcf.gz $TMPDIR/test.anno.clean.vcf.gz
+$TMPDIR/cleanup_vep.py \
+  --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
+  $TMPDIR/test.anno.vcf.gz \
+  $TMPDIR/test.anno.clean.vcf.gz
 # tabix -p vcf -f $TCGADIR/data/TCGA.RAS_loci.anno.vcf.gz
 # tabix -H $TCGADIR/data/TCGA.RAS_loci.anno.vcf.gz | fgrep "##INFO=<ID=CSQ" \
 # | sed 's/Format\:\ /\n/g' | fgrep -v "#" | tr -d '">' | sed 's/|/\t/g' > $TMPDIR/VEP_vals.tsv

@@ -30,17 +30,30 @@ done
 
 
 ### Determine LD-independent number of germline variants to test
-# Merge VCFs across cohorts
+# Subset VCFs per cohort to non-rare (AC≥10) variants
+bcftools view \
+  --min-ac 10 \
+  -o $TCGADIR/data/TCGA.RAS_loci.ac10plus.vcf.gz \
+  -O z \
+  $TCGADIR/data/TCGA.RAS_loci.vcf.gz
+tabix -p vcf -f $TCGADIR/data/TCGA.RAS_loci.ac10plus.vcf.gz
+bcftools view \
+  --min-ac 10 \
+  -o $PROFILEDIR/data/PROFILE.RAS_loci.ac10plus.vcf.gz \
+  -O z \
+  $PROFILEDIR/data/PROFILE.RAS_loci.vcf.gz
+tabix -p vcf -f $PROFILEDIR/data/PROFILE.RAS_loci.ac10plus.vcf.gz
+# Merge AC≥10 VCFs across cohorts
 bcftools merge \
   -m none \
-  -o $WRKDIR/data/all_cohorts.RAS_loci.vcf.gz \
+  -o $WRKDIR/data/all_cohorts.RAS_loci.ac10plus.vcf.gz \
   -O z \
-  $TCGADIR/data/TCGA.RAS_loci.vcf.gz \
-  $PROFILEDIR/data/PROFILE.RAS_loci.vcf.gz
+  $TCGADIR/data/TCGA.RAS_loci.ac10plus.vcf.gz \
+  $PROFILEDIR/data/PROFILE.RAS_loci.ac10plus.vcf.gz
 # LD prune with PLINK
 module load plink/1.90b3
 plink \
-  --vcf $WRKDIR/data/all_cohorts.RAS_loci.vcf.gz \
+  --vcf $WRKDIR/data/all_cohorts.RAS_loci.ac10plus.vcf.gz \
   --indep-pairwise 100kb 5 0.2 \
   --recode vcf bgz \
   --out $WRKDIR/data/all_cohorts.RAS_loci.pruned

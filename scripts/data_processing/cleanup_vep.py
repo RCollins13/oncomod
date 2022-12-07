@@ -11,6 +11,7 @@ Clean up verbose VEP output for RASMod VCFs
 
 
 import argparse
+import numpy as np
 import pandas as pd
 import pysam
 from copy import deepcopy
@@ -21,8 +22,15 @@ from sys import stdin, stdout
 vep_pop = 'Allele Existing_variation ALLELE_NUM STRAND UTRAnnotator_existing_InFrame_oORFs ' + \
           'UTRAnnotator_existing_OutOfFrame_oORFs UTRAnnotator_existing_uORFs ' + \
           'CADD_RAW LoF_filter LoF_flags LoF_info gnomADg gnomADe ClinVar COSMIC ' + \
-          'IMPACT FLAGS MINIMISED SYMBOL_SOURCE HGVS_OFFSET SOURCE Feature'
+          'IMPACT FLAGS MINIMISED SYMBOL_SOURCE HGVS_OFFSET SOURCE'
 vep_pop = vep_pop.split()
+vep_reloc_map = {'CADD_PHRED' : 'CADD',
+                 'GERP' : 'GERP',
+                 'phastCons' : 'phastCons',
+                 'phyloP' : 'phyloP',
+                 'COSMIC_COSMIC_MUT_FREQ' : 'COSMIC_freq'}
+vep_reloc = list(vep_reloc_map.keys())
+gnomad_pops = 'AFR AMR ASJ EAS FIN NFE OTH POPMAX'.split()
 vep_severity = {'transcript_ablation' : 0,
                 'splice_acceptor_variant' : 1,
                 'splice_donor_variant' : 2,
@@ -62,6 +70,20 @@ vep_severity = {'transcript_ablation' : 0,
                 'regulatory_region_variant' : 36,
                 'feature_truncation' : 37,
                 'intergenic_variant' : 38}
+clinvar_sig = {'Pathogenic' : 0,
+               'Pathogenic/Likely_pathogenic' : 1,
+               'Likely_pathogenic' : 2,
+               'Uncertain_significance' : 3,
+               'Conflicting_interpretations_of_pathogenicity' : 4,
+               'Likely_benign' : 5,
+               'Benign' : 6}
+clinvar_remap = {'Pathogenic' : 'P',
+                'Pathogenic/Likely_pathogenic' : 'PLP',
+                'Likely_pathogenic' : 'LP',
+                'Uncertain_significance' : 'UNCERTAIN',
+                'Conflicting_interpretations_of_pathogenicity' : 'CONFLICTING',
+                'Likely_benign' : 'LB',
+                'Benign' : 'B'}
 
 
 def parse_vep_map(invcf):
@@ -83,15 +105,64 @@ def reformat_header(invcf):
     out_header = invcf.header
 
     # Modify VEP CSQ entry to reflect removed values
+    cols_to_drop = vep_pop + vep_reloc
+    for pop in gnomad_pops:
+        cols_to_drop += 'gnomADe_AF_{} gnomADg_AF_{}'.format(pop, pop).split()
     old_vep = out_header.info.get('CSQ')
     old_descr = old_vep.description
     old_fields = old_descr.split('Format: ')[1].split('|')
-    new_fields = [f for f in old_fields if f not in vep_pop]
+    new_fields = [f for f in old_fields if f not in cols_to_drop]
     new_descr = old_descr.split('Format: ')[0] + 'Format: ' + '|'.join(new_fields)
     out_header.info.remove_header('CSQ')
     out_header.add_meta(key='INFO', items=[('ID', 'CSQ'), ('Number', '.'),
                                            ('Type', 'String'), 
                                            ('Description', new_descr)])
+
+    # Add new header lines for values relocated from CSQ
+    for key in vep_reloc_map.values():
+        if key in out_header.info.keys():
+            out_header.info.remove_header(key)
+    out_header.add_meta(key='INFO', 
+                        items=[('ID', 'CADD'), ('Number', '1'), ('Type', 'Float'),
+                               ('Description', 'Phred-scaled CADD score')])
+    out_header.add_meta(key='INFO', 
+                        items=[('ID', 'GERP'), ('Number', '1'), ('Type', 'Float'),
+                               ('Description', 'GERP score')])
+    out_header.add_meta(key='INFO', 
+                        items=[('ID', 'phastCons'), ('Number', '1'), ('Type', 'Float'),
+                               ('Description', 'phastCons score')])
+    out_header.add_meta(key='INFO', 
+                        items=[('ID', 'phyloP'), ('Number', '1'), ('Type', 'Float'),
+                               ('Description', 'phyloP score')])
+    out_header.info.remove_header('ClinVar')
+    out_header.add_meta(key='INFO', 
+                        items=[('ID', 'ClinVar'), ('Number', '.'), ('Type', 'String'),
+                               ('Description', 'Highest ClinVar significance ' + \
+                                'designation')])
+    out_header.add_meta(key='INFO', 
+                        items=[('ID', 'COSMIC_mutation_tier'), ('Number', '1'), ('Type', 'Integer'),
+                               ('Description', 'Highest COSMIC mutation tier')])
+    out_header.add_meta(key='INFO', 
+                        items=[('ID', 'COSMIC_freq'), ('Number', '1'), ('Type', 'Float'),
+                               ('Description', 'Pan-cancer mutation frequency reported ' + \
+                                'by COSMIC')])
+
+    # Clean up gnomAD-related fields
+    for suffix in 'e g'.split():
+        out_header.info.remove_header('gnomAD' + suffix)
+        for pop in gnomad_pops:
+            out_header.info.remove_header('gnomAD{}_AF_{}'.format(suffix, pop))
+    out_header.add_meta(key='INFO', 
+                        items=[('ID', 'gnomAD_source'), ('Number', '.'), ('Type', 'String'),
+                               ('Description', 'gnomAD allele frequency source (exomes or genomes)')])
+    for pop in gnomad_pops:
+        if pop != 'POPMAX':
+            descr = 'gnomAD allele frequency in {} samples in gnomAD v2.0.1'.format(pop)
+        else:
+            descr = 'Maximum allele frequency among all populations in gnomAD v2.0.1'
+        out_header.add_meta(key='INFO', 
+                            items=[('ID', 'gnomAD_AF_' + pop), ('Number', '1'), ('Type', 'Float'),
+                                   ('Description', descr)])
 
     return out_header
 
@@ -100,14 +171,56 @@ def load_tx_map(tx_tsv):
     """
     Load --transcript-info as a dict
     """
+    
+    # Load data
+    tx_df = pd.read_csv(tx_tsv, sep='\t', header=None)
+    tx_df.columns = 'ENST ENSG symbol tx_len'.split()
 
-    import pdb; pdb.set_trace()
+    # Remove Ensembl version info from ENSG and ENST IDs
+    for ecol in 'ENST ENSG'.split():
+        tx_df[ecol] = tx_df[ecol].str.replace('.[0-9]+$', '', regex=True)
+
+    # Map everything vs. ENST IDs
+    tx_df.set_index('ENST', drop=True, inplace=True)
     
-    tx_df = pd.DataFrame(tx_tsv, sep='\t')
-    
-    return {'ENSG' : ,
-            'symbol' : ,
-            'tx_len' : }
+    return {'ENSG' : tx_df.ENSG.to_dict(),
+            'symbol' : tx_df.symbol.to_dict(),
+            'tx_len' : tx_df.tx_len.to_dict()}
+
+
+def _harmonize_gnomad(record, vdf):
+    """
+    Harmonize allele frequencies between gnomAD exomes and genomes
+    Use exome data where possible due to larger sample size
+    """
+
+    exome_cols = [k for k in vdf.columns if 'gnomADe_' in k]
+    genome_cols = [k for k in vdf.columns if 'gnomADg_' in k]
+    has_exome = any((vdf[exome_cols] != '').transpose())
+    has_genome = any((vdf[genome_cols] != '').transpose())
+    if has_exome:
+        gsrc = 'exome'
+    elif has_genome:
+        gsrc = 'genome'
+    else:
+        gsrc = 'neither'
+    record.info['gnomAD_source'] = gsrc
+    for pop in gnomad_pops:
+        if gsrc != 'neither':
+            af_vals = vdf['gnomAD{}_AF_{}'.format(gsrc[0], pop)]
+            af = af_vals[~af_vals.isin(['', '.'])].astype(float).mean()
+            if pd.isna(af):
+                af = 0
+        else:
+            af = 0
+        try:
+            record.info['gnomAD_AF_' + pop] = af
+        except:
+            import pdb; pdb.set_trace()
+
+    vdf = vdf.drop(exome_cols + genome_cols, axis=1)
+
+    return record, vdf
 
 
 def cleanup(record, vep_map, tx_map):
@@ -118,10 +231,22 @@ def cleanup(record, vep_map, tx_map):
     # Build pd.DataFrame of all VEP entries
     # (Excluding keys in vep_pop, defined above)
     vep_vals = {}
-    for i, vep_str in enumerate(record.info.get('CSQ')):
+    for i, vep_str in enumerate(record.info.get('CSQ', [])):
         vep_vals[i] = {k : v for k, v in zip(vep_map.values(), vep_str.split('|')) \
                        if k not in vep_pop}
     vdf = pd.DataFrame.from_dict(vep_vals, orient='index')
+
+    # Don't process records lacking CSQ INFO field
+    if len(vdf) == 0:
+        return record
+
+    # Pre-filter VEP entries to ignore all intergenic entries if any genic entries are present
+    genic_csqs = [k for k, v in vep_severity.items() if v <= 27]
+    genic_hits = vdf.Consequence.isin(genic_csqs)
+    intergenic_csqs = [k for k, v in vep_severity.items() if v > 27]
+    intergenic_hits = vdf.Consequence.isin(intergenic_csqs)
+    if any(genic_hits) and any(intergenic_hits):
+        vdf = vdf[genic_hits]
 
     # Select single VEP entry to retain per gene per variant
     # Priority:
@@ -132,13 +257,61 @@ def cleanup(record, vep_map, tx_map):
     keep_idxs = set()
     for gene in set(vdf.Gene.values):
 
-        # Check for protein-coding transcripts
-        coding = (vdf.BIOTYPE == 'protein_coding')
-        # if any(coding):
+        gdf = vdf.loc[vdf.Gene == gene]
 
-        # vdf[vdf.Gene == gene]
-        import pdb; pdb.set_trace()
+        # Subset to protein-coding transcripts, if multiple entries are present
+        coding = (gdf.BIOTYPE == 'protein_coding')
+        if any(coding) and len(gdf) > 1:
+            gdf = gdf.loc[coding]
 
+        # Subset to most severe consequence, if multiple are present
+        gdf['vep_priority'] = gdf.Consequence.map(vep_severity)
+        if len(gdf.vep_priority.unique()) > 1:
+            gdf = gdf[gdf.vep_priority == np.nanmin(gdf['vep_priority'])]
+
+        # Check if any canonical transcripts are present
+        canon = (gdf.CANONICAL == 'YES')
+        if any(canon) and len(gdf) > 1:
+            gdf = gdf.loc[canon]
+
+        # Use transcript length as the final tiebreaker
+        if len(gdf) > 1:
+            gdf['tx_len'] = gdf.Feature.map(tx_map['tx_len'])
+            gdf = gdf.sort_values('tx_len', ascending=False)
+
+        # Write index to keep to keep_idxs
+        keep_idxs.add(gdf.head(1).index[0])
+    
+    # Subset VEP entries to only those retained by the above criteria
+    vdf = vdf.loc[keep_idxs, :]
+
+    # Relocate values defined at a site level to INFO (and out of CSQ)
+    for oldkey, newkey in vep_reloc_map.items():
+        newval = vdf.loc[vdf[oldkey] != '', oldkey].astype(float).mean()
+        if not pd.isna(newval):
+            record.info[newkey] = newval
+    vdf.drop(vep_reloc_map.keys(), axis=1)
+
+    # Harmonize gnomAD frequencies between exomes and genomes
+    record, vdf = _harmonize_gnomad(record, vdf)
+
+    # Extract top ClinVar significance, if any reported
+    if any(vdf.ClinVar_CLNSIG != ''):
+        best_clinvar_idx = vdf.ClinVar_CLNSIG.map(clinvar_sig).sort_values().index.values[0]
+        best_clinvar_label = clinvar_remap.get(vdf.ClinVar_CLNSIG[best_clinvar_idx])
+        record.info['ClinVar'] = best_clinvar_label
+
+    # Extract top COSMIC significance, if any reported
+    if any(vdf.COSMIC_COSMIC_MUT_SIG != ''):
+        best_cosmic = int(vdf.COSMIC_COSMIC_MUT_SIG.sort_values().head(1).values[0])
+        record.info['COSMIC_mutation_tier'] = best_cosmic
+
+    # Overwrite CSQ INFO field with cleaned VEP info
+    record.info.pop('CSQ')
+    record.info['CSQ'] = tuple(['|'.join(vals) for i, vals in vdf.iterrows()])
+    
+    # Return cleaned record
+    return record
 
 
 def main():
