@@ -34,7 +34,8 @@ def get_abc_iterables(tsv_in):
                   'transverse_colon-ENCODE' : 'colon',
                   'keratinocyte-Roadmap' : 'skin',
                   'fibroblast_of_dermis-Roadmap' : 'skin',
-                  'fibroblast_of_arm-ENCODE' : 'skin'}
+                  'fibroblast_of_arm-ENCODE' : 'skin',
+                  'fibroblast_of_lung-Roadmap' : 'lung'}
     abc = abc[abc.CellType.isin(tissue_map.keys())]
     abc['Tissue'] = abc.CellType.map(tissue_map)
 

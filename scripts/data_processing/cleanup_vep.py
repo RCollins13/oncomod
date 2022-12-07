@@ -31,6 +31,9 @@ vep_reloc_map = {'CADD_PHRED' : 'CADD',
                  'COSMIC_COSMIC_MUT_FREQ' : 'COSMIC_freq'}
 vep_reloc = list(vep_reloc_map.keys())
 gnomad_pops = 'AFR AMR ASJ EAS FIN NFE OTH POPMAX'.split()
+ensembl_reg = 'MOTIF_NAME MOTIF_POS HIGH_INF_POS MOTIF_SCORE_CHANGE ' + \
+              'TRANSCRIPTION_FACTORS CELL_TYPE'
+ensembl_reg = ensembl_reg.split()
 vep_severity = {'transcript_ablation' : 0,
                 'splice_acceptor_variant' : 1,
                 'splice_donor_variant' : 2,
@@ -105,7 +108,7 @@ def reformat_header(invcf):
     out_header = invcf.header
 
     # Modify VEP CSQ entry to reflect removed values
-    cols_to_drop = vep_pop + vep_reloc
+    cols_to_drop = vep_pop + vep_reloc + ensembl_reg
     for pop in gnomad_pops:
         cols_to_drop += 'gnomADe_AF_{} gnomADg_AF_{}'.format(pop, pop).split()
     old_vep = out_header.info.get('CSQ')
@@ -184,6 +187,7 @@ def load_tx_map(tx_tsv):
     tx_df.set_index('ENST', drop=True, inplace=True)
     
     return {'ENSG' : tx_df.ENSG.to_dict(),
+            'ENSG_to_symbol' : tx_df.symbol.set_axis(tx_df.ENSG).to_dict(),
             'symbol' : tx_df.symbol.to_dict(),
             'tx_len' : tx_df.tx_len.to_dict()}
 
@@ -218,7 +222,40 @@ def _harmonize_gnomad(record, vdf):
         except:
             import pdb; pdb.set_trace()
 
-    vdf = vdf.drop(exome_cols + genome_cols, axis=1)
+    vdf.drop(exome_cols + genome_cols, axis=1, inplace=True)
+
+    return record, vdf
+
+
+def _clean_regulatory(record, vdf, tx_map):
+    """
+    Move Ensembl regulatory annotations from VEP CSQ field into INFO
+    """
+
+    # Process each regulatory entry separately based on BIOTYPE
+    idx_to_drop = set()
+    for idx, row in vdf[vdf.Consequence == 'regulatory_region_variant'].iterrows():
+
+        idx_to_drop.add(idx)
+
+        # Skip promoters (these are annotated using a custom BED file)
+        promoter_biotypes = 'promoter promoter_flanking_region'
+        if row.BIOTYPE in promoter_biotypes.split():
+            continue
+
+        # Check if feature is annotated in any tissues of interest
+        # ts_biotypes = 'TF_binding_site CTCF_binding_site open_chromatin_region enhancer'
+        # if row.BIOTYPE in ts_biotypes.split():
+        activity = {x.split(':')[0] : x.split(':')[1] for x in row.CELL_TYPE.split('&')}
+        if not all(pd.Series(activity.values()).isin('NA INACTIVE'.split())):
+            import pdb; pdb.set_trace()
+
+        # else:
+        #     import pdb; pdb.set_trace()
+
+    # Remove Ensembl regulatory entries from CSQ
+    vdf.drop(ensembl_reg, axis=1, inplace=True)
+    vdf.drop(idx_to_drop, axis=0, inplace=True)
 
     return record, vdf
 
@@ -265,7 +302,7 @@ def cleanup(record, vep_map, tx_map):
             gdf = gdf.loc[coding]
 
         # Subset to most severe consequence, if multiple are present
-        gdf['vep_priority'] = gdf.Consequence.map(vep_severity)
+        gdf.loc[:, 'vep_priority'] = gdf.loc[:, 'Consequence'].map(vep_severity)
         if len(gdf.vep_priority.unique()) > 1:
             gdf = gdf[gdf.vep_priority == np.nanmin(gdf['vep_priority'])]
 
@@ -287,10 +324,13 @@ def cleanup(record, vep_map, tx_map):
 
     # Relocate values defined at a site level to INFO (and out of CSQ)
     for oldkey, newkey in vep_reloc_map.items():
-        newval = vdf.loc[vdf[oldkey] != '', oldkey].astype(float).mean()
+        oldvals = vdf.loc[vdf[oldkey] != '', oldkey]
+        if any(oldvals.str.contains('&')):
+            oldvals = oldvals.str.split('&', expand=True).max(axis=1)
+        newval = oldvals.astype(float).mean()
         if not pd.isna(newval):
             record.info[newkey] = newval
-    vdf.drop(vep_reloc_map.keys(), axis=1)
+    vdf.drop(vep_reloc_map.keys(), axis=1, inplace=True)
 
     # Harmonize gnomAD frequencies between exomes and genomes
     record, vdf = _harmonize_gnomad(record, vdf)
@@ -305,6 +345,9 @@ def cleanup(record, vep_map, tx_map):
     if any(vdf.COSMIC_COSMIC_MUT_SIG != ''):
         best_cosmic = int(vdf.COSMIC_COSMIC_MUT_SIG.sort_values().head(1).values[0])
         record.info['COSMIC_mutation_tier'] = best_cosmic
+
+    # Clean up Ensembl regulatory annotations
+    record, vdf = _clean_regulatory(record, vdf, tx_map)
 
     # Overwrite CSQ INFO field with cleaned VEP info
     record.info.pop('CSQ')

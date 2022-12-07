@@ -240,6 +240,7 @@ $CODEDIR/scripts/data_processing/gtex_eqtl_to_vcf.py \
   --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Skin_Not_Sun_Exposed_Suprapubic.v7.signif_variant_gene_pairs.txt.gz \
   --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Colon_Sigmoid.v7.signif_variant_gene_pairs.txt.gz \
   --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Colon_Transverse.v7.signif_variant_gene_pairs.txt.gz \
+  --gtex-tsv Lung.v7.signif_variant_gene_pairs.txt.gz \
   --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
 | bcftools sort -O z -o $VEP_CACHE/GTEx_eQTLs.vcf.gz
 tabix -p vcf -f $VEP_CACHE/GTEx_eQTLs.vcf.gz
@@ -301,7 +302,7 @@ $WRKDIR/../code/ensembl-vep/vep \
   --nearest gene \
   --distance 10000 \
   --regulatory \
-  --cell_type pancreas,endocrine_pancreas,sigmoid_colon,foreskin_melanocyte_1,foreskin_melanocyte_2 \
+  --cell_type pancreas,endocrine_pancreas,sigmoid_colon,foreskin_melanocyte_1,foreskin_melanocyte_2,lung_1,lung_2 \
   --numbers \
   --hgvs \
   --symbol \
@@ -352,6 +353,11 @@ $TMPDIR/cleanup_vep.py \
 # | sed 's/Format\:\ /\n/g' | fgrep -v "#" | tr -d '">' | sed 's/|/\t/g' > $TMPDIR/VEP_vals.tsv
 # bcftools query -f '%CSQ\n' $TCGADIR/data/TCGA.RAS_loci.anno.vcf.gz | sed 's/,/\n/g' | sed 's/|/\t/g' >> $TMPDIR/VEP_vals.tsv
 # gzip -f $TMPDIR/VEP_vals.tsv
+$TMPDIR/cleanup_vep.py \
+  --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
+  $TCGADIR/data/TCGA.RAS_loci.anno.vcf.gz \
+  $TMPDIR/test.anno.clean.vcf.gz
+
 
 ### Annotate TCGA VCFs
 for subset in somatic_variants RAS_loci; do
