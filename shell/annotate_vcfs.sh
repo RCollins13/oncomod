@@ -434,13 +434,54 @@ done
 ##############################
 
 ### Write script to annotate in-cohort allele frequencies for all variants by population and cancer type
-# TODO: implement this
+cat <<EOF > $WRKDIR/LSF/scripts/annotate_AFs.sh
+#!/usr/bin/env bash
+set -eu -o pipefail
 
-# DEV
-$TMPDIR/annotate_AFs.py \
-  --sample-metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
-  --sample-id-column PBP \
-  $PROFILEDIR/data/PROFILE.RAS_loci.anno.clean.vcf.gz \
-  $TMPDIR/test.vcf.gz
+$CODEDIR/scripts/data_processing/annotate_AFs.py \
+  --sample-metadata \$2 \
+  --sample-id-column \$3 \
+  \$1 \
+  \$4
+tabix -f -p vcf \$4
+EOF
+chmod a+x $WRKDIR/LSF/scripts/annotate_AFs.sh
 
+
+### Clean up TCGA VCFs
+for subset in somatic_variants RAS_loci; do
+  for suf in err log; do
+    if [ -e $WRKDIR/LSF/logs/annotate_AFs_TCGA_$subset.log ]; then
+      rm $WRKDIR/LSF/logs/annotate_AFs_TCGA_$subset.log
+    fi
+  done
+  bsub -q normal -sla miket_sc \
+    -J annotate_AFs_TCGA_$subset \
+    -o $WRKDIR/LSF/logs/annotate_AFs_TCGA_$subset.log \
+    -e $WRKDIR/LSF/logs/annotate_AFs_TCGA_$subset.err \
+    "$WRKDIR/LSF/scripts/annotate_AFs.sh \
+       $TCGADIR/data/TCGA.$subset.anno.clean.vcf.gz \
+       $TCGADIR/data/sample_info/TCGA.ALL.sample_metadata.tsv.gz \
+       DONOR_ID \
+       $TCGADIR/data/TCGA.$subset.anno.clean.vcf.wAF.gz"
+done
+
+
+### Clean up PROFILE VCFs
+for subset in somatic_variants RAS_loci; do
+  for suf in err log; do
+    if [ -e $WRKDIR/LSF/logs/annotate_AFs_PROFILE_$subset.log ]; then
+      rm $WRKDIR/LSF/logs/annotate_AFs_PROFILE_$subset.log
+    fi
+  done
+  bsub -q normal -sla miket_sc \
+    -J annotate_AFs_PROFILE_$subset \
+    -o $WRKDIR/LSF/logs/annotate_AFs_PROFILE_$subset.log \
+    -e $WRKDIR/LSF/logs/annotate_AFs_PROFILE_$subset.err \
+    "$WRKDIR/LSF/scripts/annotate_AFs.sh \
+       $PROFILEDIR/data/PROFILE.$subset.anno.clean.vcf.gz \
+       $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
+       PBP \
+       $PROFILEDIR/data/PROFILE.$subset.anno.clean.wAF.vcf.gz"
+done
 
