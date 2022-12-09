@@ -41,6 +41,37 @@ def reformat_header(invcf, pop_map, cancer_map):
 
     header = invcf.header
 
+    prefixes = set(list(pop_map.values()) + list(cancer_map.values()))
+
+    descriptions = {'AN' : 'Allele number',
+                    'AC' : 'Allele count',
+                    'AF' : 'Allele frequency',
+                    'N_GT' : 'Number of informative genotypes',
+                    'N_HOMREF' : 'Number of homozygous reference genotypes',
+                    'N_HET' : 'Number of heterozygous/hemizygous genotypes',
+                    'N_HOMALT' : 'Number of homozygous alternate genotypes',
+                    'CARRIER_FREQ' : 'Fraction of individuals carrying non-reference genotypes'}
+    float_keys = 'AF CARRIER_FREQ'.split()
+
+    for prefix in [None] + list(prefixes):
+        if prefix is None:
+            prefix = ''
+            descr_suffix = ''
+        else:
+            descr_suffix = ' in {} samples'.format(prefix)
+            prefix = prefix + '_'
+        for key, descr in descriptions.items():
+            if key in float_keys:
+                key_type = 'Float'
+            else:
+                key_type = 'Integer'
+            if prefix + key in header.info.keys():
+                header.info.remove_header(prefix + key)
+            header.add_meta(key='INFO', 
+                            items=[('ID', prefix + key), ('Number', 'A'), 
+                                   ('Type', key_type),
+                                   ('Description', descr + descr_suffix)])
+
     return header
 
 
@@ -52,9 +83,9 @@ def annotate_AF(record, pop_map, cancer_map):
     # Prep counters
     counter_fields = 'AC AN N_GT N_HOMREF N_HET N_HOMALT'.split()
     counters = {f : 0 for f in counter_fields}
-    for pop in set(pop_map.values() + cancer_map.values()):
+    for prefix in set(list(pop_map.values()) + list(cancer_map.values())):
         for f in counter_fields:
-            counters['_'.join([f, pop])] = 0
+            counters['_'.join([prefix, f])] = 0
 
     for sid, sgt in record.samples.items():
 
@@ -62,23 +93,52 @@ def annotate_AF(record, pop_map, cancer_map):
         GT = sgt['GT']
         pop = pop_map.get(sid)
         cancer = cancer_map.get(sid)
-        if None in GT:
+        if all([a is None for a in GT]):
             continue
-        import pdb; pdb.set_trace()
+        GT_called = tuple([a for a in GT if a is not None])
         AN = len(GT)
-        AC = np.nansum(GT)
+        AC = np.nansum(np.array([a for a in GT if a is not None]) > 0)
 
         # Update allele counters
         counters['AN'] += AN
         counters['AC'] += AC
-        for suf in [pop, cancer]:
-            if suf is not None:
-                counters['AN_' + suf] += AN
-                counters['AC' + suf] += AC
+        for prefix in [pop, cancer]:
+            if prefix is not None:
+                counters[prefix + '_AN'] += AN
+                counters[prefix + '_AC'] += AC
 
         # Update GT counters
-        # TODO: implement this
+        is_ref = pd.Series([a == 0 for a in GT_called])
+        if is_ref.all():
+            gt_label = 'HOMREF'
+        elif ~is_ref.all():
+            gt_label = 'HOMALT'
+        else:
+            gt_label = 'HET'
+        counters['N_GT'] += 1
+        counters['N_' + gt_label] += 1
+        for prefix in [pop, cancer]:
+            counters[prefix + '_N_GT'] += 1
+            counters[prefix + '_N_' + gt_label] += 1
 
+    # Compute derived frequencies
+    counters = {key : int(value) for key, value in counters.items()}
+    if counters['AN'] > 0:
+        counters['AF'] = counters['AC'] / counters['AN']
+    if counters['N_GT'] > 0:
+        n_nonref = counters['N_HET'] + counters['N_HOMALT']
+        counters['CARRIER_FREQ'] = n_nonref / counters['N_GT']
+    for prefix in set(list(pop_map.values()) + list(cancer_map.values())):
+        if counters[prefix + '_AN'] > 0:
+            counters[prefix + '_AF'] = counters[prefix + '_AC'] / counters[prefix + '_AN']
+        if counters[prefix + '_N_GT'] > 0:
+            n_nonref = counters[prefix + '_N_HET'] + counters[prefix + '_N_HOMALT']
+            counters[prefix + '_CARRIER_FREQ'] = \
+                n_nonref / counters[prefix + '_N_GT']
+
+    # Write all values to record INFO
+    for key, value in counters.items():
+        record.info[key] = value
 
     return record
 

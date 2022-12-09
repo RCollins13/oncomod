@@ -395,7 +395,7 @@ EOF
 chmod a+x $WRKDIR/LSF/scripts/clean_VEP.sh
 
 
-### Annotate TCGA VCFs
+### Clean up TCGA VCFs
 for subset in somatic_variants RAS_loci; do
   for suf in err log; do
     if [ -e $WRKDIR/LSF/logs/VEP_cleanup_TCGA_$subset.log ]; then
@@ -412,7 +412,7 @@ for subset in somatic_variants RAS_loci; do
 done
 
 
-### Annotate PROFILE VCFs
+### Clean up PROFILE VCFs
 for subset in somatic_variants RAS_loci; do
   for suf in err log; do
     if [ -e $WRKDIR/LSF/logs/VEP_cleanup_PROFILE_$subset.log ]; then
@@ -435,4 +435,12 @@ done
 
 ### Write script to annotate in-cohort allele frequencies for all variants by population and cancer type
 # TODO: implement this
+
+# DEV
+$TMPDIR/annotate_AFs.py \
+  --sample-metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
+  --sample-id-column PBP \
+  $PROFILEDIR/data/PROFILE.RAS_loci.anno.clean.vcf.gz \
+  $TMPDIR/test.vcf.gz
+
 
