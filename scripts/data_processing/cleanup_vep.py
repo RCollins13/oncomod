@@ -16,6 +16,7 @@ import pandas as pd
 import pysam
 from copy import deepcopy
 from sys import stdin, stdout
+from vep_utils import parse_vep_map, vep2df
 
 
 # Define values used in various functions below
@@ -103,17 +104,6 @@ clinvar_remap = {'Pathogenic' : 'P',
                 'Conflicting_interpretations_of_pathogenicity' : 'CONFLICTING',
                 'Likely_benign' : 'LB',
                 'Benign' : 'B'}
-
-
-def parse_vep_map(invcf):
-    """
-    Parse VEP field mappings to variable names
-    """
-
-    vep_text = invcf.header.info.get('CSQ').description
-    vep_fields = vep_text.split('Format: ')[1].replace('\'', '').split('|')
-
-    return {i : k for i, k in enumerate(vep_fields)}
 
 
 def reformat_header(invcf):
@@ -414,11 +404,7 @@ def cleanup(record, vep_map, tx_map, spliceai_cutoff=0.5):
 
     # Build pd.DataFrame of all VEP entries
     # (Excluding keys in vep_pop, defined above)
-    vep_vals = {}
-    for i, vep_str in enumerate(record.info.get('CSQ', [])):
-        vep_vals[i] = {k : v for k, v in zip(vep_map.values(), vep_str.split('|')) \
-                       if k not in vep_pop}
-    vdf = pd.DataFrame.from_dict(vep_vals, orient='index')
+    vdf = vep2df(record, vep_map, vep_pop)
 
     # Don't process records lacking CSQ INFO field
     if len(vdf) == 0:

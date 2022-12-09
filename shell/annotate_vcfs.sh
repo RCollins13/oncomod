@@ -340,37 +340,30 @@ EOF
 chmod a+x $WRKDIR/LSF/scripts/run_VEP.sh
 
 
-### Annotate TCGA VCFs
-for subset in somatic_variants RAS_loci; do
-  for suf in err log; do
-    if [ -e $WRKDIR/LSF/logs/VEP_TCGA_$subset.$suf ]; then
-      rm $WRKDIR/LSF/logs/VEP_TCGA_$subset.$suf
-    fi
+### Annotate VCFs
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  for subset in somatic_variants RAS_loci; do
+    for suf in err log; do
+      if [ -e $WRKDIR/LSF/logs/VEP_${cohort}_$subset.$suf ]; then
+        rm $WRKDIR/LSF/logs/VEP_${cohort}_$subset.$suf
+      fi
+    done
+    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+      -J VEP_${cohort}_$subset \
+      -o $WRKDIR/LSF/logs/VEP_${cohort}_$subset.log \
+      -e $WRKDIR/LSF/logs/VEP_${cohort}_$subset.err \
+      "$WRKDIR/LSF/scripts/run_VEP.sh \
+         $COHORTDIR/data/$cohort.$subset.vcf.gz \
+         $COHORTDIR/data/$cohort.$subset.anno.vcf.gz"
   done
-  bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
-    -J VEP_TCGA_$subset \
-    -o $WRKDIR/LSF/logs/VEP_TCGA_$subset.log \
-    -e $WRKDIR/LSF/logs/VEP_TCGA_$subset.err \
-    "$WRKDIR/LSF/scripts/run_VEP.sh \
-       $TCGADIR/data/TCGA.$subset.vcf.gz \
-       $TCGADIR/data/TCGA.$subset.anno.vcf.gz"
-done
-
-
-### Annotate PROFILE VCFs
-for subset in somatic_variants RAS_loci; do
-  for suf in err log; do
-    if [ -e $WRKDIR/LSF/logs/VEP_PROFILE_$subset.$suf ]; then
-      rm $WRKDIR/LSF/logs/VEP_PROFILE_$subset.$suf
-    fi
-  done
-  bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
-    -J VEP_PROFILE_$subset \
-    -o $WRKDIR/LSF/logs/VEP_PROFILE_$subset.log \
-    -e $WRKDIR/LSF/logs/VEP_PROFILE_$subset.err \
-    "$WRKDIR/LSF/scripts/run_VEP.sh \
-       $PROFILEDIR/data/PROFILE.$subset.vcf.gz \
-       $PROFILEDIR/data/PROFILE.$subset.anno.vcf.gz"
 done
 
 
@@ -395,37 +388,30 @@ EOF
 chmod a+x $WRKDIR/LSF/scripts/clean_VEP.sh
 
 
-### Clean up TCGA VCFs
-for subset in somatic_variants RAS_loci; do
-  for suf in err log; do
-    if [ -e $WRKDIR/LSF/logs/VEP_cleanup_TCGA_$subset.log ]; then
-      rm $WRKDIR/LSF/logs/VEP_cleanup_TCGA_$subset.log
-    fi
+### Clean up VCFs
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  for subset in somatic_variants RAS_loci; do
+    for suf in err log; do
+      if [ -e $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.log ]; then
+        rm $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.log
+      fi
+    done
+    bsub -q normal -sla miket_sc \
+      -J VEP_cleanup_${cohort}_$subset \
+      -o $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.log \
+      -e $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.err \
+      "$WRKDIR/LSF/scripts/clean_VEP.sh \
+         $COHORTDIR/data/$cohort.$subset.anno.vcf.gz \
+         $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz"
   done
-  bsub -q normal -sla miket_sc \
-    -J VEP_cleanup_TCGA_$subset \
-    -o $WRKDIR/LSF/logs/VEP_cleanup_TCGA_$subset.log \
-    -e $WRKDIR/LSF/logs/VEP_cleanup_TCGA_$subset.err \
-    "$WRKDIR/LSF/scripts/clean_VEP.sh \
-       $TCGADIR/data/TCGA.$subset.anno.vcf.gz \
-       $TCGADIR/data/TCGA.$subset.anno.clean.vcf.gz"
-done
-
-
-### Clean up PROFILE VCFs
-for subset in somatic_variants RAS_loci; do
-  for suf in err log; do
-    if [ -e $WRKDIR/LSF/logs/VEP_cleanup_PROFILE_$subset.log ]; then
-      rm $WRKDIR/LSF/logs/VEP_cleanup_PROFILE_$subset.log
-    fi
-  done
-  bsub -q normal -sla miket_sc \
-    -J VEP_cleanup_PROFILE_$subset \
-    -o $WRKDIR/LSF/logs/VEP_cleanup_PROFILE_$subset.log \
-    -e $WRKDIR/LSF/logs/VEP_cleanup_PROFILE_$subset.err \
-    "$WRKDIR/LSF/scripts/clean_VEP.sh \
-       $PROFILEDIR/data/PROFILE.$subset.anno.vcf.gz \
-       $PROFILEDIR/data/PROFILE.$subset.anno.clean.vcf.gz"
 done
 
 
@@ -448,40 +434,56 @@ EOF
 chmod a+x $WRKDIR/LSF/scripts/annotate_AFs.sh
 
 
-### Clean up TCGA VCFs
-for subset in somatic_variants RAS_loci; do
-  for suf in err log; do
-    if [ -e $WRKDIR/LSF/logs/annotate_AFs_TCGA_$subset.log ]; then
-      rm $WRKDIR/LSF/logs/annotate_AFs_TCGA_$subset.log
-    fi
+### Annotate AFs for all VCFs
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      sample_field=DONOR_ID
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      sample_field=PBP
+      ;;
+  esac
+  for subset in somatic_variants RAS_loci; do
+    for suf in err log; do
+      if [ -e $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.log ]; then
+        rm $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.log
+      fi
+    done
+    bsub -q normal -sla miket_sc \
+      -J annotate_AFs_${cohort}_$subset \
+      -o $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.log \
+      -e $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.err \
+      "$WRKDIR/LSF/scripts/annotate_AFs.sh \
+         $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
+         $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+         $sample_field \
+         $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.wAF.gz"
   done
-  bsub -q normal -sla miket_sc \
-    -J annotate_AFs_TCGA_$subset \
-    -o $WRKDIR/LSF/logs/annotate_AFs_TCGA_$subset.log \
-    -e $WRKDIR/LSF/logs/annotate_AFs_TCGA_$subset.err \
-    "$WRKDIR/LSF/scripts/annotate_AFs.sh \
-       $TCGADIR/data/TCGA.$subset.anno.clean.vcf.gz \
-       $TCGADIR/data/sample_info/TCGA.ALL.sample_metadata.tsv.gz \
-       DONOR_ID \
-       $TCGADIR/data/TCGA.$subset.anno.clean.vcf.wAF.gz"
 done
 
 
-### Clean up PROFILE VCFs
-for subset in somatic_variants RAS_loci; do
-  for suf in err log; do
-    if [ -e $WRKDIR/LSF/logs/annotate_AFs_PROFILE_$subset.log ]; then
-      rm $WRKDIR/LSF/logs/annotate_AFs_PROFILE_$subset.log
-    fi
-  done
-  bsub -q normal -sla miket_sc \
-    -J annotate_AFs_PROFILE_$subset \
-    -o $WRKDIR/LSF/logs/annotate_AFs_PROFILE_$subset.log \
-    -e $WRKDIR/LSF/logs/annotate_AFs_PROFILE_$subset.err \
-    "$WRKDIR/LSF/scripts/annotate_AFs.sh \
-       $PROFILEDIR/data/PROFILE.$subset.anno.clean.vcf.gz \
-       $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
-       PBP \
-       $PROFILEDIR/data/PROFILE.$subset.anno.clean.wAF.vcf.gz"
+######################################
+### Build simple genotype matrixes ###
+######################################
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  for subset in somatic_variants RAS_loci; do
+    zcat $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
+    | grep -ve '^##'
+         $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+         $sample_field \
+         $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.wAF.gz
 done
+
+
 
