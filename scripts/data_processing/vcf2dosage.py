@@ -44,7 +44,10 @@ def main():
 
     # Iterate over records in invcf, convert to dosage vectors, and write to outfile
     for record in invcf.fetch():
-        outvals = [record.id]
+        vid = record.id
+        if vid is None:
+            vid = '{}_{}_{}_{}'.format(record.chrom, record.pos, *record.alleles)
+        outvals = [vid]
         for sid, sgt in record.samples.items():
             GT = [a for a in sgt['GT'] if a is not None]
             if len(GT) == 0:
@@ -52,7 +55,10 @@ def main():
             else:
                 dos = int(np.sum([a for a in GT if a > 0]))
                 outvals.append(str(dos))
-        outfile.write('\t'.join(outvals) + '\n')
+        try:
+            outfile.write('\t'.join(outvals) + '\n')
+        except:
+            import pdb; pdb.set_trace()
 
     # Close connection to output file to clear buffer
     outfile.close()

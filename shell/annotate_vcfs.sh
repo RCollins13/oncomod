@@ -400,8 +400,8 @@ for cohort in TCGA PROFILE; do
   esac
   for subset in somatic_variants RAS_loci; do
     for suf in err log; do
-      if [ -e $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.log ]; then
-        rm $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.log
+      if [ -e $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.$suf ]; then
+        rm $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.$suf
       fi
     done
     bsub -q normal -sla miket_sc \
@@ -448,8 +448,8 @@ for cohort in TCGA PROFILE; do
   esac
   for subset in somatic_variants RAS_loci; do
     for suf in err log; do
-      if [ -e $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.log ]; then
-        rm $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.log
+      if [ -e $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.$suf ]; then
+        rm $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.$suf
       fi
     done
     bsub -q normal -sla miket_sc \
@@ -481,8 +481,8 @@ for cohort in TCGA PROFILE; do
   esac
   for subset in somatic_variants RAS_loci; do
     for suf in err log; do
-      if [ -e $WRKDIR/LSF/logs/make_dosage_${cohort}_$subset.log ]; then
-        rm $WRKDIR/LSF/logs/make_dosage_${cohort}_$subset.log
+      if [ -e $WRKDIR/LSF/logs/make_dosage_${cohort}_$subset.$suf ]; then
+        rm $WRKDIR/LSF/logs/make_dosage_${cohort}_$subset.$suf
       fi
     done
     bsub -q normal -sla miket_sc \
