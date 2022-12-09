@@ -248,8 +248,8 @@ def _harmonize_gnomad(record, vdf):
 
     exome_cols = [k for k in vdf.columns if 'gnomADe_' in k]
     genome_cols = [k for k in vdf.columns if 'gnomADg_' in k]
-    has_exome = (vdf[exome_cols] != '').any(axis=1)[0]
-    has_genome = (vdf[genome_cols] != '').any(axis=1)[0]
+    has_exome = (vdf[exome_cols] != '').any(axis=1).values[0]
+    has_genome = (vdf[genome_cols] != '').any(axis=1).values[0]
     if has_exome:
         gsrc = 'exome'
     elif has_genome:
