@@ -22,14 +22,14 @@ def load_sample_metadata(meta_in, sample_col):
     Load sample metadata necessary for AF annotation
     """
 
-    df = pd.read_csv(meta_in, sep='\t')
+    df = pd.read_csv(meta_in, sep='\t', na_values='.')
     df.rename(columns={df.columns[0] : df.columns[0].replace('#', '')}, inplace=True)
 
     df.set_index(sample_col, drop=True, inplace=True)
 
-    pop_map = df.POPULATION.to_dict()
+    pop_map = df.POPULATION[~df.POPULATION.isna()].to_dict()
 
-    cancer_map = df.CANCER_TYPE.to_dict()
+    cancer_map = df.CANCER_TYPE[~df.CANCER_TYPE.isna()].to_dict()
 
     return pop_map, cancer_map
 
@@ -118,8 +118,9 @@ def annotate_AF(record, pop_map, cancer_map):
         counters['N_GT'] += 1
         counters['N_' + gt_label] += 1
         for prefix in [pop, cancer]:
-            counters[prefix + '_N_GT'] += 1
-            counters[prefix + '_N_' + gt_label] += 1
+            if prefix is not None:
+                counters[prefix + '_N_GT'] += 1
+                counters[prefix + '_N_' + gt_label] += 1
 
     # Compute derived frequencies
     counters = {key : int(value) for key, value in counters.items()}
