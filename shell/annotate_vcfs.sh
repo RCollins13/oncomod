@@ -472,18 +472,29 @@ for cohort in TCGA PROFILE; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
+      sample_field=DONOR_ID
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      sample_field=PBP
       ;;
   esac
   for subset in somatic_variants RAS_loci; do
-    zcat $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
-    | grep -ve '^##'
-         $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
-         $sample_field \
-         $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.wAF.gz
+    for suf in err log; do
+      if [ -e $WRKDIR/LSF/logs/make_dosage_${cohort}_$subset.log ]; then
+        rm $WRKDIR/LSF/logs/make_dosage_${cohort}_$subset.log
+      fi
+    done
+    bsub -q normal -sla miket_sc \
+      -J make_dosage_${cohort}_$subset \
+      -o $WRKDIR/LSF/logs/make_dosage_${cohort}_$subset.log \
+      -e $WRKDIR/LSF/logs/make_dosage_${cohort}_$subset.err \
+      "$CODEDIR/scripts/data_processing/vcf2dosage.py \
+         $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz - \
+       | gzip -c > $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz"
+  done
 done
+
 
 
 
