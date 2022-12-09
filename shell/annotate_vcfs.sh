@@ -287,7 +287,7 @@ $WRKDIR/../code/ensembl-vep/vep \
   --force_overwrite \
   --species homo_sapiens \
   --assembly GRCh37 \
-  --max_sv_size 1000 \
+  --max_sv_size 100 \
   --offline \
   --no_stats \
   --cache \
@@ -331,10 +331,10 @@ chmod a+x $WRKDIR/LSF/scripts/run_VEP.sh
 
 ### Annotate TCGA VCFs
 for subset in somatic_variants RAS_loci; do
-  bsub -q normal -sla miket_sc -R "rusage[mem=8000]" -n 2 \
-    -J VEP_cleanup_TCGA_$subset \
-    -o $WRKDIR/LSF/logs/VEP_cleanup_TCGA_$subset.log \
-    -e $WRKDIR/LSF/logs/VEP_cleanup_TCGA_$subset.err \
+  bsub -q big-multi -sla miket_sc -R "rusage[mem=24000]" -n 4 \
+    -J VEP_TCGA_$subset \
+    -o $WRKDIR/LSF/logs/VEP_TCGA_$subset.log \
+    -e $WRKDIR/LSF/logs/VEP_TCGA_$subset.err \
     "$WRKDIR/LSF/scripts/run_VEP.sh \
        $TCGADIR/data/TCGA.$subset.vcf.gz \
        $TCGADIR/data/TCGA.$subset.anno.vcf.gz"
@@ -343,10 +343,10 @@ done
 
 ### Annotate PROFILE VCFs
 for subset in somatic_variants RAS_loci; do
-  bsub -q normal -sla miket_sc -R "rusage[mem=8000]" -n 2 \
-    -J VEP_cleanup_PROFILE_$subset \
-    -o $WRKDIR/LSF/logs/VEP_cleanup_PROFILE_$subset.log \
-    -e $WRKDIR/LSF/logs/VEP_cleanup_PROFILE_$subset.err \
+  bsub -q big-multi -sla miket_sc -R "rusage[mem=24000]" -n 4 \
+    -J VEP_PROFILE_$subset \
+    -o $WRKDIR/LSF/logs/VEP_PROFILE_$subset.log \
+    -e $WRKDIR/LSF/logs/VEP_PROFILE_$subset.err \
     "$WRKDIR/LSF/scripts/run_VEP.sh \
        $PROFILEDIR/data/PROFILE.$subset.vcf.gz \
        $PROFILEDIR/data/PROFILE.$subset.anno.vcf.gz"
@@ -357,7 +357,7 @@ done
 cat <<EOF > $WRKDIR/LSF/scripts/clean_VEP.sh
 #!/usr/bin/env bash
 
-$TMPDIR/cleanup_vep.py \
+$CODEDIR/scripts/data_processing/cleanup_vep.py \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
   \$1 stdout \
 | grep -ve "^##bcftools" | grep -ve "^##CADD_" | grep -ve "^##UTRAnnotator_" \
@@ -375,4 +375,32 @@ tabix -f -p vcf $TMPDIR/test.vcf.gz
 $WRKDIR/LSF/scripts/clean_VEP.sh \
   $TMPDIR/test.vcf.gz \
   $TMPDIR/test.cleaned.vcf.gz
+
+
+### Annotate TCGA VCFs
+for subset in somatic_variants RAS_loci; do
+  bsub -q normal -sla miket_sc -R "rusage[mem=8000]" -n 2 \
+    -J VEP_cleanup_TCGA_$subset \
+    -o $WRKDIR/LSF/logs/VEP_cleanup_TCGA_$subset.log \
+    -e $WRKDIR/LSF/logs/VEP_cleanup_TCGA_$subset.err \
+    "$WRKDIR/LSF/scripts/clean_VEP.sh \
+       $TCGADIR/data/TCGA.$subset.anno.vcf.gz \
+       $TCGADIR/data/TCGA.$subset.anno.clean.vcf.gz"
+done
+
+
+### Annotate PROFILE VCFs
+for subset in somatic_variants RAS_loci; do
+  bsub -q normal -sla miket_sc -R "rusage[mem=8000]" -n 2 \
+    -J VEP_cleanup_PROFILE_$subset \
+    -o $WRKDIR/LSF/logs/VEP_cleanup_PROFILE_$subset.log \
+    -e $WRKDIR/LSF/logs/VEP_cleanup_PROFILE_$subset.err \
+    "$WRKDIR/LSF/scripts/clean_VEP.sh \
+       $PROFILEDIR/data/PROFILE.$subset.anno.vcf.gz \
+       $PROFILEDIR/data/PROFILE.$subset.anno.clean.vcf.gz"
+done
+
+
+### Annotate in-cohort allele frequencies for all variants by population and cancer type
+# TODO: implement this
 
