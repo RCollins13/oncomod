@@ -13,6 +13,10 @@
 # Note: intended to be executed on the MGB ERISOne cluster
 
 
+##################
+### Basic prep ###
+##################
+
 ### Set local parameters
 export TCGADIR=/data/gusev/USERS/rlc47/TCGA
 export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
@@ -68,6 +72,10 @@ cd $WRKDIR/../code/ensembl-vep && \
   --offline && \
 cd $WRKDIR
 
+
+#####################
+### Data curation ###
+#####################
 
 ### Curate custom datasets for use by VEP
 # Prep subdirectories
@@ -271,18 +279,21 @@ for suf in gz gz.tbi; do
 done
 
 
+######################
+### VEP annotation ###
+######################
 
-### Build script for generic VEP function call with plugins and options
+### Write script for generic VEP function call with plugins and options
 # export PERL5LIB=$VEP_PLUGINS/loftee:$PERL5LIB
 cat <<EOF > $WRKDIR/LSF/scripts/run_VEP.sh
 #!/usr/bin/env bash
+set -eu -o pipefail
 
 # Annotate with VEP
 $WRKDIR/../code/ensembl-vep/vep \
   --input_file \$1 \
   --format vcf \
   --output_file STDOUT \
-  --fork 2 \
   --vcf \
   --force_overwrite \
   --species homo_sapiens \
@@ -331,7 +342,12 @@ chmod a+x $WRKDIR/LSF/scripts/run_VEP.sh
 
 ### Annotate TCGA VCFs
 for subset in somatic_variants RAS_loci; do
-  bsub -q big-multi -sla miket_sc -R "rusage[mem=24000]" -n 4 \
+  for suf in err log; do
+    if [ -e $WRKDIR/LSF/logs/VEP_TCGA_$subset.$suf ]; then
+      rm $WRKDIR/LSF/logs/VEP_TCGA_$subset.$suf
+    fi
+  done
+  bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
     -J VEP_TCGA_$subset \
     -o $WRKDIR/LSF/logs/VEP_TCGA_$subset.log \
     -e $WRKDIR/LSF/logs/VEP_TCGA_$subset.err \
@@ -343,7 +359,12 @@ done
 
 ### Annotate PROFILE VCFs
 for subset in somatic_variants RAS_loci; do
-  bsub -q big-multi -sla miket_sc -R "rusage[mem=24000]" -n 4 \
+  for suf in err log; do
+    if [ -e $WRKDIR/LSF/logs/VEP_PROFILE_$subset.$suf ]; then
+      rm $WRKDIR/LSF/logs/VEP_PROFILE_$subset.$suf
+    fi
+  done
+  bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
     -J VEP_PROFILE_$subset \
     -o $WRKDIR/LSF/logs/VEP_PROFILE_$subset.log \
     -e $WRKDIR/LSF/logs/VEP_PROFILE_$subset.err \
@@ -353,9 +374,14 @@ for subset in somatic_variants RAS_loci; do
 done
 
 
-### Build script for cleaning generic VEP output (generated above)
+#########################
+### Clean VEP outputs ###
+#########################
+
+### Write script for cleaning generic VEP output (generated above)
 cat <<EOF > $WRKDIR/LSF/scripts/clean_VEP.sh
 #!/usr/bin/env bash
+set -eu -o pipefail
 
 $CODEDIR/scripts/data_processing/cleanup_vep.py \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
@@ -369,17 +395,14 @@ EOF
 chmod a+x $WRKDIR/LSF/scripts/clean_VEP.sh
 
 
-# DEV
-zcat /data/gusev/USERS/rlc47/TCGA/data/TCGA.RAS_loci.anno.vcf.gz | head -n200 | bgzip -c > $TMPDIR/test.vcf.gz
-tabix -f -p vcf $TMPDIR/test.vcf.gz
-$WRKDIR/LSF/scripts/clean_VEP.sh \
-  $TMPDIR/test.vcf.gz \
-  $TMPDIR/test.cleaned.vcf.gz
-
-
 ### Annotate TCGA VCFs
 for subset in somatic_variants RAS_loci; do
-  bsub -q normal -sla miket_sc -R "rusage[mem=8000]" -n 2 \
+  for suf in err log; do
+    if [ -e $WRKDIR/LSF/logs/VEP_cleanup_TCGA_$subset.log ]; then
+      rm $WRKDIR/LSF/logs/VEP_cleanup_TCGA_$subset.log
+    fi
+  done
+  bsub -q normal -sla miket_sc \
     -J VEP_cleanup_TCGA_$subset \
     -o $WRKDIR/LSF/logs/VEP_cleanup_TCGA_$subset.log \
     -e $WRKDIR/LSF/logs/VEP_cleanup_TCGA_$subset.err \
@@ -391,7 +414,12 @@ done
 
 ### Annotate PROFILE VCFs
 for subset in somatic_variants RAS_loci; do
-  bsub -q normal -sla miket_sc -R "rusage[mem=8000]" -n 2 \
+  for suf in err log; do
+    if [ -e $WRKDIR/LSF/logs/VEP_cleanup_PROFILE_$subset.log ]; then
+      rm $WRKDIR/LSF/logs/VEP_cleanup_PROFILE_$subset.log
+    fi
+  done
+  bsub -q normal -sla miket_sc \
     -J VEP_cleanup_PROFILE_$subset \
     -o $WRKDIR/LSF/logs/VEP_cleanup_PROFILE_$subset.log \
     -e $WRKDIR/LSF/logs/VEP_cleanup_PROFILE_$subset.err \
@@ -401,6 +429,10 @@ for subset in somatic_variants RAS_loci; do
 done
 
 
-### Annotate in-cohort allele frequencies for all variants by population and cancer type
+##############################
+### Annotate in-sample AFs ###
+##############################
+
+### Write script to annotate in-cohort allele frequencies for all variants by population and cancer type
 # TODO: implement this
 

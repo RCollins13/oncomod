@@ -490,7 +490,8 @@ def cleanup(record, vep_map, tx_map, spliceai_cutoff=0.5):
 
     # Extract top COSMIC significance, if any reported
     if any(vdf.COSMIC_COSMIC_MUT_SIG != ''):
-        best_cosmic = int(vdf.COSMIC_COSMIC_MUT_SIG.sort_values().head(1).values[0])
+        best_cosmic = int(vdf.COSMIC_COSMIC_MUT_SIG.str.split('&', expand=True).\
+                          max(axis=1).sort_values().head(1).values[0])
         record.info['COSMIC_mutation_tier'] = best_cosmic
 
     # Mve promoter annotations to INFO
