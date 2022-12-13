@@ -84,6 +84,9 @@ zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 \
 > $WRKDIR/data/PROFILE.single_gene_vcfs.list
 bcftools concat \
   --file-list $WRKDIR/data/PROFILE.single_gene_vcfs.list \
+| bcftools annotate \
+  --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
+  --header-lines <( zcat $WRKDIR/refs/simple_hg19_header.vcf.gz | fgrep -w SVTYPE ) \
   -O z -o $WRKDIR/data/PROFILE.RAS_loci.vcf.gz
 tabix -p vcf -f $WRKDIR/data/PROFILE.RAS_loci.vcf.gz
 

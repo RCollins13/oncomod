@@ -289,6 +289,13 @@ cat <<EOF > $WRKDIR/LSF/scripts/run_VEP.sh
 #!/usr/bin/env bash
 set -eu -o pipefail
 
+# Extract CNVs larger than 100bp to be spiked in after VEP
+# (VEP will exclude these given --max_sv_size 100)
+cnv_records="$TMPDIR/\$( basename \$1 | sed 's/vcf.gz/cnvs.vcf_records/g' )"
+bcftools view \$1 --no-header \
+  --include 'INFO/SVTYPE ~ "DEL\|DUP\|AMP"' \
+  -O v -o \$cnv_records
+
 # Annotate with VEP
 $WRKDIR/../code/ensembl-vep/vep \
   --input_file \$1 \
@@ -314,6 +321,7 @@ $WRKDIR/../code/ensembl-vep/vep \
   --distance 10000 \
   --numbers \
   --hgvs \
+  --no_escape \
   --symbol \
   --canonical \
   --domains \
@@ -334,7 +342,9 @@ $WRKDIR/../code/ensembl-vep/vep \
   --custom $VEP_CACHE/CCR.bed.gz,CCR,bed,overlap,0 \
   --custom $VEP_CACHE/samocha_regional_constraint.bed.gz,ExAC_regional_constraint,bed,overlap,0 \
   --custom $VEP_CACHE/GTEx_eQTLs.vcf.gz,GTEx,vcf,exact,0,GTEx_eGene,GTEx_eQTL_beta,GTEx_eQTL_tissue \
+| cat - \$cnv_records \
 | bcftools sort -O z -o \$2
+rm \$cnv_records
 tabix -p vcf -f \$2
 EOF
 chmod a+x $WRKDIR/LSF/scripts/run_VEP.sh
@@ -494,7 +504,4 @@ for cohort in TCGA PROFILE; do
        | gzip -c > $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz"
   done
 done
-
-
-
 

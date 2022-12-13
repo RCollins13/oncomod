@@ -397,6 +397,53 @@ def _clean_regulatory(record, vdf, tx_map):
     return record, vdf
 
 
+def cleanup_cnv(record, vep_fields, gtf_tabix):
+    """
+    Add simple gene overlap CSQ entry to CNVs
+    """
+
+    if 'chr' in record.chrom:
+        chrom = record.chrom
+    else:
+        chrom = 'chr' + record.chrom
+
+    # Get all annotated genes overlapping CNV
+    hits = [g.rstrip().split('\t') for g in \
+            gtf_tabix.fetch(chrom, record.pos, record.stop) \
+            if g.split('\t')[2] == 'gene']
+    
+    # Extract GTF annotations for each as dict
+    hit_dicts = []
+    for hit in hits:
+        hit_dicts.append({v.split()[0] : v.split()[1] for v in 
+                          hit[8].replace('"', '').split('; ')})
+
+    # Build CSQ entries for each hit
+    csq_entries = []
+    for hit_dict in hit_dicts:
+        vep_vals = {k : '' for k in vep_fields}
+
+        # Set CNV type-agnostic values
+        vep_vals['SYMBOL'] = hit_dict.get('gene_name', '')
+        vep_vals['Gene'] = hit_dict.get('gene_id', '').split('.')[0]
+        vep_vals['Feature_type'] = 'Transcript'
+        vep_vals['Feature'] = hit_dict.get('transcript_id', '').split('.')[0]
+        vep_vals['BIOTYPE'] = hit_dict.get('transcript_type', '')
+
+        # Set CNV type-specific values
+        if record.info['SVTYPE'] in 'AMP DUP'.split():
+            vep_vals['Consequence'] = 'transcript_amplification'
+
+        elif record.info['SVTYPE'] == 'DEL':
+            vep_vals['Consequence'] = 'transcript_ablation'
+
+        csq_entries.append('|'.join(vep_vals.values()))
+
+    record.info['CSQ'] = ','.join(csq_entries)
+
+    return record
+
+
 def cleanup(record, vep_map, tx_map, spliceai_cutoff=0.5):
     """
     Simplify VEP entry for a single record
@@ -536,6 +583,7 @@ def main():
              formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('vcf_in', help='input VEP-annotated .vcf')
     parser.add_argument('vcf_out', help='output .vcf [default: stdout]', default='stdout')
+    parser.add_argument('--gtf', help='GTF for annotating CNVs', required=True)
     parser.add_argument('-t', '--transcript-info', required=True, help='.tsv ' + \
                         'mapping ENST:ENSG:symbol:length')
     args = parser.parse_args()
@@ -549,6 +597,7 @@ def main():
     # Parse mapping of VEP fields and transcript info
     vep_map = parse_vep_map(invcf)
     tx_map = load_tx_map(args.transcript_info)
+    gtf_tabix = pysam.TabixFile(args.gtf)
     
     # Open connection to output file
     out_header = reformat_header(invcf)
@@ -556,10 +605,14 @@ def main():
         outvcf = pysam.VariantFile('-', 'w', header=out_header)
     else:
         outvcf = pysam.VariantFile(args.vcf_out, 'w', header=out_header)
+    out_vep_map = parse_vep_map(outvcf)
 
     # Iterate over records in invcf, clean up each, and write to outvcf
     for record in invcf.fetch():
-        record = cleanup(record, vep_map, tx_map)
+        if 'SVTYPE' in record.info.keys():
+            record = cleanup_cnv(record, out_vep_map.values(), gtf_tabix)
+        else:
+            record = cleanup(record, vep_map, tx_map)
         outvcf.write(record)
 
     # Close connection to output VCF to clear buffer

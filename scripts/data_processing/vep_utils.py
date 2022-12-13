@@ -13,12 +13,13 @@ Helper functions for parsing VEP annotations in VCF
 import pandas as pd
 
 
-def parse_vep_map(invcf):
+def parse_vep_map(vcf):
     """
     Parse VEP field mappings to variable names
+    Input must be a pysam.VariantFile
     """
 
-    vep_text = invcf.header.info.get('CSQ').description
+    vep_text = vcf.header.info.get('CSQ').description
     vep_fields = vep_text.split('Format: ')[1].replace('\'', '').split('|')
 
     return {i : k for i, k in enumerate(vep_fields)}
