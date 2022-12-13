@@ -43,13 +43,22 @@ for cohort in TCGA PROFILE; do
       COHORTDIR=$PROFILEDIR
       ;;
   esac
-  bsub -q normal \
-    -J collapse_coding_csqs_${cohort}_$subset \
-    -o $WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_$subset.log \
-    -e $WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_$subset.err \
-    "$TMPDIR/vep2csqTable.py \
-      $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
-      $WRKDIR/data/variant_sets/$cohort.$subset.collapsed_coding_csqs.tsv.gz"
+  for subset in germline somatic; do
+    case $subset in
+      germline)
+        old_subset="RAS_loci"
+        ;;
+      somatic)
+        old_subset="somatic_variants"
+        ;;
+    esac
+    bsub -q normal \
+      -J collapse_coding_csqs_${cohort}_$subset \
+      -o $WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_$subset.log \
+      -e $WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_$subset.err \
+      "$TMPDIR/vep2csqTable.py \
+        $COHORTDIR/data/$cohort.$old_subset.anno.clean.vcf.gz \
+        $WRKDIR/data/variant_sets/$cohort.$subset.collapsed_coding_csqs.tsv.gz"
 done
 
 

@@ -11,6 +11,7 @@ Build table of unique coding consequences present in a VEP-annotated VCF
 
 
 import argparse
+import numpy as np
 import pandas as pd
 import pysam
 from sys import stdin, stdout
@@ -78,7 +79,8 @@ def main():
     # Collapse vid column and write to outfile
     csq_df['vids'] = csq_df.vids.str.join(',')
     try:
-        csq_df['codon'] = csq_df.codon.str.split('-').map(lambda x: np.nanmin(np.array([]))).astype(int)
+        csq_df['codon'] = \
+            csq_df.codon.str.split('-').map(lambda x: np.nanmin(np.array([v for v in x if v.isnumeric()]).astype(int)))
     except:
         import pdb; pdb.set_trace()
     csq_df.sort_values(by='gene codon transcript csq'.split()).\
