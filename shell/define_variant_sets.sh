@@ -82,29 +82,10 @@ for cohort in TCGA PROFILE; do
   done
 done
 #DEV:
-# spec for .json input to make_variant_sets.py
-# {
-#   // Each set gets a unique identifier
-#   set_id:
-#   // Within each set is an array of sets of criteria.
-#   // The relationship between sets of criteria is assumed to be AND within 
-#   // each object (curly brackets) and assumed to be OR between objects
-#   [
-#     // Each key : value pair specifies a single criterion to require
-#     // The value is provided as an array of value and equality
-#     // Value can be numeric, boolean, or string
-#     // Equality should be two-letter string shorthand for comparison to apply
-#     // examples: eq, gt, lt, ge, le
-#     {
-#       key : [value, equality],
-#       key : [value, equality]
-#     },
-#     {
-#       key : [value, equality],
-#       key : [value, equality]
-#     }
-#   ]
-# }
+$TMPDIR/populate_variant_sets.py \
+  --vcf $TCGADIR/data/TCGA.somatic_variants.anno.clean.vcf.gz \
+  --sets-json $TMPDIR/variant_set_criteria.somatic.json \
+  --outfile $WRKDIR/data/variant_sets/TCGA.somatic.burden_sets.tsv
 
 
 ### Compute AC and AF matrixes by cancer type for all variants & variant sets in each cohort
@@ -129,17 +110,70 @@ for cohort in TCGA PROFILE; do
         max_an=1
         ;;
     esac
-    bsub -q normal -J get_coding_freqs_${cohort}_$context \
+    for suf in err log; do
+      logfile=$WRKDIR/LSF/logs/get_coding_freqs_${cohort}_$context.$suf
+      if [ -e $logfile ]; then rm $logfile; fi
+    done
+    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+      -J get_coding_freqs_${cohort}_$context \
       -o $WRKDIR/LSF/logs/get_coding_freqs_${cohort}_$context.log \
       -e $WRKDIR/LSF/logs/get_coding_freqs_${cohort}_$context.err \
       "$CODEDIR/scripts/data_processing/calc_variant_set_freqs.py \
          --sets-tsv $WRKDIR/data/variant_sets/$cohort.$context.collapsed_coding_csqs.tsv.gz \
          --dosage-tsv $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz \
-         --sample-metadata $COHORTDIR/data/sample_info/TCGA.ALL.sample_metadata.tsv.gz \
+         --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
          --max-an $max_an \
          --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.coding_variants.freq.tsv.gz"
   done
 done
 # 2. All other single variants after excluding coding variants above
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  for context in germline somatic; do
+    case $context in
+      germline)
+        subset="RAS_loci"
+        max_an=2
+        ;;
+      somatic)
+        subset="somatic_variants"
+        max_an=1
+        ;;
+    esac
+    # First, need to get list of variant IDs not already included in coding sets above
+    zcat $WRKDIR/data/variant_sets/$cohort.$context.collapsed_coding_csqs.tsv.gz \
+    | sed '1d' | awk -v FS="\t" '{ print $NF }' | sed 's/,/\n/g' | sort | uniq \
+    > $TMPDIR/$cohort.$context.coding_vids.list
+    bcftools query \
+      --exclude "ID = @$TMPDIR/$cohort.$context.coding_vids.list" \
+      --format '%ID\n' \
+      $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
+    | sort -V | uniq | awk -v OFS="\t" '{ print $1, $1 }' \
+    | cat <( echo -e "set_id\tvids" ) - | gzip -c \
+    > $WRKDIR/data/variant_sets/$cohort.$context.other_single_variants.tsv.gz
+    # After this list is compiled, now we can submit the frequency collection task
+    for suf in err log; do
+      logfile=$WRKDIR/LSF/logs/get_other_freqs_${cohort}_$context.$suf
+      if [ -e $logfile ]; then rm $logfile; fi
+    done
+    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+      -J get_other_freqs_${cohort}_$context \
+      -o $WRKDIR/LSF/logs/get_other_freqs_${cohort}_$context.log \
+      -e $WRKDIR/LSF/logs/get_other_freqs_${cohort}_$context.err \
+      "$CODEDIR/scripts/data_processing/calc_variant_set_freqs.py \
+         --sets-tsv $WRKDIR/data/variant_sets/$cohort.$context.other_single_variants.tsv.gz \
+         --dosage-tsv $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz \
+         --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+         --max-an $max_an \
+         --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.other_variants.freq.tsv.gz"
+  done
+done
 # 3. All variant sets
 # TODO: implement this

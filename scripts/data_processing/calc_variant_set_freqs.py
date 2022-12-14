@@ -13,7 +13,6 @@ Compute frequency of aribtrary set(s) of variant(s) from an allele dosage matrix
 import argparse
 import numpy as np
 import pandas as pd
-from sys import stdin, stdout
 
 
 def load_variant_sets(tsv_in):
@@ -118,8 +117,7 @@ def main():
     parser.add_argument('--sample-metadata', required=True, help='sample metadata .tsv')
     parser.add_argument('--max-an', default=2, type=int, help='Max AN for all ' +
                         'sites [default: 2]')
-    parser.add_argument('-o', '--outfile', help='output .tsv [default: stdout]', 
-                        default='stdout')
+    parser.add_argument('-o', '--outfile', required=True, help='output .tsv')
     args = parser.parse_args()
 
     # Load map of variant sets

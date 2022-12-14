@@ -166,9 +166,9 @@ def reformat_header(invcf):
                                 'this variant. Format: gene,tissue,ABC_score')])
     out_header.add_meta(key='INFO', 
                         items=[('ID', 'SpliceAI'), ('Number', '.'), ('Type', 'String'),
-                               ('Description', 'Pipe-delimited list of all genes ' + \
-                                'with a splicing consequence predicted by SpliceAI. ' + \
-                                'Format: gene:consequences')])
+                               ('Description', 'List of all genes with a splicing ' + \
+                                'consequence predicted by SpliceAI. Format: ' + \
+                                'gene:pipe-delimited consequences')])
     out_header.add_meta(key='INFO', 
                         items=[('ID', 'GTEx_eQTL'), ('Number', '.'), ('Type', 'String'),
                                ('Description', 'Pipe-delimited list of all eQTL ' + \
@@ -297,8 +297,8 @@ def _clean_spliceai(record, vdf, cutoff=0.5):
     all_splice_scores = all_splice_scores[~all_splice_scores.apply(lambda x: any(x == ''), axis=1)]
     splice_hits = all_splice_scores.astype(float) >= cutoff
     all_splice_csqs = all_splice_scores.columns.str.replace('SpliceAI_pred_DS_', '')
-    splice_csqs = [','.join(all_splice_csqs[hits]) for i, hits in splice_hits.iterrows()]
-    splice_info = '|'.join([':'.join(v) for v in 
+    splice_csqs = ['|'.join(all_splice_csqs[hits]) for i, hits in splice_hits.iterrows()]
+    splice_info = ','.join([':'.join(v) for v in 
                             zip(vdf.SpliceAI_pred_SYMBOL, splice_csqs) 
                             if v[1] != ''])
     if splice_info != '':

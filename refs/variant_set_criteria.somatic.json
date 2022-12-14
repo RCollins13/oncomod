@@ -136,5 +136,34 @@
 		{"CSQ:LoF" : ["LC", "=="]},
 		{"CSQ:LoF" : ["OS", "=="]},
 		{"SpliceAI" : ["", "!="]}
+	],
+
+	"cna_deletions":
+	[
+		{
+			"CSQ:Consequence" : ["transcript_ablation", "=="],
+		 	"SVTYPE" : ["DEL", "=="]
+		}
+	],
+
+	"all_lof_with_deletions":
+	[
+		{"CSQ:LoF" : ["HC", "=="]},
+		{"CSQ:LoF" : ["LC", "=="]},
+		{"CSQ:LoF" : ["OS", "=="]},
+		{"SpliceAI" : ["", "!="]},
+		{
+			"CSQ:Consequence" : ["transcript_ablation", "=="],
+		 	"SVTYPE" : ["DEL", "=="]
+		}
+	],
+
+	"hc_lof_with_deletions":
+	[
+		{"CSQ:LoF" : ["HC", "=="]},
+		{
+			"CSQ:Consequence" : ["transcript_ablation", "=="],
+		 	"SVTYPE" : ["DEL", "=="]
+		}
 	]
 }
