@@ -387,6 +387,7 @@ cat <<EOF > $WRKDIR/LSF/scripts/clean_VEP.sh
 set -eu -o pipefail
 
 $CODEDIR/scripts/data_processing/cleanup_vep.py \
+  --gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
   \$1 stdout \
 | grep -ve "^##bcftools" | grep -ve "^##CADD_" | grep -ve "^##UTRAnnotator_" \

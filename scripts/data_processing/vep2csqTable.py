@@ -78,11 +78,8 @@ def main():
     
     # Collapse vid column and write to outfile
     csq_df['vids'] = csq_df.vids.str.join(',')
-    try:
-        csq_df['codon'] = \
-            csq_df.codon.str.split('-').map(lambda x: np.nanmin(np.array([v for v in x if v.isnumeric()]).astype(int)))
-    except:
-        import pdb; pdb.set_trace()
+    csq_df['codon'] = \
+        csq_df.codon.str.split('-').map(lambda x: np.nanmin(np.array([v for v in x if v.isnumeric()]).astype(int)))
     csq_df.sort_values(by='gene codon transcript csq'.split()).\
            to_csv(args.outfile, sep='\t', index=False)
 

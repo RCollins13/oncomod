@@ -1,0 +1,140 @@
+{
+	"all_coding" : 
+	[
+		{
+			"CSQ:Consequence" : ["transcript_ablation", "=="],
+		 	"SVTYPE" : ["DEL", "!="]
+		},
+		{"CSQ:Consequence" : ["splice_acceptor_variant", "=="]},
+		{"CSQ:Consequence" : ["splice_donor_variant", "=="]},
+		{"CSQ:Consequence" : ["stop_gained", "=="]},
+		{"CSQ:Consequence" : ["frameshift_variant", "=="]},
+		{"CSQ:Consequence" : ["stop_lost", "=="]},
+		{"CSQ:Consequence" : ["start_lost", "=="]},
+		{"CSQ:Consequence" : ["inframe_insertion", "=="]},
+		{"CSQ:Consequence" : ["inframe_deletion", "=="]},
+		{"CSQ:Consequence" : ["missense_variant", "=="]},
+		{"CSQ:Consequence" : ["protein_altering_variant", "=="]},
+		{"CSQ:Consequence" : ["start_retained_variant", "=="]},
+		{"CSQ:Consequence" : ["stop_retained_variant", "=="]},
+		{"CSQ:Consequence" : ["synonymous_variant", "=="]},
+		{"CSQ:Consequence" : ["coding_sequence_variant", "=="]}
+	],
+
+
+	"all_synonymous" : 
+	[
+		{"CSQ:Consequence" : ["start_retained_variant", "=="]},
+		{"CSQ:Consequence" : ["stop_retained_variant", "=="]},
+		{"CSQ:Consequence" : ["synonymous_variant", "=="]}
+	],
+
+
+	"conserved_synonymous" : 
+	[
+		{
+			"CSQ:Consequence" : ["start_retained_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["stop_retained_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		 },
+		{
+			"CSQ:Consequence" : ["synonymous_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		 }
+	],
+
+
+	"all_nonsynonymous" : 
+	[
+		{
+			"CSQ:Consequence" : ["transcript_ablation", "=="],
+		 	"SVTYPE" : ["DEL", "!="]
+		},
+		{"CSQ:Consequence" : ["splice_acceptor_variant", "=="]},
+		{"CSQ:Consequence" : ["splice_donor_variant", "=="]},
+		{"CSQ:Consequence" : ["stop_gained", "=="]},
+		{"CSQ:Consequence" : ["frameshift_variant", "=="]},
+		{"CSQ:Consequence" : ["stop_lost", "=="]},
+		{"CSQ:Consequence" : ["start_lost", "=="]},
+		{"CSQ:Consequence" : ["inframe_insertion", "=="]},
+		{"CSQ:Consequence" : ["inframe_deletion", "=="]},
+		{"CSQ:Consequence" : ["missense_variant", "=="]},
+		{"CSQ:Consequence" : ["protein_altering_variant", "=="]}
+	],
+
+
+	"conserved_nonsynonymous" : 
+	[
+		{
+			"CSQ:Consequence" : ["transcript_ablation", "=="],
+		 	"SVTYPE" : ["DEL", "!="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["splice_acceptor_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["splice_donor_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["stop_gained", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["frameshift_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["stop_lost", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["start_lost", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["inframe_insertion", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["inframe_deletion", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["protein_altering_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"all_lof":
+	[
+		{"CSQ:LoF" : ["HC", "=="]},
+		{"CSQ:LoF" : ["LC", "=="]},
+		{"CSQ:LoF" : ["OS", "=="]},
+		{"SpliceAI" : ["", "!="]}
+	],
+
+
+	"hc_lof":
+	[
+		{"CSQ:LoF" : ["HC", "=="]}
+	],
+
+
+	"lc_lof":
+	[
+		{"CSQ:LoF" : ["LC", "=="]},
+		{"CSQ:LoF" : ["OS", "=="]},
+		{"SpliceAI" : ["", "!="]}
+	]
+}

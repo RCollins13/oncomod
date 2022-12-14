@@ -26,7 +26,7 @@ cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in data data/variant_sets; do
+for SUBDIR in data data/variant_sets data/variant_set_freqs; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -43,22 +43,23 @@ for cohort in TCGA PROFILE; do
       COHORTDIR=$PROFILEDIR
       ;;
   esac
-  for subset in germline somatic; do
-    case $subset in
+  for context in germline somatic; do
+    case $context in
       germline)
-        old_subset="RAS_loci"
+        subset="RAS_loci"
         ;;
       somatic)
-        old_subset="somatic_variants"
+        subset="somatic_variants"
         ;;
     esac
     bsub -q normal \
-      -J collapse_coding_csqs_${cohort}_$subset \
-      -o $WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_$subset.log \
-      -e $WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_$subset.err \
-      "$TMPDIR/vep2csqTable.py \
-        $COHORTDIR/data/$cohort.$old_subset.anno.clean.vcf.gz \
-        $WRKDIR/data/variant_sets/$cohort.$subset.collapsed_coding_csqs.tsv.gz"
+      -J collapse_coding_csqs_${cohort}_$context \
+      -o $WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_$context.log \
+      -e $WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_$context.err \
+      "$CODEDIR/scripts/data_processing/vep2csqTable.py \
+        $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
+        $WRKDIR/data/variant_sets/$cohort.$context.collapsed_coding_csqs.tsv.gz"
+  done
 done
 
 
@@ -104,3 +105,41 @@ done
 #     }
 #   ]
 # }
+
+
+### Compute AC and AF matrixes by cancer type for all variants & variant sets in each cohort
+# 1. Coding variants by protein consequence
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  for context in germline somatic; do
+    case $context in
+      germline)
+        subset="RAS_loci"
+        max_an=2
+        ;;
+      somatic)
+        subset="somatic_variants"
+        max_an=1
+        ;;
+    esac
+    bsub -q normal -J get_coding_freqs_${cohort}_$context \
+      -o $WRKDIR/LSF/logs/get_coding_freqs_${cohort}_$context.log \
+      -e $WRKDIR/LSF/logs/get_coding_freqs_${cohort}_$context.err \
+      "$CODEDIR/scripts/data_processing/calc_variant_set_freqs.py \
+         --sets-tsv $WRKDIR/data/variant_sets/$cohort.$context.collapsed_coding_csqs.tsv.gz \
+         --dosage-tsv $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz \
+         --sample-metadata $COHORTDIR/data/sample_info/TCGA.ALL.sample_metadata.tsv.gz \
+         --max-an $max_an \
+         --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.coding_variants.freq.tsv.gz"
+  done
+done
+# 2. All other single variants after excluding coding variants above
+# 3. All variant sets
+# TODO: implement this
