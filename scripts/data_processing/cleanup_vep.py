@@ -157,13 +157,13 @@ def reformat_header(invcf):
                                 'by COSMIC')])
     out_header.add_meta(key='INFO', 
                         items=[('ID', 'promoter'), ('Number', '.'), ('Type', 'String'),
-                               ('Description', 'Comma-delimited list of genes ' + \
-                                'whose promoter is overlapped by this variant')])
+                               ('Description', 'List of genes whose promoter is ' + \
+                                'overlapped by this variant')])
     out_header.add_meta(key='INFO', 
                         items=[('ID', 'enhancer'), ('Number', '.'), ('Type', 'String'),
-                               ('Description', 'Pipe-delimited list of all genes ' + \
-                                'predicted to be regulated by an enhancer overlapping ' + \
-                                'this variant. Format: gene,tissue,ABC_score')])
+                               ('Description', 'List of all genes predicted to ' + \
+                                'be regulated by an enhancer overlapping this ' + \
+                                'variant. Format: gene|tissue|ABC_score')])
     out_header.add_meta(key='INFO', 
                         items=[('ID', 'SpliceAI'), ('Number', '.'), ('Type', 'String'),
                                ('Description', 'List of all genes with a splicing ' + \
@@ -171,9 +171,9 @@ def reformat_header(invcf):
                                 'gene:pipe-delimited consequences')])
     out_header.add_meta(key='INFO', 
                         items=[('ID', 'GTEx_eQTL'), ('Number', '.'), ('Type', 'String'),
-                               ('Description', 'Pipe-delimited list of all eQTL ' + \
-                                'associations reported by GTEx for this variant. ' + \
-                                'Format: gene,tissue,beta')])
+                               ('Description', 'List of all eQTL associations ' + \
+                                'reported by GTEx for this variant. Format: ' + \
+                                'gene|tissue|beta')])
     if 'CELL_TYPE' in old_fields:
         out_header.add_meta(key='INFO', 
                             items=[('ID', 'Ensembl_regulatory_feature'), 
@@ -278,7 +278,7 @@ def _clean_abc(record, vdf):
     abc_df = abc_df[~abc_df['gene tissue'.split()].duplicated()]
 
     # Reformat for single entry in INFO
-    newdat = '|'.join([','.join(v.values) for i, v in abc_df.iterrows()])
+    newdat = ','.join(['|'.join(v.values) for i, v in abc_df.iterrows()])
 
     # Update record and drop columns from vdf
     record.info['enhancer'] = newdat
@@ -334,7 +334,7 @@ def _clean_gtex(record, vdf, tx_map):
     gtex_df = gtex_df[~gtex_df['gene tissue'.split()].duplicated()].drop('abs_beta', axis=1)
 
     # Reformat for single entry in INFO
-    newdat = '|'.join([','.join(v.values) for i, v in gtex_df.iterrows()])
+    newdat = ','.join(['|'.join(v.values) for i, v in gtex_df.iterrows()])
 
     # Update record and drop columns from vdf
     record.info['GTEx_eQTL'] = newdat

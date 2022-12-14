@@ -463,7 +463,7 @@ for cohort in TCGA PROFILE; do
         rm $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.$suf
       fi
     done
-    bsub -q normal -sla miket_sc \
+    bsub -q long -sla miket_sc \
       -J annotate_AFs_${cohort}_$subset \
       -o $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.log \
       -e $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.err \

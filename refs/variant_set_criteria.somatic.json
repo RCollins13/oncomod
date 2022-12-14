@@ -138,6 +138,7 @@
 		{"SpliceAI" : ["", "!="]}
 	],
 
+
 	"cna_deletions":
 	[
 		{
@@ -146,7 +147,8 @@
 		}
 	],
 
-	"all_lof_with_deletions":
+
+	"all_lof_plus_deletions":
 	[
 		{"CSQ:LoF" : ["HC", "=="]},
 		{"CSQ:LoF" : ["LC", "=="]},
@@ -158,12 +160,208 @@
 		}
 	],
 
-	"hc_lof_with_deletions":
+
+	"hc_lof_plus_deletions":
 	[
 		{"CSQ:LoF" : ["HC", "=="]},
 		{
 			"CSQ:Consequence" : ["transcript_ablation", "=="],
 		 	"SVTYPE" : ["DEL", "=="]
+		}
+	],
+
+
+	"all_missense":
+	[
+		{"CSQ:Consequence" : ["missense_variant", "=="]}
+	],
+
+
+	"hc_damaging_missense":
+	[
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+			"CADD" : [20, ">"],
+			"CSQ:MPC_score" : [2, ">"],
+			"CSQ:FATHMM_score" : [-2, "<"],
+			"CSQ:SIFT" : ["deleterious", "=="],
+			"CSQ:PolyPhen" : ["probably_damaging", "=="]
+		}
+	],
+
+
+	"lc_damaging_missense":
+	[
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+			"CADD" : [10, ">"], "CADD" : [20, "<="]
+		},
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+			"CSQ:MPC_score" : [1, ">"], "CSQ:MPC_score" : [2, "<="]
+		},
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+			"CSQ:FATHMM_score" : [-2, ">="], "CSQ:FATHMM_score" : [1, "<"]
+		},
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+			"CSQ:SIFT" : ["deleterious_low_confidence", "=="]
+		},
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+			"CSQ:PolyPhen" : ["possibly_damaging", "=="]
+		}
+	],
+
+
+	"cna_amplifications":
+	[
+		{
+			"CSQ:Consequence" : ["transcript_amplification", "=="],
+		 	"SVTYPE" : ["DUP", "=="]
+		},
+		{
+			"CSQ:Consequence" : ["transcript_amplification", "=="],
+		 	"SVTYPE" : ["AMP", "=="]
+		}		
+	],
+
+
+	"all_missense_plus_amplifications":
+	[
+		{"CSQ:Consequence" : ["missense_variant", "=="]},
+		{
+			"CSQ:Consequence" : ["transcript_amplification", "=="],
+		 	"SVTYPE" : ["DUP", "=="]
+		},
+		{
+			"CSQ:Consequence" : ["transcript_amplification", "=="],
+		 	"SVTYPE" : ["AMP", "=="]
+		}		
+	],
+
+
+	"hc_damaging_missense_plus_amplifications":
+	[
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+			"CADD" : [20, ">"],
+			"CSQ:MPC_score" : [2, ">"],
+			"CSQ:FATHMM_score" : [-2, "<"],
+			"CSQ:SIFT" : ["deleterious", "=="],
+			"CSQ:PolyPhen" : ["probably_damaging", "=="]
+		},
+		{
+			"CSQ:Consequence" : ["transcript_amplification", "=="],
+		 	"SVTYPE" : ["DUP", "=="]
+		},
+		{
+			"CSQ:Consequence" : ["transcript_amplification", "=="],
+		 	"SVTYPE" : ["AMP", "=="]
+		}		
+	],
+
+
+	"all_cosmic_mutations":
+	[
+		{"COSMIC_mutation_tier" : [1, "=="]},
+		{"COSMIC_mutation_tier" : [2, "=="]},
+		{"COSMIC_mutation_tier" : [3, "=="]}
+	],
+
+
+	"cosmic_tier1_mutations":
+	[
+		{"COSMIC_mutation_tier" : [1, "=="]}
+	],
+
+
+	"cosmic_tier2_mutations":
+	[
+		{"COSMIC_mutation_tier" : [2, "=="]}
+	],
+
+
+	"cosmic_tier3_mutations":
+	[
+		{"COSMIC_mutation_tier" : [3, "=="]}
+	],
+
+
+	"all_intronic":
+	[
+		{"CSQ:Consequence" : ["intron_variant", "=="]}
+	],
+
+
+	"conserved_intronic":
+	[
+		{
+			"CSQ:Consequence" : ["intron_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"all_5prime_UTR":
+	[
+		{"CSQ:Consequence" : ["5_prime_UTR_variant", "=="]}
+	],
+
+
+	"damaging_5prime_UTR":
+	[
+		{
+			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="],
+			"CSQ:UTRAnnotator_five_prime_UTR_variant_annotation:uAUG_gained_type" : ["inframe_oORF", "=="]
+		},
+		{
+			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="],
+			"CSQ:UTRAnnotator_five_prime_UTR_variant_annotation:uAUG_gained_type" : ["OutOfFrame_oORF", "=="]
+		},
+		{
+			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="],
+			"CSQ:UTRAnnotator_five_prime_UTR_variant_annotation:uSTOP_lost_FrameWithCDS" : ["OutOfFrame_oORF", "=="]
+		}
+	],
+
+
+	"conserved_5prime_UTR":
+	[
+		{
+			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"all_3prime_UTR":
+	[
+		{"CSQ:Consequence" : ["3_prime_UTR_variant", "=="]}
+	],
+
+
+	"conserved_3prime_UTR":
+	[
+		{
+			"CSQ:Consequence" : ["3_prime_UTR_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"all_promoter":
+	[
+		{"promoter" : ["", "!="]}
+	],
+
+
+	"conserved_promoter":
+	[
+		{
+			"promoter" : ["", "!="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
 	]
 }

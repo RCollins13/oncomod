@@ -16,6 +16,7 @@ import numpy as np
 import operator
 import pandas as pd
 import pysam
+import re
 from sys import stdin, stdout
 from vep_utils import parse_vep_map, vep2df
 
@@ -42,29 +43,54 @@ def eval_criteria(record, key, criterion, vep_map):
 
     # Handle all VEP-related criteria
     if keys[0] == 'CSQ':
-        vdf = vep2df(record, vep_map)
-        hits = vdf[keys[1]].apply(lambda x: op(x, criterion[0]))
-        if hits.any():
-            criteria_met = True
-            genes = set(vdf.SYMBOL[hits].values.tolist())
-        else:
+        # UTRAnnotator needs to be treated separately
+        if keys[1].startswith('UTRAnnotator'):
             criteria_met = False
             genes = []
+            for idx, entry in vep2df(record, vep_map, return_dict=True):
+                utra_dict = {v.split(':')[0] : v.split(':')[1] for v in entry[keys[1]].split('&')}
+                val = utra_dict.get(keys[2])
+                if val is not None:
+                    if op(val, criterion[0]):
+                        criteria_met = True
+                        genes.append(entry['SYMBOL'])
+
+        # Otherwise, the process is the same for all other VEP criteria
+        else:
+            vdf = vep2df(record, vep_map)
+            query_vals = vdf[keys[1]]
+            query_vals = query_vals[(query_vals != '') & (~query_vals.isna())]
+            if criterion[1] in '> >= < <='.split():
+                query_vals = query_vals.astype(float, errors='ignore')
+            try:
+                hits = query_vals.apply(lambda x: op(x, criterion[0]))
+            except:
+                import pdb; pdb.set_trace()
+            if hits.any():
+                criteria_met = True
+                genes = set(vdf.loc[hits.index, 'SYMBOL'].values.tolist())
+            else:
+                criteria_met = False
+                genes = []
 
     elif len(keys) > 1:
         import pdb; pdb.set_trace()
 
-    # Handle SpliceAI annotations
-    elif key == 'SpliceAI':
+    # Handle gene-keyed annotations
+    elif key in 'SpliceAI promoter enhancer':
         val = record.info.get(key)
         if val is None:
             criteria_met = False
             genes = []
         else:
             criteria_met = True
-            if len(val) > 1:
-                import pdb; pdb.set_trace()
-            genes = [s.split(':')[0] for s in val]
+            genes = [re.split(':|\|', s) for s in val]
+
+    # Handle eQTL annotations
+    # TODO: implement this
+
+    # Handle PolyPhen and SIFT annotations
+    # TODO: implement this
 
     # Default behavior: assume single key refers to INFO field
     else:
@@ -161,12 +187,12 @@ def main():
         outfile = stdout
     else:
         outfile = open(args.outfile, 'w')
-    outfile.write('set_id\tgene\tvids\n')
+    outfile.write('set_id\tcriteria\tgene\tvids\n')
     for sid, vals in set_vids.items():
         for gene, vids in vals.items():
             if len(vids) > 0:
-                vid_str = ','.join(sort(list(vids)))
-                outfile.write('\t'.join(sid, gene, vid_str) + '\n')
+                vid_str = ','.join(sorted(list(vids)))
+                outfile.write('\t'.join([gene + '_' + sid, sid, gene, vid_str]) + '\n')
     outfile.close()
 
 
