@@ -163,7 +163,7 @@ def reformat_header(invcf):
                         items=[('ID', 'enhancer'), ('Number', '.'), ('Type', 'String'),
                                ('Description', 'List of all genes predicted to ' + \
                                 'be regulated by an enhancer overlapping this ' + \
-                                'variant. Format: gene|tissue|ABC_score')])
+                                'variant. Format: gene|ABC_score|tissue')])
     out_header.add_meta(key='INFO', 
                         items=[('ID', 'SpliceAI'), ('Number', '.'), ('Type', 'String'),
                                ('Description', 'List of all genes with a splicing ' + \

@@ -1,0 +1,430 @@
+{
+	"all_coding" : 
+	[
+		{
+			"CSQ:Consequence" : ["transcript_ablation", "=="],
+		 	"SVTYPE" : ["DEL", "!="]
+		},
+		{"CSQ:Consequence" : ["splice_acceptor_variant", "=="]},
+		{"CSQ:Consequence" : ["splice_donor_variant", "=="]},
+		{"CSQ:Consequence" : ["stop_gained", "=="]},
+		{"CSQ:Consequence" : ["frameshift_variant", "=="]},
+		{"CSQ:Consequence" : ["stop_lost", "=="]},
+		{"CSQ:Consequence" : ["start_lost", "=="]},
+		{"CSQ:Consequence" : ["inframe_insertion", "=="]},
+		{"CSQ:Consequence" : ["inframe_deletion", "=="]},
+		{"CSQ:Consequence" : ["missense_variant", "=="]},
+		{"CSQ:Consequence" : ["protein_altering_variant", "=="]},
+		{"CSQ:Consequence" : ["start_retained_variant", "=="]},
+		{"CSQ:Consequence" : ["stop_retained_variant", "=="]},
+		{"CSQ:Consequence" : ["synonymous_variant", "=="]},
+		{"CSQ:Consequence" : ["coding_sequence_variant", "=="]}
+	],
+
+
+	"all_synonymous" : 
+	[
+		{"CSQ:Consequence" : ["start_retained_variant", "=="]},
+		{"CSQ:Consequence" : ["stop_retained_variant", "=="]},
+		{"CSQ:Consequence" : ["synonymous_variant", "=="]}
+	],
+
+
+	"conserved_synonymous" : 
+	[
+		{
+			"CSQ:Consequence" : ["start_retained_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["stop_retained_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		 },
+		{
+			"CSQ:Consequence" : ["synonymous_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		 }
+	],
+
+
+	"all_nonsynonymous" : 
+	[
+		{
+			"CSQ:Consequence" : ["transcript_ablation", "=="],
+		 	"SVTYPE" : ["DEL", "!="]
+		},
+		{"CSQ:Consequence" : ["splice_acceptor_variant", "=="]},
+		{"CSQ:Consequence" : ["splice_donor_variant", "=="]},
+		{"CSQ:Consequence" : ["stop_gained", "=="]},
+		{"CSQ:Consequence" : ["frameshift_variant", "=="]},
+		{"CSQ:Consequence" : ["stop_lost", "=="]},
+		{"CSQ:Consequence" : ["start_lost", "=="]},
+		{"CSQ:Consequence" : ["inframe_insertion", "=="]},
+		{"CSQ:Consequence" : ["inframe_deletion", "=="]},
+		{"CSQ:Consequence" : ["missense_variant", "=="]},
+		{"CSQ:Consequence" : ["protein_altering_variant", "=="]}
+	],
+
+
+	"conserved_nonsynonymous" : 
+	[
+		{
+			"CSQ:Consequence" : ["transcript_ablation", "=="],
+		 	"SVTYPE" : ["DEL", "!="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["splice_acceptor_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["splice_donor_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["stop_gained", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["frameshift_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["stop_lost", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["start_lost", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["inframe_insertion", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["inframe_deletion", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		},
+		{
+			"CSQ:Consequence" : ["protein_altering_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"all_lof":
+	[
+		{"CSQ:LoF" : ["HC", "=="]},
+		{"CSQ:LoF" : ["LC", "=="]},
+		{"CSQ:LoF" : ["OS", "=="]},
+		{"SpliceAI" : ["", "!="]}
+	],
+
+
+	"hc_lof":
+	[
+		{"CSQ:LoF" : ["HC", "=="]}
+	],
+
+
+	"lc_lof":
+	[
+		{"CSQ:LoF" : ["LC", "=="]},
+		{"CSQ:LoF" : ["OS", "=="]},
+		{"SpliceAI" : ["", "!="]}
+	],
+
+
+	"all_missense":
+	[
+		{"CSQ:Consequence" : ["missense_variant", "=="]}
+	],
+
+
+	"hc_damaging_missense":
+	[
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+			"CADD" : [20, ">"],
+			"CSQ:MPC_score" : [2, ">"],
+			"CSQ:FATHMM_score" : [-2, "<"],
+			"CSQ:SIFT" : ["deleterious", "=="],
+			"CSQ:PolyPhen" : ["probably_damaging", "=="]
+		}
+	],
+
+
+	"lc_damaging_missense":
+	[
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+			"CADD" : [10, ">"], "CADD" : [20, "<="]
+		},
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+			"CSQ:MPC_score" : [1, ">"], "CSQ:MPC_score" : [2, "<="]
+		},
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+			"CSQ:FATHMM_score" : [-2, ">="], "CSQ:FATHMM_score" : [1, "<"]
+		},
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+			"CSQ:SIFT" : ["deleterious_low_confidence", "=="]
+		},
+		{
+			"CSQ:Consequence" : ["missense_variant", "=="],
+			"CSQ:PolyPhen" : ["possibly_damaging", "=="]
+		}
+	],
+
+
+	"clinvar_pathogenic":
+	[
+		{"CSQ:ClinVar_CLNSIG" : ["P", "=="]},
+		{"CSQ:ClinVar_CLNSIG" : ["PLP", "=="]}
+	],
+
+
+	"clinvar_likely_pathogenic":
+	[
+		{"CSQ:ClinVar_CLNSIG" : ["LP", "=="]}
+	],
+
+
+	"all_intronic":
+	[
+		{"CSQ:Consequence" : ["intron_variant", "=="]}
+	],
+
+
+	"conserved_intronic":
+	[
+		{
+			"CSQ:Consequence" : ["intron_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"all_5prime_UTR":
+	[
+		{"CSQ:Consequence" : ["5_prime_UTR_variant", "=="]}
+	],
+
+
+	"damaging_5prime_UTR":
+	[
+		{
+			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="],
+			"CSQ:UTRAnnotator_five_prime_UTR_variant_annotation:uAUG_gained_type" : ["inframe_oORF", "=="]
+		},
+		{
+			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="],
+			"CSQ:UTRAnnotator_five_prime_UTR_variant_annotation:uAUG_gained_type" : ["OutOfFrame_oORF", "=="]
+		},
+		{
+			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="],
+			"CSQ:UTRAnnotator_five_prime_UTR_variant_annotation:uSTOP_lost_FrameWithCDS" : ["OutOfFrame_oORF", "=="]
+		}
+	],
+
+
+	"conserved_5prime_UTR":
+	[
+		{
+			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"all_3prime_UTR":
+	[
+		{"CSQ:Consequence" : ["3_prime_UTR_variant", "=="]}
+	],
+
+
+	"conserved_3prime_UTR":
+	[
+		{
+			"CSQ:Consequence" : ["3_prime_UTR_variant", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"all_promoter":
+	[
+		{"promoter" : ["", "!="]}
+	],
+
+
+	"conserved_promoter":
+	[
+		{
+			"promoter" : ["", "!="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"all_pancreas_enhancer":
+	[
+		{"enhancer:tissue" : ["pancreas", "=="]}
+	],
+
+
+	"conserved_pancreas_enhancer":
+	[
+		{
+			"enhancer:tissue" : ["pancreas", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"all_colon_enhancer":
+	[
+		{"enhancer:tissue" : ["colon", "=="]}
+	],
+
+
+	"conserved_colon_enhancer":
+	[
+		{
+			"enhancer:tissue" : ["colon", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"all_skin_enhancer":
+	[
+		{"enhancer:tissue" : ["skin", "=="]}
+	],
+
+
+	"conserved_skin_enhancer":
+	[
+		{
+			"enhancer:tissue" : ["skin", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"all_lung_enhancer":
+	[
+		{"enhancer:tissue" : ["lung", "=="]}
+	],
+
+
+	"conserved_lung_enhancer":
+	[
+		{
+			"enhancer:tissue" : ["lung", "=="],
+		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"all_pancreas_eqtls":
+	[
+		{"GTEx_eQTL:tissue" : ["pancreas", "=="]}
+	],
+
+
+	"positive_pancreas_eqtls":
+	[
+		{
+			"GTEx_eQTL:tissue" : ["pancreas", "=="],
+			"GTEx_eQTL:beta" : [0, ">"]
+		}
+	],
+
+
+	"negative_pancreas_eqtls":
+	[
+		{
+			"GTEx_eQTL:tissue" : ["pancreas", "=="],
+			"GTEx_eQTL:beta" : [0, "<"]
+		}
+	],
+
+
+	"all_colon_eqtls":
+	[
+		{"GTEx_eQTL:tissue" : ["colon", "=="]}
+	],
+
+
+	"positive_colon_eqtls":
+	[
+		{
+			"GTEx_eQTL:tissue" : ["colon", "=="],
+			"GTEx_eQTL:beta" : [0, ">"]
+		}
+	],
+
+
+	"negative_colon_eqtls":
+	[
+		{
+			"GTEx_eQTL:tissue" : ["colon", "=="],
+			"GTEx_eQTL:beta" : [0, "<"]
+		}
+	],
+
+
+	"all_skin_eqtls":
+	[
+		{"GTEx_eQTL:tissue" : ["skin", "=="]}
+	],
+
+
+	"positive_skin_eqtls":
+	[
+		{
+			"GTEx_eQTL:tissue" : ["skin", "=="],
+			"GTEx_eQTL:beta" : [0, ">"]
+		}
+	],
+
+
+	"negative_skin_eqtls":
+	[
+		{
+			"GTEx_eQTL:tissue" : ["skin", "=="],
+			"GTEx_eQTL:beta" : [0, "<"]
+		}
+	],
+
+
+	"all_lung_eqtls":
+	[
+		{"GTEx_eQTL:tissue" : ["lung", "=="]}
+	],
+
+
+	"positive_lung_eqtls":
+	[
+		{
+			"GTEx_eQTL:tissue" : ["lung", "=="],
+			"GTEx_eQTL:beta" : [0, ">"]
+		}
+	],
+
+
+	"negative_lung_eqtls":
+	[
+		{
+			"GTEx_eQTL:tissue" : ["lung", "=="],
+			"GTEx_eQTL:beta" : [0, "<"]
+		}
+	]
+}

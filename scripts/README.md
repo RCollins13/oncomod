@@ -16,8 +16,8 @@ spec for .json input
     // Each key : value pair specifies a single criterion to require
     // The value is provided as an array of value and equality
     // Value can be numeric, boolean, or string
-    // Equality should be two-letter string shorthand for comparison to apply
-    // examples: eq, gt, lt, ge, le
+    // Equality values must be string equivalents of the desired comparison
+    // Examples: ">", ">=", "<", "<=", "==", "!="
     {
       key : [value, equality],
       key : [value, equality]

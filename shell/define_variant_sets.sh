@@ -82,10 +82,14 @@ for cohort in TCGA PROFILE; do
   done
 done
 #DEV:
+tabix -H $PROFILEDIR/data/PROFILE.RAS_loci.anno.clean.vcf.gz > $TMPDIR/test.vcf
+zcat $PROFILEDIR/data/PROFILE.RAS_loci.anno.clean.vcf.gz | grep -ve '^#' | grep -e 'enhancer\|promoter\|SpliceAI\|GTEx' >> $TMPDIR/test.vcf
+bgzip -f $TMPDIR/test.vcf
+tabix -f $TMPDIR/test.vcf.gz
 $TMPDIR/populate_variant_sets.py \
-  --vcf $TCGADIR/data/TCGA.somatic_variants.anno.clean.vcf.gz \
-  --sets-json $TMPDIR/variant_set_criteria.somatic.json \
-  --outfile $WRKDIR/data/variant_sets/TCGA.somatic.burden_sets.tsv
+  --vcf $TMPDIR/test.vcf.gz \
+  --sets-json $TMPDIR/variant_set_criteria.germline.json \
+  --outfile $TMPDIR/test.burden_sets.tsv
 
 
 ### Compute AC and AF matrixes by cancer type for all variants & variant sets in each cohort

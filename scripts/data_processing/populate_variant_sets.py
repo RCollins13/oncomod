@@ -29,6 +29,27 @@ ops = {'==' : operator.eq,
        '>=' : operator.ge}
 
 
+def _clean_sift_polyphen(vdf, key, to_numeric=False):
+    """
+    Clean VEP values for entries like SIFT and PolyPhen that provide compound
+    classifications and numeric scores as string
+    """
+
+    vals = vdf.loc[:, key]
+
+    if to_numeric:
+        def __numeric_clean(x):
+            if x == '':
+                return x
+            else:
+                return float(re.split('\(|\)', x[1]))
+        vdf[key] = vals.apply(__numeric_clean)
+    else:
+        vdf[key] = vals.apply(lambda x: x.split('(')[0])
+
+    return vdf
+
+
 def eval_criteria(record, key, criterion, vep_map):
     """
     Checks whether a record meets the criteria specified by key & criterion
@@ -47,7 +68,9 @@ def eval_criteria(record, key, criterion, vep_map):
         if keys[1].startswith('UTRAnnotator'):
             criteria_met = False
             genes = []
-            for idx, entry in vep2df(record, vep_map, return_dict=True):
+            for idx, entry in vep2df(record, vep_map, return_dict=True).items():
+                if entry[keys[1]] == '':
+                    continue
                 utra_dict = {v.split(':')[0] : v.split(':')[1] for v in entry[keys[1]].split('&')}
                 val = utra_dict.get(keys[2])
                 if val is not None:
@@ -58,6 +81,8 @@ def eval_criteria(record, key, criterion, vep_map):
         # Otherwise, the process is the same for all other VEP criteria
         else:
             vdf = vep2df(record, vep_map)
+            if keys[1] in 'SIFT PolyPhen'.split():
+                vdf = _clean_sift_polyphen(vdf, keys[1], str(criterion[0]).isnumeric())
             query_vals = vdf[keys[1]]
             query_vals = query_vals[(query_vals != '') & (~query_vals.isna())]
             if criterion[1] in '> >= < <='.split():
@@ -73,11 +98,8 @@ def eval_criteria(record, key, criterion, vep_map):
                 criteria_met = False
                 genes = []
 
-    elif len(keys) > 1:
-        import pdb; pdb.set_trace()
-
     # Handle gene-keyed annotations
-    elif key in 'SpliceAI promoter enhancer':
+    elif key in 'SpliceAI promoter':
         val = record.info.get(key)
         if val is None:
             criteria_met = False
@@ -85,12 +107,25 @@ def eval_criteria(record, key, criterion, vep_map):
         else:
             criteria_met = True
             genes = [re.split(':|\|', s) for s in val]
+            genes = [g for s in genes for g in s]
 
-    # Handle eQTL annotations
-    # TODO: implement this
-
-    # Handle PolyPhen and SIFT annotations
-    # TODO: implement this
+    # Handle tissue-specific annotations (enhancers and eQTLs)
+    elif keys[0] in 'enhancer GTEx_eQTL'.split():
+        val = record.info.get(keys[0])
+        if val is None:
+            criteria_met = False
+            genes = []
+        else:
+            vdf = pd.DataFrame([v.split('|') for v in val])
+            vdf.columns = {'enhancer' : 'gene score tissue'.split(),
+                           'GTEx_eQTL' : 'gene tissue beta'.split()}[keys[0]]
+            hits = vdf[keys[1]].apply(lambda x: op(x, criterion[1]))
+            if hits.any():
+                criteria_met = True
+                genes = vdf.gene[hits].values.tolist()
+            else:
+                criteria_met = False
+                genes = []
 
     # Default behavior: assume single key refers to INFO field
     else:
