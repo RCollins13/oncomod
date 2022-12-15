@@ -74,11 +74,22 @@ for cohort in TCGA PROFILE; do
       ;;
   esac
   for context in somatic germline; do
-    # bsub -q normal \
-    #   -J generate_variant_sets_${cohort}_$subset \
-    #   -o $WRKDIR/LSF/logs/generate_variant_sets_${cohort}_$subset.log \
-    #   -e $WRKDIR/LSF/logs/generate_variant_sets_${cohort}_$subset.err \
-    #   TBD
+    case $context in
+      germline)
+        subset="RAS_loci"
+        ;;
+      somatic)
+        subset="somatic_variants"
+        ;;
+    esac
+    bsub -q normal \
+      -J generate_variant_sets_${cohort}_$context \
+      -o $WRKDIR/LSF/logs/generate_variant_sets_${cohort}_$context.log \
+      -e $WRKDIR/LSF/logs/generate_variant_sets_${cohort}_$context.err \
+      "$CODEDIR/scripts/data_processing/populate_variant_sets.py \
+         --vcf $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
+         --sets-json $CODEDIR/refs/variant_set_criteria.$context.json \
+         --outfile $WRKDIR/data/variant_sets/$cohort.$context.burden_sets.tsv.gz"
   done
 done
 #DEV:

@@ -426,5 +426,55 @@
 			"GTEx_eQTL:tissue" : ["lung", "=="],
 			"GTEx_eQTL:beta" : [0, "<"]
 		}
+	],
+
+
+	"conserved_intergenic_5kb":
+	[
+		{
+			"intergenic" : [true, "=="],
+			"RAS_distance" : [5000, "<="],
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"conserved_intergenic_10kb":
+	[
+		{
+			"intergenic" : [true, "=="],
+			"RAS_distance" : [10000, "<="],
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"conserved_intergenic_25kb":
+	[
+		{
+			"intergenic" : [true, "=="],
+			"RAS_distance" : [25000, "<="],
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"conserved_intergenic_50kb":
+	[
+		{
+			"intergenic" : [true, "=="],
+			"RAS_distance" : [50000, "<="],
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
+	],
+
+
+	"conserved_intergenic_100kb":
+	[
+		{
+			"intergenic" : [true, "=="],
+			"RAS_distance" : [100000, "<="],
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+		}
 	]
 }

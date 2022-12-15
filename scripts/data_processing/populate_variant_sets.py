@@ -136,6 +136,12 @@ def eval_criteria(record, key, criterion, vep_map):
         else:
             criteria_met = op(val, criterion[0])
 
+    # Infer which RAS gene for distance criteria based on chromosome
+    if key == 'RAS_distance' and criteria_met:
+        genes = [{'1' : 'NRAS', 'chr1' : 'NRAS',
+                  '11' : 'HRAS', 'chr11' : 'HRAS',
+                  '12' : 'KRAS', 'chr12' : 'KRAS'}[record.chrom]]
+
     return criteria_met, list(set(genes))
 
 
