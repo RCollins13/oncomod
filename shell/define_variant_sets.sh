@@ -67,6 +67,32 @@ for cohort in TCGA PROFILE; do
 done
 
 
+### Identify recurrently mutated codons from the output of collapsed coding csqs, above
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  for context in germline somatic; do
+    for suf in err log; do
+      logfile=$WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_$context.$suf
+      if [ -e $logfile ]; then rm $logfile; fi
+    done
+    bsub -q normal \
+      -J find_recurrent_codons_${cohort}_$context \
+      -o $WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_$context.log \
+      -e $WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_$context.err \
+      "$CODEDIR/scripts/data_processing/find_recurrently_mutated_codons.py \
+        $WRKDIR/data/variant_sets/$cohort.$context.collapsed_coding_csqs.tsv.gz \
+       | gzip -c > $WRKDIR/data/variant_sets/$cohort.$context.recurrently_mutated_codons.tsv.gz"
+  done
+done
+
+
 ### Generate somatic and germline variant sets for burden testing
 for cohort in TCGA PROFILE; do
   case $cohort in
