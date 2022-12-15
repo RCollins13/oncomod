@@ -16,7 +16,7 @@ import pandas as pd
 import pybedtools as pbt
 import pysam
 from copy import deepcopy
-from sys import stdin, stdout
+from sys import stdin, stdout, stderr
 from vep_utils import parse_vep_map, vep2df
 
 
@@ -543,9 +543,13 @@ def cleanup(record, vep_map, tx_map, ras_bt, spliceai_cutoff=0.5):
         rec_bt = pbt.BedTool('{}\t{}\t{}\n'.\
                      format(chrom, record.pos, record.pos+1), 
                      from_string=True)
-        dists = [int(f[-1]) for f in ras_bt.closest(rec_bt, d=True) if int(f[-1]) > -1]
-        if len(dists) > 0:
-            record.info['RAS_distance'] = int(np.nanmin(dists))
+        try:
+            dists = [int(f[-1]) for f in ras_bt.closest(rec_bt, d=True) if int(f[-1]) > -1]
+            if len(dists) > 0:
+                record.info['RAS_distance'] = int(np.nanmin(dists))
+        except:
+            msg = 'RAS_distance computation failed for record {}; skipping\n'
+            stderr.write(msg.format(record.id))
 
     # Extract top ClinVar significance, if any reported
     if any(vdf.ClinVar_CLNSIG != ''):

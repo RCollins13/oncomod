@@ -415,7 +415,7 @@ for cohort in TCGA PROFILE; do
         rm $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.$suf
       fi
     done
-    bsub -q normal -sla miket_sc \
+    bsub -q big -R "rusage[mem=12000]" -sla miket_sc \
       -J VEP_cleanup_${cohort}_$subset \
       -o $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.log \
       -e $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.err \

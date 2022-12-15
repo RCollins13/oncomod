@@ -52,6 +52,10 @@ for cohort in TCGA PROFILE; do
         subset="somatic_variants"
         ;;
     esac
+    for suf in err log; do
+      logfile=$WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_$context.$suf
+      if [ -e $logfile ]; then rm $logfile; fi
+    done
     bsub -q normal \
       -J collapse_coding_csqs_${cohort}_$context \
       -o $WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_$context.log \
@@ -82,6 +86,10 @@ for cohort in TCGA PROFILE; do
         subset="somatic_variants"
         ;;
     esac
+    for suf in err log; do
+      logfile=$WRKDIR/LSF/logs/generate_variant_sets_${cohort}_$context.$suf
+      if [ -e $logfile ]; then rm $logfile; fi
+    done
     bsub -q normal \
       -J generate_variant_sets_${cohort}_$context \
       -o $WRKDIR/LSF/logs/generate_variant_sets_${cohort}_$context.log \
@@ -89,18 +97,9 @@ for cohort in TCGA PROFILE; do
       "$CODEDIR/scripts/data_processing/populate_variant_sets.py \
          --vcf $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
          --sets-json $CODEDIR/refs/variant_set_criteria.$context.json \
-         --outfile $WRKDIR/data/variant_sets/$cohort.$context.burden_sets.tsv.gz"
+       | gzip -c > $WRKDIR/data/variant_sets/$cohort.$context.burden_sets.tsv.gz"
   done
 done
-#DEV:
-tabix -H $PROFILEDIR/data/PROFILE.RAS_loci.anno.clean.vcf.gz > $TMPDIR/test.vcf
-zcat $PROFILEDIR/data/PROFILE.RAS_loci.anno.clean.vcf.gz | grep -ve '^#' | grep -e 'enhancer\|promoter\|SpliceAI\|GTEx' >> $TMPDIR/test.vcf
-bgzip -f $TMPDIR/test.vcf
-tabix -f $TMPDIR/test.vcf.gz
-$TMPDIR/populate_variant_sets.py \
-  --vcf $TMPDIR/test.vcf.gz \
-  --sets-json $TMPDIR/variant_set_criteria.germline.json \
-  --outfile $TMPDIR/test.burden_sets.tsv
 
 
 ### Compute AC and AF matrixes by cancer type for all variants & variant sets in each cohort
