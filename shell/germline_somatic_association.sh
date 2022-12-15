@@ -22,7 +22,7 @@ cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in data; do
+for SUBDIR in data data/variant_set_freqs/filtered; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -60,3 +60,30 @@ plink \
 # Count number of variants retained after LD pruning
 wc -l $WRKDIR/data/all_cohorts.RAS_loci.pruned.prune.in
 
+
+### Filter somatic variants to define list of conditions to test
+# 1. Frequent RAS mutations
+for cohort in TCGA PROFILE; do
+  # Coding (collapsed by consequence)
+  freqs=$WRKDIR/data/variant_set_freqs/$cohort.somatic.coding_variants.freq.tsv.gz
+  zcat $WRKDIR/data/variant_sets/$cohort.somatic.collapsed_coding_csqs.tsv.gz \
+  | grep -e 'KRAS\|NRAS\|HRAS' | cut -f1 \
+  | fgrep -wf - <( zcat $freqs ) | cat <( zcat $freqs | head -n1 ) - \
+  | $CODEDIR/scripts/data_processing/filter_freq_table.py \
+    --freq-tsv stdin \
+    --min-freq 0.01 \
+    --outfile $WRKDIR/data/variant_set_freqs/$cohort.somatic.${context}_variants.freq.1pct.tsv.gz
+  # Noncoding (individual variants)
+      
+
+  done
+done
+# 2. Recurrently mutated RAS codons
+# TODO: implement this
+# 3. Functional mutation sets
+# TODO: implement this
+# 4. Frequent RAS co-mutation pairs
+# TODO: implement this
+# 5. RAS + other gene co-mutation pairs
+# TODO: implement this
+# 6. RAS + RAS signaling co-mutation pairs

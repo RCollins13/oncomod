@@ -82,7 +82,7 @@ for cohort in TCGA PROFILE; do
       logfile=$WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_$context.$suf
       if [ -e $logfile ]; then rm $logfile; fi
     done
-    bsub -q normal \
+    bsub -q short \
       -J find_recurrent_codons_${cohort}_$context \
       -o $WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_$context.log \
       -e $WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_$context.err \
@@ -215,5 +215,43 @@ for cohort in TCGA PROFILE; do
          --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.other_variants.freq.tsv.gz"
   done
 done
-# 3. All variant sets
+# 3. Recurrently mutated codons
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  for context in germline somatic; do
+    case $context in
+      germline)
+        subset="RAS_loci"
+        max_an=2
+        ;;
+      somatic)
+        subset="somatic_variants"
+        max_an=1
+        ;;
+    esac
+    for suf in err log; do
+      logfile=$WRKDIR/LSF/logs/get_recurrent_codon_freqs_${cohort}_$context.$suf
+      if [ -e $logfile ]; then rm $logfile; fi
+    done
+    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+      -J get_recurrent_codon_freqs_${cohort}_$context \
+      -o $WRKDIR/LSF/logs/get_recurrent_codon_freqs_${cohort}_$context.log \
+      -e $WRKDIR/LSF/logs/get_recurrent_codon_freqs_${cohort}_$context.err \
+      "$CODEDIR/scripts/data_processing/calc_variant_set_freqs.py \
+         --sets-tsv $WRKDIR/data/variant_sets/$cohort.$context.recurrently_mutated_codons.tsv.gz \
+         --dosage-tsv $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz \
+         --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+         --max-an $max_an \
+         --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.recurrently_mutated_codons.freq.tsv.gz"
+  done
+done
+
+# 4. All variant sets
 # TODO: implement this
