@@ -13,6 +13,7 @@ Clean up verbose VEP output for RASMod VCFs
 import argparse
 import numpy as np
 import pandas as pd
+import pybedtools as pbt
 import pysam
 from copy import deepcopy
 from sys import stdin, stdout
@@ -143,6 +144,13 @@ def reformat_header(invcf):
     out_header.add_meta(key='INFO', 
                         items=[('ID', 'phyloP'), ('Number', '1'), ('Type', 'Float'),
                                ('Description', 'phyloP score')])
+    out_header.add_meta(key='INFO', 
+                        items=[('ID', 'intergenic'), ('Number', '0'), ('Type', 'Flag'),
+                               ('Description', 'Variant is intergenic.')])
+    out_header.add_meta(key='INFO', 
+                        items=[('ID', 'RAS_distance'), ('Number', '1'), ('Type', 'Integer'),
+                               ('Description', 'Distance to nearest RAS gene (for ' + \
+                                'intergenic variants only).')])
     out_header.info.remove_header('ClinVar')
     out_header.add_meta(key='INFO', 
                         items=[('ID', 'ClinVar'), ('Number', '.'), ('Type', 'String'),
@@ -228,6 +236,17 @@ def load_tx_map(tx_tsv):
             'ENSG_to_symbol' : tx_df.symbol.set_axis(tx_df.ENSG).to_dict(),
             'symbol' : tx_df.symbol.to_dict(),
             'tx_len' : tx_df.tx_len.to_dict()}
+
+
+def load_ras_bt(gtf_in):
+    """
+    Extract start/stop coordinates for KRAS/NRAS/HRAS
+    """
+
+    return pbt.BedTool(gtf_in).\
+               filter(lambda x: x[2] == 'gene').\
+               filter(lambda x: x.attrs.get('gene_name') in 'HRAS NRAS KRAS'.split()).\
+               saveas()
 
 
 def _harmonize_gnomad(record, vdf):
@@ -444,7 +463,7 @@ def cleanup_cnv(record, vep_fields, gtf_tabix):
     return record
 
 
-def cleanup(record, vep_map, tx_map, spliceai_cutoff=0.5):
+def cleanup(record, vep_map, tx_map, ras_bt, spliceai_cutoff=0.5):
     """
     Simplify VEP entry for a single record
     """
@@ -462,7 +481,7 @@ def cleanup(record, vep_map, tx_map, spliceai_cutoff=0.5):
     genic_hits = vdf.Consequence.isin(genic_csqs)
     intergenic_csqs = [k for k, v in vep_severity.items() if v > 27]
     intergenic_hits = vdf.Consequence.isin(intergenic_csqs)
-    if any(genic_hits) and any(intergenic_hits):
+    if genic_hits.any():
         vdf = vdf[genic_hits]
 
     # Select single VEP entry to retain per gene per variant
@@ -514,6 +533,19 @@ def cleanup(record, vep_map, tx_map, spliceai_cutoff=0.5):
 
     # Harmonize gnomAD frequencies between exomes and genomes
     record, vdf = _harmonize_gnomad(record, vdf)
+
+    # Annotate distance to nearest RAS gene for purely intergenic variants
+    if vdf.Consequence.isin(intergenic_csqs).all():
+        record.info['intergenic'] = True
+        chrom = record.chrom
+        if 'chr' not in chrom:
+            chrom = 'chr' + chrom
+        rec_bt = pbt.BedTool('{}\t{}\t{}\n'.\
+                     format(chrom, record.pos, record.pos+1), 
+                     from_string=True)
+        dists = [int(f[-1]) for f in ras_bt.closest(rec_bt, d=True) if int(f[-1]) > -1]
+        if len(dists) > 0:
+            record.info['RAS_distance'] = int(np.nanmin(dists))
 
     # Extract top ClinVar significance, if any reported
     if any(vdf.ClinVar_CLNSIG != ''):
@@ -598,6 +630,7 @@ def main():
     vep_map = parse_vep_map(invcf)
     tx_map = load_tx_map(args.transcript_info)
     gtf_tabix = pysam.TabixFile(args.gtf)
+    ras_bt = load_ras_bt(args.gtf)    
     
     # Open connection to output file
     out_header = reformat_header(invcf)
@@ -612,7 +645,7 @@ def main():
         if 'SVTYPE' in record.info.keys():
             record = cleanup_cnv(record, out_vep_map.values(), gtf_tabix)
         else:
-            record = cleanup(record, vep_map, tx_map)
+            record = cleanup(record, vep_map, tx_map, ras_bt)
         outvcf.write(record)
 
     # Close connection to output VCF to clear buffer
