@@ -72,18 +72,66 @@ for cohort in TCGA PROFILE; do
   | $CODEDIR/scripts/data_processing/filter_freq_table.py \
     --freq-tsv stdin \
     --min-freq 0.01 \
-    --outfile $WRKDIR/data/variant_set_freqs/$cohort.somatic.${context}_variants.freq.1pct.tsv.gz
-  # Noncoding (individual variants)
-      
+    --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.somatic.coding_variants.freq.1pct.tsv.gz
 
-  done
+  # Noncoding (individual variants)
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  freqs=$WRKDIR/data/variant_set_freqs/$cohort.somatic.other_variants.freq.tsv.gz
+  tabix \
+    -R $WRKDIR/../refs/RAS_genes.bed.gz \
+    $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
+  | cut -f3 | fgrep -wf - <( zcat $freqs ) | cat <( zcat $freqs | head -n1 ) - \
+  | $CODEDIR/scripts/data_processing/filter_freq_table.py \
+    --freq-tsv stdin \
+    --min-freq 0.01 \
+    --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.somatic.other_variants.freq.1pct.tsv.gz
 done
+
 # 2. Recurrently mutated RAS codons
-# TODO: implement this
+for cohort in TCGA PROFILE; do
+  freqs=$WRKDIR/data/variant_set_freqs/$cohort.somatic.recurrently_mutated_codons.freq.tsv.gz
+  zcat $WRKDIR/data/variant_sets/$cohort.somatic.recurrently_mutated_codons.tsv.gz \
+  | fgrep -wf \
+    <( zcat $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
+       | awk -v FS="\t" '{ if ($3 == "NRAS" || $3 == "HRAS" || $3 == "KRAS") print $1 }' \
+       | cut -f1 -d\. ) \
+  | cut -f1 | fgrep -wf - <( zcat $freqs ) | cat <( zcat $freqs | head -n1 ) - \
+  | $CODEDIR/scripts/data_processing/filter_freq_table.py \
+    --freq-tsv stdin \
+    --min-freq 0.01 \
+    --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.somatic.recurrently_mutated_codons.freq.1pct.tsv.gz
+done
+
 # 3. Functional mutation sets
-# TODO: implement this
+for cohort in TCGA PROFILE; do
+  zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.burden_sets.freq.tsv.gz \
+  | grep -e '^set_id\|^NRAS_\|^HRAS_\|^KRAS_' \
+  | $CODEDIR/scripts/data_processing/filter_freq_table.py \
+    --freq-tsv stdin \
+    --min-freq 0.01 \
+    --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.somatic.burden_sets.freq.1pct.tsv.gz
+done
+
 # 4. Frequent RAS co-mutation pairs
 # TODO: implement this
 # 5. RAS + other gene co-mutation pairs
 # TODO: implement this
 # 6. RAS + RAS signaling co-mutation pairs
+
+
+### Summarize somatic conditions to test as endpoints for association
+$TMPDIR/summarize_somatic_endpoints.py \
+  --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.coding_variants.freq.1pct.tsv.gz \
+  --mutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.coding_variants.freq.1pct.tsv.gz \
+  --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.other_variants.freq.1pct.tsv.gz \
+  --mutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.other_variants.freq.1pct.tsv.gz \
+  --codons $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.recurrently_mutated_codons.freq.1pct.tsv.gz \
+  --codons $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.recurrently_mutated_codons.freq.1pct.tsv.gz \
+  --burden-sets $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.recurrently_mutated_codons.freq.1pct.tsv.gz

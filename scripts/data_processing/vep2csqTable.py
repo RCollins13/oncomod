@@ -12,9 +12,11 @@ Build table of unique coding consequences present in a VEP-annotated VCF
 
 import argparse
 import numpy as np
+import os
 import pandas as pd
 import pysam
 from sys import stdin, stdout
+path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
 from vep_utils import parse_vep_map, vep2df
 
 

@@ -12,11 +12,14 @@ Clean up verbose VEP output for RASMod VCFs
 
 import argparse
 import numpy as np
+import os
 import pandas as pd
 import pybedtools as pbt
 import pysam
 from copy import deepcopy
-from sys import stdin, stdout, stderr
+from sys import stdin, stdout, stderr, path
+path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
+from general_utils import load_tx_map
 from vep_utils import parse_vep_map, vep2df
 
 
@@ -214,28 +217,6 @@ def reformat_header(invcf):
                                    ('Description', descr)])
 
     return out_header
-
-
-def load_tx_map(tx_tsv):
-    """
-    Load --transcript-info as a dict
-    """
-    
-    # Load data
-    tx_df = pd.read_csv(tx_tsv, sep='\t', header=None)
-    tx_df.columns = 'ENST ENSG symbol tx_len'.split()
-
-    # Remove Ensembl version info from ENSG and ENST IDs
-    for ecol in 'ENST ENSG'.split():
-        tx_df[ecol] = tx_df[ecol].str.replace('.[0-9]+$', '', regex=True)
-
-    # Map everything vs. ENST IDs
-    tx_df.set_index('ENST', drop=True, inplace=True)
-    
-    return {'ENSG' : tx_df.ENSG.to_dict(),
-            'ENSG_to_symbol' : tx_df.symbol.set_axis(tx_df.ENSG).to_dict(),
-            'symbol' : tx_df.symbol.to_dict(),
-            'tx_len' : tx_df.tx_len.to_dict()}
 
 
 def load_ras_bt(gtf_in):

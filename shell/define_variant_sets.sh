@@ -254,4 +254,39 @@ for cohort in TCGA PROFILE; do
 done
 
 # 4. All variant sets
-# TODO: implement this
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  for context in germline somatic; do
+    case $context in
+      germline)
+        subset="RAS_loci"
+        max_an=2
+        ;;
+      somatic)
+        subset="somatic_variants"
+        max_an=1
+        ;;
+    esac
+    for suf in err log; do
+      logfile=$WRKDIR/LSF/logs/get_burden_set_freqs_${cohort}_$context.$suf
+      if [ -e $logfile ]; then rm $logfile; fi
+    done
+    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+      -J get_burden_set_freqs_${cohort}_$context \
+      -o $WRKDIR/LSF/logs/get_burden_set_freqs_${cohort}_$context.log \
+      -e $WRKDIR/LSF/logs/get_burden_set_freqs_${cohort}_$context.err \
+      "$CODEDIR/scripts/data_processing/calc_variant_set_freqs.py \
+         --sets-tsv $WRKDIR/data/variant_sets/$cohort.$context.burden_sets.tsv.gz \
+         --dosage-tsv $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz \
+         --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+         --max-an $max_an \
+         --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.burden_sets.freq.tsv.gz"
+  done
+done

@@ -14,10 +14,12 @@ import argparse
 import json
 import numpy as np
 import operator
+import os
 import pandas as pd
 import pysam
 import re
-from sys import stdin, stdout
+from sys import stdin, stdout, path
+path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
 from vep_utils import parse_vep_map, vep2df
 
 
