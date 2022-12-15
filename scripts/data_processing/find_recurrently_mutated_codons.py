@@ -55,7 +55,7 @@ def main():
     for info, res in group_res.iteritems():
         if res[0] > 1:
             outvals = [set_id_fmt.format(*info), *info, res[1]]
-            outfile.write('\n'.join([str(x) for x in outvals]) + '\n')
+            outfile.write('\t'.join([str(x) for x in outvals]) + '\n')
 
     # Clear buffer
     outfile.close()
