@@ -104,7 +104,7 @@ def main():
         outfile = stdout
     else:
         outfile = args.outfile
-    res_df.to_csv(args.outfile, sep='\t', index=False)
+    res_df.to_csv(outfile, sep='\t', index=False)
 
 
 if __name__ == '__main__':
