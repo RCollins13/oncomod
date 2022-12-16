@@ -14,57 +14,66 @@ import argparse
 import numpy as np
 import os
 import pandas as pd
+from itertools import combinations
 from sys import path
 path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
 from freq_utils import load_variant_sets, load_cancer_map, load_dosage_matrix
 
 
-# def calc_af(var_sets, ad_df, cancer_map, max_an=2):
-#     """
-#     Compute AC, AN, and AF for each cancer type every entry in var_sets based on ad_df
-#     """
+def calc_af(var_sets, pairs, ad_df, cancer_map, max_an=2):
+    """
+    Compute AC, AN, and AF for each cancer type for all pairs based on ad_df
+    """
 
-#     # Get basic info for each cancer type
-#     cancers = sorted(list(set(cancer_map.values())))
-#     csamp_dict = {c : set() for c in cancers}
-#     for sample, cancer in cancer_map.items():
-#         csamp_dict[cancer].add(sample)
+    # Get basic info for each cancer type
+    cancers = sorted(list(set(cancer_map.values())))
+    csamp_dict = {c : set() for c in cancers}
+    for sample, cancer in cancer_map.items():
+        csamp_dict[cancer].add(sample)
 
-#     # Prepare to collect results in dict keyed by variant set ID
-#     res_dict = {}
+    # Prepare to collect results in dict keyed by comutation ID
+    res_dict = {}
 
-#     # Compute values for each variant set in serial
-#     for sid, vids in var_sets.items():
+    # Compute values for each pair in serial
+    for sid1, sid2 in pairs:
 
-#         # First, check that all constituent variant IDs are present in ad_df
-#         if not all([v in ad_df.index for v in vids]):
-#             msg = 'not all variant IDs from {} present in --dosage-tsv'
-#             stop(msg.format(sid))
+        # Get basic info
+        comut_id = '|'.join(['COMUT', sid1, sid2])
+        vids1 = var_sets[sid1]
+        vids2 = var_sets[sid2]
 
-#         # Second, check that variant set doesn't already exist in res_dict
-#         if sid in res_dict.keys():
-#             msg = 'variant set {} appears to be duplicated in --sets-tsv'
-#             stop(msg.format(sid))
+        # First, check that all constituent variant IDs are present in ad_df
+        if not all([v in ad_df.index for v in set(vids1).union(set(vids2))]):
+            msg = 'not all variant IDs from {} present in --dosage-tsv'
+            stop(msg.format(comut_id))
 
-#         # If the above checks pass, then process each cancer type in serial
-#         res_dict[sid] = {}
-#         for cancer in cancers:
-#             vals = ad_df.loc[vids, ad_df.columns.isin(csamp_dict[cancer])].max()
-#             AN = int((~vals.isna()).sum() * max_an)
-#             AC = int(np.nansum(vals))
-#             if AN > 0:
-#                 AF = AC / AN
-#             else:
-#                 AF = np.nan
-#             res_dict[sid][cancer + '_AN'] = AN
-#             res_dict[sid][cancer + '_AC'] = AC
-#             res_dict[sid][cancer + '_AF'] = AF
+        # Second, check that comutation pair doesn't already exist in res_dict
+        if comut_id in res_dict.keys():
+            msg = 'comutation pair {} appears to be duplicated; are these specified ' + \
+                  'more than once in --sets-tsv?'
+            stop(msg.format(comut_id))
 
-#     # Collapse all results into pd.DataFrame
-#     res_df = pd.DataFrame.from_dict(res_dict, orient='index')
-#     res_df.insert(loc=0, column='set_id', value=res_df.index)
+        # If the above checks pass, then process each cancer type in serial
+        res_dict[comut_id] = {'sid1' : sid1, 'sid2' : sid2}
+        for cancer in cancers:
+            vals1 = ad_df.loc[vids1, ad_df.columns.isin(csamp_dict[cancer])].max()
+            vals2 = ad_df.loc[vids2, ad_df.columns.isin(csamp_dict[cancer])].max()
+            vals = (vals1 > 0) & (vals2 > 0)
+            AN = int((~vals.isna()).sum() * max_an)
+            AC = int(np.nansum(vals))
+            if AN > 0:
+                AF = AC / AN
+            else:
+                AF = np.nan
+            res_dict[comut_id][cancer + '_AN'] = AN
+            res_dict[comut_id][cancer + '_AC'] = AC
+            res_dict[comut_id][cancer + '_AF'] = AF
 
-#     return res_df
+    # Collapse all results into pd.DataFrame
+    res_df = pd.DataFrame.from_dict(res_dict, orient='index')
+    res_df.insert(loc=0, column='set_id', value=res_df.index)
+
+    return res_df
 
 
 def main():
@@ -91,8 +100,8 @@ def main():
 
     # Load map of variant sets
     var_sets = {}
-    for fin in args.sets_tsv:
-        var_sets.update(load_variant_sets(args.sets_tsv))
+    for fin in args.sets_tsv:    
+        var_sets.update(load_variant_sets(fin))
 
     # Load dict mapping sample IDs to cancer type
     cancer_map = load_cancer_map(args.sample_metadata)
@@ -101,10 +110,10 @@ def main():
     ad_df = load_dosage_matrix(args.dosage_tsv, cancer_map.keys())
 
     # Enumerate all pairs of sets
-    # TODO: implement this
+    pairs = [x for x in combinations(var_sets.keys(), 2)]
 
     # Compute AC, AN, and AF for all pairs by cancer type
-    # res_df = calc_af(var_sets, ad_df, cancer_map, args.max_an)
+    res_df = calc_af(var_sets, pairs, ad_df, cancer_map, args.max_an)
 
     # Write results to output tsv
     if args.outfile in '- stdout /dev/stdout'.split():
