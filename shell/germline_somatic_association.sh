@@ -119,20 +119,41 @@ for cohort in TCGA PROFILE; do
     --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.somatic.burden_sets.freq.1pct.tsv.gz
 done
 
-# 4. Frequent RAS intra-gene co-mutation pairs
-# TODO: implement this
-# 5. Frequent RAS intra-gene (RAS+other) co-mutation pairs
+# 4. Frequent co-mutation pairs involving RAS
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  freqs=$WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.freq.tsv.gz
+  tabix \
+    -R $WRKDIR/../refs/RAS_genes.bed.gz \
+    $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
+  | cut -f3 | fgrep -wf - <( zcat $freqs ) | cat <( zcat $freqs | head -n1 ) - \
+  | $CODEDIR/scripts/data_processing/filter_freq_table.py \
+    --freq-tsv stdin \
+    --min-freq 0.01 \
+    --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.somatic.comutations.freq.1pct.tsv.gz
+done
+
+# 5. Frequent RAS intra-gene (RAS+other) co-mutation pairs involving burden sets in other genes
 # TODO: implement this
 # 6. RAS + RAS signaling co-mutation pairs
 
 
 ### Summarize somatic conditions to test as endpoints for association
-$CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
+# $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
+$TMPDIR/summarize_somatic_endpoints.py \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.coding_variants.freq.1pct.tsv.gz \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.coding_variants.freq.1pct.tsv.gz \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.other_variants.freq.1pct.tsv.gz \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.other_variants.freq.1pct.tsv.gz \
   --codons $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.recurrently_mutated_codons.freq.1pct.tsv.gz \
   --codons $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.recurrently_mutated_codons.freq.1pct.tsv.gz \
-  --burden-sets $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.recurrently_mutated_codons.freq.1pct.tsv.gz \
+  --comutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.comutations.freq.1pct.tsv.gz \
+  --comutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.comutations.freq.1pct.tsv.gz \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz

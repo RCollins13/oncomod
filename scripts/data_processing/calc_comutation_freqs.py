@@ -54,7 +54,7 @@ def calc_af(var_sets, pairs, ad_df, cancer_map, max_an=2):
             stop(msg.format(comut_id))
 
         # If the above checks pass, then process each cancer type in serial
-        res_dict[comut_id] = {'sid1' : sid1, 'sid2' : sid2}
+        res_dict[comut_id] = {}
         for cancer in cancers:
             vals1 = ad_df.loc[vids1, ad_df.columns.isin(csamp_dict[cancer])].max()
             vals2 = ad_df.loc[vids2, ad_df.columns.isin(csamp_dict[cancer])].max()

@@ -87,7 +87,7 @@ def eval_criteria(record, key, criterion, vep_map):
                 vdf = _clean_sift_polyphen(vdf, keys[1], str(criterion[0]).isnumeric())
             query_vals = vdf[keys[1]]
             query_vals = query_vals[(query_vals != '') & (~query_vals.isna())]
-            if criterion[1] in '> >= < <='.split():
+            if criterion[1] in '> >= < <='.split() or query_vals.str.isnumeric().all():
                 query_vals = query_vals.astype(float, errors='ignore')
             hits = query_vals.apply(lambda x: op(x, criterion[0]))
             if hits.any():

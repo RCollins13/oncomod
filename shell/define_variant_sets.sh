@@ -344,6 +344,7 @@ for cohort in TCGA PROFILE; do
        --dosage-tsv $COHORTDIR/data/$cohort.somatic_variants.dosage.tsv.gz \
        --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
        --max-an 1 \
-       --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.gene_comutations.freq.tsv.gz"
+       --outfile $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.freq.tsv.gz"
 done
+
 

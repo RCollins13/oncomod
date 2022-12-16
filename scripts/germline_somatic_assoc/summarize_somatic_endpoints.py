@@ -24,9 +24,10 @@ cancers = 'PDAC CRAD SKCM LUAD'.split()
 ras_genes = 'NRAS HRAS KRAS'.split()
 ras_chroms = {'1' : 'NRAS', '11' : 'HRAS', '12' : 'KRAS'}
 category_descriptions = \
-    {'mutations' : '1. Frequent RAS alterations',
-     'codons'    : '2. Recurrently mutated RAS codons',
-     'burden'    : '3. Collapsed mutation sets'}
+    {'mutations'   : '1. Frequent RAS alterations',
+     'codons'      : '2. Recurrently mutated RAS codons',
+     'burden'      : '3. Collapsed mutation sets',
+     'comutations' : '4. Frequent co-mutations involving RAS'}
 tissue_map = {'PDAC' : 'pancreas',
               'CRAD' : 'colon',
               'SKCM' : 'skin',
@@ -56,6 +57,22 @@ def load_tx_map(tx_tsv):
             'tx_len' : tx_df.tx_len.to_dict()}
 
 
+def infer_gene(set_id, tx_map):
+    """
+    Use a variety of strategies to infer RAS gene relationship from set ID
+    """
+
+    if set_id.startswith('ENST'):
+        return tx_map['symbol'].get(set_id.split('_')[0])
+    elif set_id.startswith('1_') \
+         or set_id.startswith('11_') \
+         or set_id.startswith('12_'):
+        return ras_chroms.get(set_id.split('_')[0])
+    elif set_id.startswith('COMUT|'):
+        genes = [infer_gene(g, tx_map) for g in set_id.split('|')[1:]]
+        return ','.join(set([g for g in genes if g is not None]))
+
+
 def update_res(subres, infile, tx_map, min_freq=0.01):
     """
     Update category ID sets based on data in infile
@@ -65,24 +82,23 @@ def update_res(subres, infile, tx_map, min_freq=0.01):
     df = pd.read_csv(infile, sep='\t')
 
     # Attempt to infer gene for each category
-    if df.set_id[0].startswith('ENST'):
-        df['gene'] = df.set_id.apply(lambda x: x.split('_')[0]).map(tx_map['symbol'])
-    elif df.set_id[0].startswith('1_') \
-         or df.set_id[0].startswith('11_') \
-         or df.set_id[0].startswith('12_'):
-        df['gene'] = df.set_id.apply(lambda x: x.split('_')[0]).map(ras_chroms)
-    else:
-        import pdb; pdb.set_trace()
+    df['gene'] = df.set_id.apply(lambda x: infer_gene(x, tx_map))
 
     # Map categories onto cancer types & genes in subres
     for cancer in cancers:
         hits = df[cancer + '_AF'] > min_freq
         for idx, vals in df.loc[hits, 'set_id gene'.split()].iterrows():
-            set_id, gene = vals.values
-            # Convert DEL/AMP to simple set ID to avoid slightly different variant IDs
-            if any([set_id.endswith(x) for x in '_DEL _AMP _DUP'.split()]):
-                set_id = '_'.join([gene, set_id.split('_')[-1]])
-            subres[cancer][gene].add(set_id)
+            set_id, gstr = vals.values
+            for gene in gstr.split(','):
+                if gene not in subres[cancer].keys():
+                    continue
+                # Convert DEL/AMP to simple set ID to avoid slightly different variant IDs
+                clean_set_id = ''
+                for sub_id in set_id.split('|'):
+                    if any([sub_id.endswith(x) for x in '_DEL _AMP _DUP'.split()]):
+                        sub_id = '_'.join([gene, set_id.split('_')[-1]])
+                    clean_set_id = '|'.join([clean_set_id, sub_id])
+                subres[cancer][gene].add(clean_set_id)
 
     # Return updated subres
     return subres
@@ -101,6 +117,8 @@ def main():
                         help='frequencies corresponding to recurrent codon mutations')
     parser.add_argument('--burden-sets', action='append', 
                         help='frequencies corresponding to burden sets')
+    parser.add_argument('--comutations', action='append', 
+                        help='frequencies corresponding to comutation pairs')
     parser.add_argument('-t', '--transcript-info', required=True, help='.tsv ' + \
                         'mapping ENST:ENSG:symbol:length')
     parser.add_argument('-m', '--min-freq', default=0.01, type=float, help='Minimum ' + \
@@ -125,6 +143,11 @@ def main():
     for infile in args.codons:
         res['codons'] = \
             update_res(res['codons'], infile, tx_map, args.min_freq)
+
+    # Load comutation pairs
+    for infile in args.comutations:
+        res['comutations'] = \
+            update_res(res['comutations'], infile, tx_map, args.min_freq)
 
     # Open connection to --outfile
     if args.outfile in '- stdout /dev/stdout':
