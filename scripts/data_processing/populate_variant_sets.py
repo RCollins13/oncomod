@@ -118,11 +118,10 @@ def eval_criteria(record, key, criterion, vep_map):
             criteria_met = False
             genes = []
         else:
-            import pdb; pdb.set_trace()
             vdf = pd.DataFrame([v.split('|') for v in val])
             vdf.columns = {'enhancer' : 'gene score tissue'.split(),
                            'GTEx_eQTL' : 'gene tissue beta'.split()}[keys[0]]
-            hits = vdf[keys[1]].apply(lambda x: op(x, criterion[1]))
+            hits = vdf[keys[1]].apply(lambda x: op(x, criterion[0]))
             if hits.any():
                 criteria_met = True
                 genes = vdf.gene[hits].values.tolist()
