@@ -33,3 +33,4 @@ def load_tx_map(tx_tsv):
             'ENSG_to_symbol' : tx_df.symbol.set_axis(tx_df.ENSG).to_dict(),
             'symbol' : tx_df.symbol.to_dict(),
             'tx_len' : tx_df.tx_len.to_dict()}
+

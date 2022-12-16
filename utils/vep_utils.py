@@ -40,3 +40,4 @@ def vep2df(record, vep_map, vep_pop=[], return_dict=False):
         return vep_vals
     else:
         return pd.DataFrame.from_dict(vep_vals, orient='index')
+

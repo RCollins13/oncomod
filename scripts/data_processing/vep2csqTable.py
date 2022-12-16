@@ -15,7 +15,7 @@ import numpy as np
 import os
 import pandas as pd
 import pysam
-from sys import stdin, stdout
+from sys import stdin, stdout, path
 path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
 from vep_utils import parse_vep_map, vep2df
 

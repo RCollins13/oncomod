@@ -265,27 +265,27 @@
 
 	"all_cosmic_mutations":
 	[
-		{"COSMIC_mutation_tier" : [1, "=="]},
-		{"COSMIC_mutation_tier" : [2, "=="]},
-		{"COSMIC_mutation_tier" : [3, "=="]}
+		{"CSQ:COSMIC_COSMIC_MUT_SIG" : [1, "=="]},
+		{"CSQ:COSMIC_COSMIC_MUT_SIG" : [2, "=="]},
+		{"CSQ:COSMIC_COSMIC_MUT_SIG" : [3, "=="]}
 	],
 
 
 	"cosmic_tier1_mutations":
 	[
-		{"COSMIC_mutation_tier" : [1, "=="]}
+		{"CSQ:COSMIC_COSMIC_MUT_SIG" : [1, "=="]}
 	],
 
 
 	"cosmic_tier2_mutations":
 	[
-		{"COSMIC_mutation_tier" : [2, "=="]}
+		{"CSQ:COSMIC_COSMIC_MUT_SIG" : [2, "=="]}
 	],
 
 
 	"cosmic_tier3_mutations":
 	[
-		{"COSMIC_mutation_tier" : [3, "=="]}
+		{"CSQ:COSMIC_COSMIC_MUT_SIG" : [3, "=="]}
 	],
 
 

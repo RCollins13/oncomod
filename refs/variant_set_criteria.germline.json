@@ -185,14 +185,14 @@
 
 	"clinvar_pathogenic":
 	[
-		{"CSQ:ClinVar_CLNSIG" : ["P", "=="]},
-		{"CSQ:ClinVar_CLNSIG" : ["PLP", "=="]}
+		{"CSQ:ClinVar_CLNSIG" : ["Pathogenic", "=="]},
+		{"CSQ:ClinVar_CLNSIG" : ["Pathogenic/Likely_pathogenic", "=="]}
 	],
 
 
 	"clinvar_likely_pathogenic":
 	[
-		{"CSQ:ClinVar_CLNSIG" : ["LP", "=="]}
+		{"CSQ:ClinVar_CLNSIG" : ["Likely_pathogenic", "=="]}
 	],
 
 
