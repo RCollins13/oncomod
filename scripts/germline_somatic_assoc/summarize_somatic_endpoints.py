@@ -18,12 +18,17 @@ from sys import stdout, path
 # from general_utils import load_tx_map
 
 
+# Define various variables used throughout the below functions
 cancers = 'PDAC CRAD SKCM LUAD'.split()
 ras_genes = 'NRAS HRAS KRAS'.split()
 category_descriptions = \
     {'mutations' : '1. Frequent RAS mutations',
      'codons'    : '2. Recurrently mutated RAS codons',
      'burden'    : '3. Collapsed mutation sets'}
+tissue_map = {'PDAC' : 'pancreas',
+              'CRAD' : 'colon',
+              'SKCM' : 'skin',
+              'LUAD' : 'lung'}
 
 
 # TODO: remove the below function before full commit
