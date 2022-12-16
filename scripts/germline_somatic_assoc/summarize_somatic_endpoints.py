@@ -11,6 +11,7 @@ Summarize number of somatic endpoints to test for each cancer type & gene
 
 
 import argparse
+import os
 import pandas as pd
 from sys import stdout, path
 # TODO: uncomment the below before full commit
@@ -21,8 +22,9 @@ from sys import stdout, path
 # Define various variables used throughout the below functions
 cancers = 'PDAC CRAD SKCM LUAD'.split()
 ras_genes = 'NRAS HRAS KRAS'.split()
+ras_chroms = {'1' : 'NRAS', '11' : 'HRAS', '12' : 'KRAS'}
 category_descriptions = \
-    {'mutations' : '1. Frequent RAS mutations',
+    {'mutations' : '1. Frequent RAS alterations',
      'codons'    : '2. Recurrently mutated RAS codons',
      'burden'    : '3. Collapsed mutation sets'}
 tissue_map = {'PDAC' : 'pancreas',
@@ -54,7 +56,7 @@ def load_tx_map(tx_tsv):
             'tx_len' : tx_df.tx_len.to_dict()}
 
 
-def update_res(subres, infile, tx_map):
+def update_res(subres, infile, tx_map, min_freq=0.01):
     """
     Update category ID sets based on data in infile
     """
@@ -63,11 +65,24 @@ def update_res(subres, infile, tx_map):
     df = pd.read_csv(infile, sep='\t')
 
     # Attempt to infer gene for each category
-    # TODO: implement this
-    import pdb; pdb.set_trace()
+    if df.set_id[0].startswith('ENST'):
+        df['gene'] = df.set_id.apply(lambda x: x.split('_')[0]).map(tx_map['symbol'])
+    elif df.set_id[0].startswith('1_') \
+         or df.set_id[0].startswith('11_') \
+         or df.set_id[0].startswith('12_'):
+        df['gene'] = df.set_id.apply(lambda x: x.split('_')[0]).map(ras_chroms)
+    else:
+        import pdb; pdb.set_trace()
 
     # Map categories onto cancer types & genes in subres
-    # TODO: implement this
+    for cancer in cancers:
+        hits = df[cancer + '_AF'] > min_freq
+        for idx, vals in df.loc[hits, 'set_id gene'.split()].iterrows():
+            set_id, gene = vals.values
+            # Convert DEL/AMP to simple set ID to avoid slightly different variant IDs
+            if any([set_id.endswith(x) for x in '_DEL _AMP _DUP'.split()]):
+                set_id = '_'.join([gene, set_id.split('_')[-1]])
+            subres[cancer][gene].add(set_id)
 
     # Return updated subres
     return subres
@@ -82,9 +97,9 @@ def main():
              formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--mutations', action='append', 
                         help='frequencies corresponding to individual mutations')
-    parser.add_argument('--codons', action='append', nargs='+', 
+    parser.add_argument('--codons', action='append', 
                         help='frequencies corresponding to recurrent codon mutations')
-    parser.add_argument('--burden-sets', action='append', nargs='+', 
+    parser.add_argument('--burden-sets', action='append', 
                         help='frequencies corresponding to burden sets')
     parser.add_argument('-t', '--transcript-info', required=True, help='.tsv ' + \
                         'mapping ENST:ENSG:symbol:length')
@@ -103,10 +118,41 @@ def main():
     
     # Load individual mutations
     for infile in args.mutations:
-        res['mutations'] = update_res(res['mutations'], infile, tx_map)
+        res['mutations'] = \
+            update_res(res['mutations'], infile, tx_map, args.min_freq)
 
+    # Load recurrently mutated codons
+    for infile in args.codons:
+        res['codons'] = \
+            update_res(res['codons'], infile, tx_map, args.min_freq)
 
+    # Open connection to --outfile
+    if args.outfile in '- stdout /dev/stdout':
+        outfile = stdout
+    else:
+        outfile = open(args.outfile, 'w')
+    header_vals = ['Somatic Criteria']
+    for cancer in cancers:
+        for gene in ras_genes:
+            header_vals.append('_'.join([cancer, gene]))
+        header_vals.append(cancer + '_Union')
+    outfile.write('\t'.join(header_vals + ['Total']) + '\n')
 
+    # Summarize as table
+    for category, vals in res.items():
+        outvals = [category_descriptions[category]]
+        total = 0
+        for cancer in cancers:
+            sub_union = set()
+            for gene in ras_genes:
+                outvals.append(len(vals[cancer][gene]))
+                sub_union.update(vals[cancer][gene])
+            outvals.append(len(sub_union))
+            total += len(sub_union)
+        outfile.write('\t'.join([str(x) for x in outvals + [total]]) + '\n')
+
+    # Clear buffer
+    outfile.close()
 
 
 if __name__ == '__main__':

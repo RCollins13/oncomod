@@ -119,15 +119,15 @@ for cohort in TCGA PROFILE; do
     --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.somatic.burden_sets.freq.1pct.tsv.gz
 done
 
-# 4. Frequent RAS co-mutation pairs
+# 4. Frequent RAS intra-gene co-mutation pairs
 # TODO: implement this
-# 5. RAS + other gene co-mutation pairs
+# 5. Frequent RAS intra-gene (RAS+other) co-mutation pairs
 # TODO: implement this
 # 6. RAS + RAS signaling co-mutation pairs
 
 
 ### Summarize somatic conditions to test as endpoints for association
-$TMPDIR/summarize_somatic_endpoints.py \
+$CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.coding_variants.freq.1pct.tsv.gz \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.coding_variants.freq.1pct.tsv.gz \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.other_variants.freq.1pct.tsv.gz \

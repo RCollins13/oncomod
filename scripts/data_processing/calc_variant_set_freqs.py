@@ -12,45 +12,11 @@ Compute frequency of aribtrary set(s) of variant(s) from an allele dosage matrix
 
 import argparse
 import numpy as np
+import os
 import pandas as pd
-
-
-def load_variant_sets(tsv_in):
-    """
-    Build a dict mapping variant set ID : list of variant IDs in set
-    """
-
-    vdf = pd.read_csv(tsv_in, sep='\t')
-    vdf.set_index(vdf.columns[0], drop=True, inplace=True)
-
-    return vdf.iloc[:, -1].str.split(',').to_dict()
-
-
-def load_cancer_map(meta_in):
-    """
-    Build a dict mapping sample ID to cancer type
-    """
-
-    mdf = pd.read_csv(meta_in, sep='\t')
-    mdf.set_index(mdf.columns[0], drop=True, inplace=True)
-
-    return mdf['CANCER_TYPE'].to_dict()
-
-
-def load_dosage_matrix(tsv_in, elig_samples=None):
-    """
-    Load dosage matrix as pd.DataFrame and subset to elig_samples (if not None)
-    """
-
-    # Load matrix and set index as first column
-    ad_df = pd.read_csv(tsv_in, sep='\t')
-    ad_df = ad_df.set_index(ad_df.columns[0], drop=True).astype(int, errors='ignore')
-
-    # Subset to eligible samples if optioned
-    if elig_samples is not None:
-        ad_df = ad_df.loc[:, ad_df.columns.isin(elig_samples)]
-
-    return ad_df
+from sys import stdout, path
+path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
+from freq_utils import load_variant_sets, load_cancer_map, load_dosage_matrix
 
 
 def calc_af(var_sets, ad_df, cancer_map, max_an=2):
@@ -117,7 +83,8 @@ def main():
     parser.add_argument('--sample-metadata', required=True, help='sample metadata .tsv')
     parser.add_argument('--max-an', default=2, type=int, help='Max AN for all ' +
                         'sites [default: 2]')
-    parser.add_argument('-o', '--outfile', required=True, help='output .tsv')
+    parser.add_argument('-o', '--outfile', help='output .tsv [default: stdout]',
+                        default='stdout')
     args = parser.parse_args()
 
     # Load map of variant sets
@@ -133,6 +100,10 @@ def main():
     res_df = calc_af(var_sets, ad_df, cancer_map, args.max_an)
 
     # Write results to output tsv
+    if args.outfile in '- stdout /dev/stdout'.split():
+        outfile = stdout
+    else:
+        outfile = args.outfile
     res_df.to_csv(args.outfile, sep='\t', index=False)
 
 

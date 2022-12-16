@@ -129,7 +129,7 @@ done
 
 
 ### Compute AC and AF matrixes by cancer type for all variants & variant sets in each cohort
-# 1. Coding variants by protein consequence
+# 1a. Coding variants by protein consequence
 for cohort in TCGA PROFILE; do
   case $cohort in
     TCGA)
@@ -166,7 +166,8 @@ for cohort in TCGA PROFILE; do
          --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.coding_variants.freq.tsv.gz"
   done
 done
-# 2. All other single variants after excluding coding variants above
+
+# 1b. All other single variants after excluding coding variants above
 for cohort in TCGA PROFILE; do
   case $cohort in
     TCGA)
@@ -215,7 +216,8 @@ for cohort in TCGA PROFILE; do
          --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.other_variants.freq.tsv.gz"
   done
 done
-# 3. Recurrently mutated codons
+
+# 2. Recurrently mutated codons
 for cohort in TCGA PROFILE; do
   case $cohort in
     TCGA)
@@ -253,7 +255,7 @@ for cohort in TCGA PROFILE; do
   done
 done
 
-# 4. All variant sets
+# 3. All variant sets
 for cohort in TCGA PROFILE; do
   case $cohort in
     TCGA)
@@ -289,4 +291,24 @@ for cohort in TCGA PROFILE; do
          --max-an $max_an \
          --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.burden_sets.freq.tsv.gz"
   done
+done
+
+# 4. Ras intra-gene comutation pairs
+for cohort in TCGA PROFILE; do
+  # By definition, both mutations must each appear at ≥1% frequency for the pair
+  # to appear at ≥1% frequency
+  # We can use this definition to dramatically reduce the search space for computing
+  # pairwise comutation frequencies
+  # This requires pre-computed frequency info (generated above)
+  for subset in coding other; do
+    $CODEDIR/scripts/data_processing/filter_freq_table.py \
+      --freq-tsv $WRKDIR/data/variant_set_freqs/$cohort.somatic.${subset}_variants.freq.tsv.gz  \
+      --min-freq 0.01
+    zcat 
+  done
+  $TMPDIR/compute_comutation_freqs.py \
+
+
+
+    
 done
