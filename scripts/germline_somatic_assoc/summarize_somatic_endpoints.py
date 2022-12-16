@@ -49,7 +49,6 @@ def load_tx_map(tx_tsv):
             'tx_len' : tx_df.tx_len.to_dict()}
 
 
-
 def update_res(subres, infile, tx_map):
     """
     Update category ID sets based on data in infile

@@ -89,10 +89,7 @@ def eval_criteria(record, key, criterion, vep_map):
             query_vals = query_vals[(query_vals != '') & (~query_vals.isna())]
             if criterion[1] in '> >= < <='.split():
                 query_vals = query_vals.astype(float, errors='ignore')
-            try:
-                hits = query_vals.apply(lambda x: op(x, criterion[0]))
-            except:
-                import pdb; pdb.set_trace()
+            hits = query_vals.apply(lambda x: op(x, criterion[0]))
             if hits.any():
                 criteria_met = True
                 genes = set(vdf.loc[hits.index, 'SYMBOL'].values.tolist())
@@ -119,9 +116,16 @@ def eval_criteria(record, key, criterion, vep_map):
             genes = []
         else:
             vdf = pd.DataFrame([v.split('|') for v in val])
-            vdf.columns = {'enhancer' : 'gene score tissue'.split(),
-                           'GTEx_eQTL' : 'gene tissue beta'.split()}[keys[0]]
-            hits = vdf[keys[1]].apply(lambda x: op(x, criterion[0]))
+            if keys[0] == 'enhancer':
+                vdf.columns = 'gene score tissue'.split()
+                vdf['score'] = vdf.score.astype(float)
+            elif keys[0] == 'GTEx_eQTL':
+                vdf.columns = 'gene tissue beta'.split()
+                vdf['beta'] = vdf.beta.astype(float)
+            try:
+                hits = vdf[keys[1]].apply(lambda x: op(x, criterion[0]))
+            except:
+                import pdb; pdb.set_trace()
             if hits.any():
                 criteria_met = True
                 genes = vdf.gene[hits].values.tolist()
