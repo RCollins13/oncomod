@@ -49,7 +49,7 @@ def main():
         outfile = stdout
     else:
         outfile = args.outfile
-    out_df.to_csv(args.outfile, header=True, index=False, sep='\t')
+    out_df.to_csv(outfile, header=True, index=False, sep='\t')
 
 
 if __name__ == '__main__':
