@@ -385,18 +385,19 @@ for cohort in TCGA PROFILE; do
     --min-freq 0.01 \
   | cut -f1 | sed '1d' | fgrep -v "deletion" | fgrep -v "amplification" \
   | grep -f <( awk '{ print "^"$1"_" }' $WRKDIR/../refs/COSMIC.all_GCG.Nov8_2022.genes.list ) \
+  | grep -ve '^KRAS_\|^NRAS_\|^HRAS' \
   | fgrep -wf - <( zcat $WRKDIR/data/variant_sets/$cohort.somatic.burden_sets.tsv.gz ) \
   | cut -f1,4 | cat <( echo -e "set_id\tvids" ) - \
   > $TMPDIR/$cohort.all_nonRas_comut_candidates.tsv
   # Step 3. Compute comutation frequency for all candidates
   for suf in err log; do
-    logfile=$WRKDIR/LSF/logs/get_somatic_comutation_freqs_$cohort.$suf
+    logfile=$WRKDIR/LSF/logs/get_somatic_ras_plus_nonRas_comutation_freqs_$cohort.$suf
     if [ -e $logfile ]; then rm $logfile; fi
   done
   bsub -q big -sla miket_sc -R "rusage[mem=12000]" \
-    -J get_somatic_comutation_freqs_$cohort \
-    -o $WRKDIR/LSF/logs/get_somatic_comutation_freqs_$cohort.log \
-    -e $WRKDIR/LSF/logs/get_somatic_comutation_freqs_$cohort.err \
+    -J get_somatic_ras_plus_nonRas_comutation_freqs_$cohort \
+    -o $WRKDIR/LSF/logs/get_somatic_ras_plus_nonRas_comutation_freqs_$cohort.log \
+    -e $WRKDIR/LSF/logs/get_somatic_ras_plus_nonRas_comutation_freqs_$cohort.err \
     "$CODEDIR/scripts/data_processing/calc_comutation_freqs.py \
        --sets-tsv $TMPDIR/$cohort.all_ras_comut_candidates.tsv \
        --sets-tsv $TMPDIR/$cohort.all_nonRas_comut_candidates.tsv \
@@ -406,5 +407,4 @@ for cohort in TCGA PROFILE; do
        --require-different-origins \
        --outfile $WRKDIR/data/variant_set_freqs/$cohort.somatic.ras_plus_nonRas_comutations.freq.tsv.gz"
 done
-
 

@@ -24,10 +24,11 @@ cancers = 'PDAC CRAD SKCM LUAD'.split()
 ras_genes = 'NRAS HRAS KRAS'.split()
 ras_chroms = {'1' : 'NRAS', '11' : 'HRAS', '12' : 'KRAS'}
 category_descriptions = \
-    {'mutations'   : '1. Frequent RAS alterations',
-     'codons'      : '2. Recurrently mutated RAS codons',
-     'burden'      : '3. Collapsed mutation sets',
-     'comutations' : '4. Frequent co-mutations involving RAS'}
+    {'mutations'        : '1. Frequent RAS alterations',
+     'codons'           : '2. Recurrently mutated RAS codons',
+     'burden'           : '3. Collapsed mutation sets',
+     'comutations'      : '4. Frequent co-mutations involving RAS',
+     'ras_nonras_comut' : '5. Frequent RAS + non-RAS comutations'}
 tissue_map = {'PDAC' : 'pancreas',
               'CRAD' : 'colon',
               'SKCM' : 'skin',
@@ -62,19 +63,21 @@ def infer_gene(set_id, tx_map):
     Use a variety of strategies to infer RAS gene relationship from set ID
     """
 
-    if set_id.startswith('ENST'):
+    if set_id.startswith('COMUT|'):
+        genes = [infer_gene(g, tx_map) for g in set_id.split('|')[1:]]
+        return ','.join(set([g for g in genes if g is not None]))
+    elif set_id.startswith('ENST'):
         return tx_map['symbol'].get(set_id.split('_')[0])
     elif set_id.startswith('1_') \
          or set_id.startswith('11_') \
          or set_id.startswith('12_'):
         return ras_chroms.get(set_id.split('_')[0])
-    elif set_id.startswith('COMUT|'):
-        genes = [infer_gene(g, tx_map) for g in set_id.split('|')[1:]]
-        return ','.join(set([g for g in genes if g is not None]))
+    elif '_' in set_id:
+        return set_id.split('_')[0]
     else:
-        for gene in ras_genes:
-            if set_id.startswith(gene + '_'):
-                return gene
+        # If this point has been reached, need a new strategy to infer genes
+        print('Unsure how to parse set ID ' + set_id + '\n')
+        import pdb; pdb.set_trace()
 
 
 def update_res(subres, infile, tx_map, min_freq=0.01):
@@ -130,6 +133,9 @@ def main():
                         help='frequencies corresponding to burden sets')
     parser.add_argument('--comutations', action='append', 
                         help='frequencies corresponding to comutation pairs')
+    parser.add_argument('--ras-nonras-comut', action='append', 
+                        help='frequencies corresponding to RAS + non-RAS ' + \
+                        'comutation pairs')
     parser.add_argument('-t', '--transcript-info', required=True, help='.tsv ' + \
                         'mapping ENST:ENSG:symbol:length')
     parser.add_argument('-m', '--min-freq', default=0.01, type=float, help='Minimum ' + \
@@ -164,6 +170,11 @@ def main():
     for infile in args.comutations:
         res['comutations'] = \
             update_res(res['comutations'], infile, tx_map, args.min_freq)
+
+    # Load comutation pairs
+    for infile in args.ras_nonras_comut:
+        res['ras_nonras_comut'] = \
+            update_res(res['ras_nonras_comut'], infile, tx_map, args.min_freq)
 
     # Open connection to --outfile
     if args.outfile in '- stdout /dev/stdout':

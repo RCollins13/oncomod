@@ -26,6 +26,8 @@ def main():
                         '.tsv [default: stdin]')
     parser.add_argument('-m', '--min-freq', default=0, type=float, help='Minimum ' + \
                         'frequency in any cancer type to be retained.')
+    parser.add_argument('--min-ac', default=0, type=int, help='Minimum allele ' + \
+                        'count in any cancer type to be retained.')
     parser.add_argument('-o', '--outfile', help='output .tsv [default: stdout]', 
                         default='stdout')
     args = parser.parse_args()
@@ -37,11 +39,13 @@ def main():
         fin = args.freq_tsv
     df = pd.read_csv(fin, sep='\t')
 
-    # Filter on any frequency >= --freq
+    # Filter on any frequency >= --min-freq and AC >= --min-ac
     af_cols = [c for c in df.columns if c.endswith('_AF')]
     df['max_freq'] = df.loc[:, af_cols].max(axis=1)
+    ac_cols = [c for c in df.columns if c.endswith('_AC')]
+    df['max_AC'] = df.loc[:, ac_cols].max(axis=1)
     df.sort_values('max_freq', inplace=True, ascending=False)
-    keep = df.max_freq > args.min_freq
+    keep = (df.max_freq >= args.min_freq) & (df.max_AC >= args.min_ac)
     out_df = df.loc[keep, ['set_id'] + af_cols]
 
     # Write to --outfile

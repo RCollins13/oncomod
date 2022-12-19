@@ -22,43 +22,71 @@ cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in data data/variant_set_freqs/filtered; do
+for SUBDIR in data data/variant_set_freqs/filtered data/germline_vcfs; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
 done
 
 
-### Determine LD-independent number of germline variants to test
-# Subset VCFs per cohort to non-rare (AC≥10) variants
-bcftools view \
-  --min-ac 10 \
-  -o $TCGADIR/data/TCGA.RAS_loci.ac10plus.vcf.gz \
-  -O z \
-  $TCGADIR/data/TCGA.RAS_loci.vcf.gz
-tabix -p vcf -f $TCGADIR/data/TCGA.RAS_loci.ac10plus.vcf.gz
-bcftools view \
-  --min-ac 10 \
-  -o $PROFILEDIR/data/PROFILE.RAS_loci.ac10plus.vcf.gz \
-  -O z \
-  $PROFILEDIR/data/PROFILE.RAS_loci.vcf.gz
-tabix -p vcf -f $PROFILEDIR/data/PROFILE.RAS_loci.ac10plus.vcf.gz
-# Merge AC≥10 VCFs across cohorts
-bcftools merge \
-  -m none \
-  -o $WRKDIR/data/all_cohorts.RAS_loci.ac10plus.vcf.gz \
-  -O z \
-  $TCGADIR/data/TCGA.RAS_loci.ac10plus.vcf.gz \
-  $PROFILEDIR/data/PROFILE.RAS_loci.ac10plus.vcf.gz
-# LD prune with PLINK
+### Determine LD-independent number of individual germline variants to test per cancer type
 module load plink/1.90b3
-plink \
-  --vcf $WRKDIR/data/all_cohorts.RAS_loci.ac10plus.vcf.gz \
-  --indep-pairwise 100kb 5 0.2 \
-  --recode vcf bgz \
-  --out $WRKDIR/data/all_cohorts.RAS_loci.pruned
-# Count number of variants retained after LD pruning
-wc -l $WRKDIR/data/all_cohorts.RAS_loci.pruned.prune.in
+for cancer in PDAC CRAD LUAD SKCM; do
+  # Subset VCFs per cohort to non-rare (AC≥10) variants
+  for cohort in TCGA PROFILE; do
+    case $cohort in
+      TCGA)
+        COHORTDIR=$TCGADIR
+        sample_name="donors"
+        ;;
+      PROFILE)
+        COHORTDIR=$PROFILEDIR
+        sample_name="samples"
+        ;;
+    esac
+    bcftools view \
+      --min-ac 10 \
+      --samples-file $COHORTDIR/data/sample_info/$cohort.$cancer.$sample_name.list \
+      -o $COHORTDIR/data/$cohort.RAS_loci.$cancer.ac10plus.vcf.gz \
+      -O z \
+      $COHORTDIR/data/$cohort.RAS_loci.vcf.gz
+    tabix -p vcf -f $COHORTDIR/data/$cohort.RAS_loci.$cancer.ac10plus.vcf.gz
+  done
+
+  # Merge AC≥10 VCFs across cohorts
+  bcftools merge \
+    -m none \
+    -o $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.vcf.gz \
+    -O z \
+    $TCGADIR/data/TCGA.RAS_loci.$cancer.ac10plus.vcf.gz \
+    $PROFILEDIR/data/PROFILE.RAS_loci.$cancer.ac10plus.vcf.gz
+  tabix -p vcf -f $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.vcf.gz
+
+  # LD prune with PLINK
+  plink \
+    --vcf $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.vcf.gz \
+    --indep-pairwise 100kb 5 0.2 \
+    --recode vcf bgz \
+    --out $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.pruned
+done
+
+# Once merged & LD-pruned, determine number of variants retained per cancer type per gene 
+for cancer in PDAC CRAD LUAD SKCM; do
+  while read chrom start end gene; do
+    bcftools query \
+      -f '%ID\n' -r "$chrom" \
+      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.vcf.gz \
+    | fgrep -wf - \
+      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.pruned.prune.in \
+    | wc -l
+  done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz ) | paste -s - \
+  | awk -v OFS="\t" '{ print $0, $1+$2+$3 }'
+done | paste -s -
+
+
+### Filter germline variant sets for RAS genes to determine which have sufficient 
+### data to be tested
+
 
 
 ### Filter somatic variants to define list of conditions to test
@@ -110,8 +138,13 @@ for cohort in TCGA PROFILE; do
 done
 
 # 3. Functional mutation sets
+#    (Require mutation sets to have two or more individual mutations, otherwise 
+#     they would already be captured by single variant tests)
 for cohort in TCGA PROFILE; do
-  zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.burden_sets.freq.tsv.gz \
+  freqs=$WRKDIR/data/variant_set_freqs/$cohort.somatic.burden_sets.freq.tsv.gz
+  zcat $WRKDIR/data/variant_sets/$cohort.somatic.burden_sets.tsv.gz \
+  | awk '{ if ($4 ~ /,/) print $1 }' \
+  | fgrep -wf - <( zcat $freqs ) | cat <( zcat $freqs | head -n1 ) - \
   | grep -e '^set_id\|^NRAS_\|^HRAS_\|^KRAS_' \
   | $CODEDIR/scripts/data_processing/filter_freq_table.py \
     --freq-tsv stdin \
@@ -141,8 +174,15 @@ for cohort in TCGA PROFILE; do
 done
 
 # 5. Frequent RAS intra-gene (RAS+other) co-mutation pairs involving burden sets in other genes
-# TODO: implement this
+for cohort in TCGA PROFILE; do
+  $CODEDIR/scripts/data_processing/filter_freq_table.py \
+    --freq-tsv $WRKDIR/data/variant_set_freqs/$cohort.somatic.ras_plus_nonRas_comutations.freq.tsv.gz \
+    --min-freq 0.05 \
+    --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.somatic.ras_plus_nonRas_comutations.freq.5pct.tsv.gz
+done
+
 # 6. RAS + RAS signaling co-mutation pairs
+# TODO: implement this
 
 
 ### Summarize somatic conditions to test as endpoints for association
@@ -158,4 +198,6 @@ $TMPDIR/summarize_somatic_endpoints.py \
   --burden-sets $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.burden_sets.freq.1pct.tsv.gz \
   --comutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.comutations.freq.1pct.tsv.gz \
   --comutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.comutations.freq.1pct.tsv.gz \
+  --ras-nonras-comut $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.ras_plus_nonRas_comutations.freq.5pct.tsv.gz \
+  --ras-nonras-comut $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.ras_plus_nonRas_comutations.freq.5pct.tsv.gz \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz
