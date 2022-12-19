@@ -85,7 +85,18 @@ done | paste -s -
 
 
 ### Filter germline variant sets for RAS genes to determine which have sufficient 
-### data to be tested
+### data to be tested (AC≥10)
+for cohort in PDAC CRAD LUAD SKCM; do
+  freqs=$WRKDIR/data/variant_set_freqs/$cohort.somatic.burden_sets.freq.tsv.gz
+  zcat $WRKDIR/data/variant_sets/$cohort.somatic.burden_sets.tsv.gz \
+  | awk '{ if ($4 ~ /,/) print $1 }' \
+  | fgrep -wf - <( zcat $freqs ) | cat <( zcat $freqs | head -n1 ) - \
+  | grep -e '^set_id\|^NRAS_\|^HRAS_\|^KRAS_' \
+  | $CODEDIR/scripts/data_processing/filter_freq_table.py \
+    --freq-tsv stdin \
+    --min-freq 0.01 \
+    --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.somatic.burden_sets.freq.1pct.tsv.gz
+done
 
 
 
