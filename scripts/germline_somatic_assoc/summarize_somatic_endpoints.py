@@ -71,6 +71,10 @@ def infer_gene(set_id, tx_map):
     elif set_id.startswith('COMUT|'):
         genes = [infer_gene(g, tx_map) for g in set_id.split('|')[1:]]
         return ','.join(set([g for g in genes if g is not None]))
+    else:
+        for gene in ras_genes:
+            if set_id.startswith(gene + '_'):
+                return gene
 
 
 def update_res(subres, infile, tx_map, min_freq=0.01):
@@ -83,6 +87,13 @@ def update_res(subres, infile, tx_map, min_freq=0.01):
 
     # Attempt to infer gene for each category
     df['gene'] = df.set_id.apply(lambda x: infer_gene(x, tx_map))
+
+    # Check for tissue-specific annotations, and set frequencies for non-matched
+    # cancers to zero to skip the counting step
+    for cancer, tissue in tissue_map.items():
+        tissue_rows = df.set_id.str.contains(tissue)
+        if tissue_rows.any():
+            import pdb; pdb.set_trace()
 
     # Map categories onto cancer types & genes in subres
     for cancer in cancers:
@@ -143,6 +154,11 @@ def main():
     for infile in args.codons:
         res['codons'] = \
             update_res(res['codons'], infile, tx_map, args.min_freq)
+
+    # Load burden sets
+    for infile in args.burden_sets:
+        res['burden'] = \
+            update_res(res['burden'], infile, tx_map, args.min_freq)
 
     # Load comutation pairs
     for infile in args.comutations:

@@ -94,14 +94,24 @@ def main():
     parser.add_argument('--sample-metadata', required=True, help='sample metadata .tsv')
     parser.add_argument('--max-an', default=2, type=int, help='Max AN for all ' +
                         'sites [default: 2]')
+    parser.add_argument('--require-different-origins', action='store_true',
+                        default=False, help='If two or more --sets-tsv are provided, ' + \
+                        'only evaluate comutation frequencies involving pairs of ' + \
+                        'entries from different files [default: evaluate all possible pairs]')
     parser.add_argument('-o', '--outfile', help='output .tsv [default: stdout]',
                         default='stdout')
     args = parser.parse_args()
 
     # Load map of variant sets
     var_sets = {}
-    for fin in args.sets_tsv:    
-        var_sets.update(load_variant_sets(fin))
+    set_origins = {}
+    for fin in args.sets_tsv:
+        vsets = load_variant_sets(fin)
+        var_sets.update(vsets)
+        for set_id in vsets:
+            if set_id not in set_origins.keys():
+                set_origins[set_id] = set()
+            set_origins[set_id].add(fin)
 
     # Load dict mapping sample IDs to cancer type
     cancer_map = load_cancer_map(args.sample_metadata)
@@ -111,6 +121,9 @@ def main():
 
     # Enumerate all pairs of sets
     pairs = [x for x in combinations(var_sets.keys(), 2)]
+    if args.require_different_origins and len(args.sets_tsv) > 1:
+        pairs = [(sid1, sid2) for sid1, sid2 in pairs \
+                 if len(set_origins[sid1].intersection(set_origins[sid2])) == 0]
 
     # Compute AC, AN, and AF for all pairs by cancer type
     res_df = calc_af(var_sets, pairs, ad_df, cancer_map, args.max_an)

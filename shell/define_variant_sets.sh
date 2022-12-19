@@ -347,4 +347,64 @@ for cohort in TCGA PROFILE; do
        --outfile $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.freq.tsv.gz"
 done
 
+# 5. RAS + other COSMIC gene burden set comutation pairs
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  # By definition, both mutations must each appear at ≥1% frequency for the pair
+  # to appear at ≥1% frequency
+  # We can use this definition to dramatically reduce the search space for computing
+  # pairwise comutation frequencies
+  # This requires pre-computed frequency info (generated above)
+  # Step 1. Build a list of all candidate RAS mutations to consider for comutation
+  tabix \
+    -R $WRKDIR/../refs/RAS_genes.bed.gz \
+    $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
+  | cut -f3 > $TMPDIR/ras_vids.list
+  for subset in coding other; do
+    $CODEDIR/scripts/data_processing/filter_freq_table.py \
+      --freq-tsv $WRKDIR/data/variant_set_freqs/$cohort.somatic.${subset}_variants.freq.tsv.gz  \
+      --min-freq 0.01 \
+    | cut -f1 | sed '1d'
+  done | sort | uniq \
+  | fgrep -wf - \
+    <( zcat $WRKDIR/data/variant_sets/$cohort.somatic.collapsed_coding_csqs.tsv.gz \
+            $WRKDIR/data/variant_sets/$cohort.somatic.other_single_variants.tsv.gz ) \
+  | awk -v OFS="\t" '{ print $1, $NF }' | fgrep -wf $TMPDIR/ras_vids.list \
+  | cat <( echo -e "set_id\tvids" ) - \
+  > $TMPDIR/$cohort.all_ras_comut_candidates.tsv
+  # Step 2. Pre-filter burden sets for all other genes and exclude CNAs
+  $CODEDIR/scripts/data_processing/filter_freq_table.py \
+    --freq-tsv $WRKDIR/data/variant_set_freqs/$cohort.somatic.burden_sets.freq.tsv.gz  \
+    --min-freq 0.01 \
+  | cut -f1 | sed '1d' | fgrep -v "deletion" | fgrep -v "amplification" \
+  | grep -f <( awk '{ print "^"$1"_" }' $WRKDIR/../refs/COSMIC.all_GCG.Nov8_2022.genes.list ) \
+  | fgrep -wf - <( zcat $WRKDIR/data/variant_sets/$cohort.somatic.burden_sets.tsv.gz ) \
+  | cut -f1,4 | cat <( echo -e "set_id\tvids" ) - \
+  > $TMPDIR/$cohort.all_nonRas_comut_candidates.tsv
+  # Step 3. Compute comutation frequency for all candidates
+  for suf in err log; do
+    logfile=$WRKDIR/LSF/logs/get_somatic_comutation_freqs_$cohort.$suf
+    if [ -e $logfile ]; then rm $logfile; fi
+  done
+  bsub -q big -sla miket_sc -R "rusage[mem=12000]" \
+    -J get_somatic_comutation_freqs_$cohort \
+    -o $WRKDIR/LSF/logs/get_somatic_comutation_freqs_$cohort.log \
+    -e $WRKDIR/LSF/logs/get_somatic_comutation_freqs_$cohort.err \
+    "$CODEDIR/scripts/data_processing/calc_comutation_freqs.py \
+       --sets-tsv $TMPDIR/$cohort.all_ras_comut_candidates.tsv \
+       --sets-tsv $TMPDIR/$cohort.all_nonRas_comut_candidates.tsv \
+       --dosage-tsv $COHORTDIR/data/$cohort.somatic_variants.dosage.tsv.gz \
+       --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+       --max-an 1 \
+       --require-different-origins \
+       --outfile $WRKDIR/data/variant_set_freqs/$cohort.somatic.ras_plus_nonRas_comutations.freq.tsv.gz"
+done
+
 
