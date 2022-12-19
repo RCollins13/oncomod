@@ -181,13 +181,10 @@ for cohort in TCGA PROFILE; do
     --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.somatic.ras_plus_nonRas_comutations.freq.5pct.tsv.gz
 done
 
-# 6. RAS + RAS signaling co-mutation pairs
-# TODO: implement this
-
 
 ### Summarize somatic conditions to test as endpoints for association
 # $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
-$TMPDIR/summarize_somatic_endpoints.py \
+$CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.coding_variants.freq.1pct.tsv.gz \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.coding_variants.freq.1pct.tsv.gz \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.other_variants.freq.1pct.tsv.gz \
