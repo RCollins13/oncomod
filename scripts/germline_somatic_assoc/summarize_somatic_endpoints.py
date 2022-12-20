@@ -14,9 +14,8 @@ import argparse
 import os
 import pandas as pd
 from sys import stdout, path
-# TODO: uncomment the below before full commit
-# path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
-# from general_utils import load_tx_map
+path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
+from general_utils import load_tx_map
 
 
 # Define various variables used throughout the below functions
@@ -33,29 +32,6 @@ tissue_map = {'PDAC' : 'pancreas',
               'CRAD' : 'colon',
               'SKCM' : 'skin',
               'LUAD' : 'lung'}
-
-
-# TODO: remove the below function before full commit
-def load_tx_map(tx_tsv):
-    """
-    Load --transcript-info as a dict
-    """
-    
-    # Load data
-    tx_df = pd.read_csv(tx_tsv, sep='\t', header=None)
-    tx_df.columns = 'ENST ENSG symbol tx_len'.split()
-
-    # Remove Ensembl version info from ENSG and ENST IDs
-    for ecol in 'ENST ENSG'.split():
-        tx_df[ecol] = tx_df[ecol].str.replace('.[0-9]+$', '', regex=True)
-
-    # Map everything vs. ENST IDs
-    tx_df.set_index('ENST', drop=True, inplace=True)
-    
-    return {'ENSG' : tx_df.ENSG.to_dict(),
-            'ENSG_to_symbol' : tx_df.symbol.set_axis(tx_df.ENSG).to_dict(),
-            'symbol' : tx_df.symbol.to_dict(),
-            'tx_len' : tx_df.tx_len.to_dict()}
 
 
 def infer_gene(set_id, tx_map):
@@ -96,11 +72,12 @@ def update_res(subres, infile, tx_map, min_freq=0.01):
     for cancer, tissue in tissue_map.items():
         tissue_rows = df.set_id.str.contains(tissue)
         if tissue_rows.any():
-            import pdb; pdb.set_trace()
+            other_freq_cols = [c for c in df.columns if c.endswith('_AF') and cancer not in c]
+            df.loc[tissue_rows, other_freq_cols] = 0
 
     # Map categories onto cancer types & genes in subres
     for cancer in cancers:
-        hits = df[cancer + '_AF'] > min_freq
+        hits = df[cancer + '_AF'] >= min_freq
         for idx, vals in df.loc[hits, 'set_id gene'.split()].iterrows():
             set_id, gstr = vals.values
             for gene in gstr.split(','):
@@ -171,7 +148,7 @@ def main():
         res['comutations'] = \
             update_res(res['comutations'], infile, tx_map, args.min_freq)
 
-    # Load comutation pairs
+    # Load RAS + non-RAS comutation pairs
     for infile in args.ras_nonras_comut:
         res['ras_nonras_comut'] = \
             update_res(res['ras_nonras_comut'], infile, tx_map, args.min_freq)

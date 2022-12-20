@@ -86,18 +86,24 @@ done | paste -s -
 
 ### Filter germline variant sets for RAS genes to determine which have sufficient 
 ### data to be tested (AC≥10)
-for cohort in PDAC CRAD LUAD SKCM; do
-  freqs=$WRKDIR/data/variant_set_freqs/$cohort.somatic.burden_sets.freq.tsv.gz
-  zcat $WRKDIR/data/variant_sets/$cohort.somatic.burden_sets.tsv.gz \
+for cohort in TCGA PROFILE; do
+  freqs=$WRKDIR/data/variant_set_freqs/$cohort.germline.burden_sets.freq.tsv.gz
+  zcat $WRKDIR/data/variant_sets/$cohort.germline.burden_sets.tsv.gz \
   | awk '{ if ($4 ~ /,/) print $1 }' \
   | fgrep -wf - <( zcat $freqs ) | cat <( zcat $freqs | head -n1 ) - \
   | grep -e '^set_id\|^NRAS_\|^HRAS_\|^KRAS_' \
   | $CODEDIR/scripts/data_processing/filter_freq_table.py \
     --freq-tsv stdin \
-    --min-freq 0.01 \
-    --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.somatic.burden_sets.freq.1pct.tsv.gz
+    --min-ac 10 \
+    --min-freq 0 \
+    --report-ac \
+    --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.germline.burden_sets.freq.ac10plus.tsv.gz
 done
 
+# Summarize filtered sets
+$CODEDIR/scripts/germline_somatic_assoc/summarize_germline_burden_sets.py \
+  --burden-sets $WRKDIR/data/variant_set_freqs/filtered/TCGA.germline.burden_sets.freq.ac10plus.tsv.gz \
+  --burden-sets $WRKDIR/data/variant_set_freqs/filtered/PROFILE.germline.burden_sets.freq.ac10plus.tsv.gz
 
 
 ### Filter somatic variants to define list of conditions to test
@@ -194,7 +200,6 @@ done
 
 
 ### Summarize somatic conditions to test as endpoints for association
-# $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
 $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.coding_variants.freq.1pct.tsv.gz \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.coding_variants.freq.1pct.tsv.gz \
