@@ -22,7 +22,7 @@ cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in plots plots/overview; do
+for SUBDIR in plots plots/overview data/plotting; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -40,4 +40,77 @@ $CODEDIR/scripts/plot/plot_pheno_summary.R \
   --cohort-name TCGA --metadata $TCGADIR/data/sample_info/TCGA.ALL.sample_metadata.tsv.gz \
   --cohort-name DFCI --metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
   --out-prefix $WRKDIR/plots/overview/cohort_summary
+
+
+### Plot somatic variant summaries
+# Collapse all variant frequencies for all cohorts
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      cname=TCGA
+      ;;
+    PROFILE)
+      cname=DFCI
+      ;;
+  esac
+  for context in coding other; do
+    zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.${context}_variants.freq.tsv.gz \
+    | sed '1d' | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $0 }'
+  done
+done \
+| sort -Vk2,2 -k1,1V \
+| cat <( zcat $WRKDIR/data/variant_set_freqs/TCGA.somatic.coding_variants.freq.tsv.gz | head -n1 ) - \
+| gzip -c \
+> $TMPDIR/somatic_variant_freqs.tsv.gz
+# Build simple table of variant coordinates for each cohort 
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      cname=TCGA
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      cname=DFCI
+      ;;
+  esac
+  bcftools query \
+    -f '%ID\t%CHROM\t%POS\n' \
+    --regions-file $CODEDIR/refs/RAS_loci.GRCh37.bed.gz \
+    $COHORTDIR/data/$cohort.RAS_loci.anno.clean.vcf.gz \
+  | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $1, $2, $3 }'
+done \
+| sort -Vk3,3 -k4,4n -k1,1V \
+| cat <( echo -e "cohort\tvid\tchrom\tpos" ) - \
+| gzip -c \
+> $TMPDIR/somatic_variant_coords.tsv.gz
+# Collapse all variant sets across cohorts
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      cname=TCGA
+      ;;
+    PROFILE)
+      cname=DFCI
+      ;;
+  esac
+  for context in collapsed_coding_csqs other_single_variants; do
+    zcat $WRKDIR/data/variant_sets/$cohort.somatic.$context.tsv.gz | sed '1d'
+  done | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $1, $2 }'
+done \
+| sort -Vk2,2 -k1,1V \
+| cat <( echo -e "cohort\tset_id\tvids" ) - \
+| gzip -c \
+> $TMPDIR/variant_set_map.tsv.gz
+# Gather necessary plotting data into single file
+$TMPDIR/gather_somatic_ras_data.py \
+  --freqs $TMPDIR/somatic_variant_freqs.tsv.gz \
+  --variant-coords $TMPDIR/somatic_variant_coords.tsv.gz \
+  --variant-set-map $TMPDIR/variant_set_map.tsv.gz \
+  --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
+  --outfile $WRKDIR/data/plotting/ras_somatic_variants.tsv.gz
+# Plot single-gene locus overview plots for each RAS gene
+# TODO: implement this
+# Scatterplots of inter-cohort somatic frequency correlations
+# TODO: implement this
 

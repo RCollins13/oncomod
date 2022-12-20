@@ -66,7 +66,6 @@ def main():
 
             prev_idx = (csq_df.gene == gene) & \
                        (csq_df.transcript == tx) & \
-                       (csq_df.codon == codon) & \
                        (csq_df.change == VSp) & \
                        (csq_df.csq == consequence)
             if prev_idx.any():
