@@ -59,7 +59,8 @@ for cohort in TCGA PROFILE; do
   done
 done \
 | sort -Vk2,2 -k1,1V \
-| cat <( zcat $WRKDIR/data/variant_set_freqs/TCGA.somatic.coding_variants.freq.tsv.gz | head -n1 ) - \
+| cat <( zcat $WRKDIR/data/variant_set_freqs/TCGA.somatic.coding_variants.freq.tsv.gz \
+         | head -n1 | awk -v OFS="\t" '{ print "cohort", $0 }' ) - \
 | gzip -c \
 > $TMPDIR/somatic_variant_freqs.tsv.gz
 # Build simple table of variant coordinates for each cohort 
@@ -96,7 +97,7 @@ for cohort in TCGA PROFILE; do
   esac
   for context in collapsed_coding_csqs other_single_variants; do
     zcat $WRKDIR/data/variant_sets/$cohort.somatic.$context.tsv.gz | sed '1d'
-  done | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $1, $2 }'
+  done | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $1, $NF }'
 done \
 | sort -Vk2,2 -k1,1V \
 | cat <( echo -e "cohort\tset_id\tvids" ) - \

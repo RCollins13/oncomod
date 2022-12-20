@@ -46,12 +46,17 @@ def load_set_map(set_map_in):
 
     var_sets = {}
     for cohort, subdf in df.groupby('cohort'):
-        try:
-            sub_map = subdf.drop('cohort', axis=1).\
-                            set_index('set_id', drop=True).\
-                            to_dict(orient='index')
-        except:
-            import pdb; pdb.set_trace()
+
+        ##############################
+        # DEV: remove this one cleaned data are available. This is just a warning/reminder
+        if subdf.set_id.duplicated().any():
+            print('\n\nWARNING: SOME SET IDS ARE DUPLICATED IN {}. DROPPING THESE FOR NOW, BUT NEED TO FIX THIS UP AS SOON AS CLEAN DATA ARE AVAILABLE\n\n'.format(cohort))
+            subdf = subdf[~subdf.set_id.duplicated()]
+        ##############################
+
+        sub_map = subdf.drop('cohort', axis=1).\
+                        set_index('set_id', drop=True).\
+                        to_dict(orient='index')
         var_sets[cohort] = sub_map
 
     return var_sets
@@ -62,6 +67,8 @@ def unify_data(freqs, coords, var_sets, tx_map):
     Collapse all relevant somatic mutation information into a single dense 
     table for plotting
     """
+
+
 
     import pdb; pdb.set_trace()
 

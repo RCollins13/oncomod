@@ -66,19 +66,20 @@ def main():
 
             prev_idx = (csq_df.gene == gene) & \
                        (csq_df.transcript == tx) & \
-                       (csq_df.change == VSp) & \
-                       (csq_df.csq == consequence)
+                       (csq_df.change == VSp)
             if prev_idx.any():
                 csq_df[prev_idx].vids.map(lambda x: x.add(record.id))
+                csq_df[prev_idx].csq.map(lambda x: x.add(consequence))
             else:
                 csq_df = csq_df.append({'set_id' : set_id, 'gene' : gene, 
                                         'transcript' : tx, 'codon' : codon, 
-                                        'change' : VSp, 'csq' : consequence,
+                                        'change' : VSp, 'csq' : set([consequence]),
                                         'vids' : set([record.id])}, 
                                         ignore_index=True)
     
     # Collapse vid column and write to outfile
     csq_df['vids'] = csq_df.vids.str.join(',')
+    csq_df['csq'] = csq_df.csq.str.join(',')
     csq_df['codon'] = \
         csq_df.codon.str.split('-').map(lambda x: np.nanmin(np.array([v for v in x if v.isnumeric()]).astype(int)))
     csq_df.sort_values(by='gene codon transcript csq'.split()).\
