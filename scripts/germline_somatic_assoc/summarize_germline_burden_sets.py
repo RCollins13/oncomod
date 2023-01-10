@@ -73,6 +73,9 @@ def main():
                         'AC for a category to be retained per cancer type.')
     parser.add_argument('-o', '--outfile', help='output .tsv [default: stdout]', 
                         default='stdout')
+    parser.add_argument('-P', '--out-prefix', help='prefix for output lists of ' +
+                        'germline sets to test [default: %default]',
+                        type=str, default='./')
     args = parser.parse_args()
 
     # Build dict for collecting results
@@ -81,6 +84,14 @@ def main():
     # Load burden sets
     for infile in args.burden_sets:
         res = update_res(res, infile, args.min_ac)
+
+    # Output lists of somatic endpoints per gene & cancer type
+    for cancer in cancers:
+        for gene in ras_genes:
+            fout = open('{}{}.{}.germline_sets.list'.format(args.out_prefix, cancer, gene), 'w')
+            for val in res[cancer][gene]:
+                fout.write(val + '\n')
+            fout.close()
 
     # Open connection to --outfile
     if args.outfile in '- stdout /dev/stdout':

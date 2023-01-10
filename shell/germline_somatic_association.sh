@@ -22,7 +22,8 @@ cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in data data/variant_set_freqs/filtered data/germline_vcfs; do
+for SUBDIR in data data/variant_set_freqs/filtered data/germline_vcfs \
+              data/variant_sets/test_sets; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -103,7 +104,8 @@ done
 # Summarize filtered sets
 $CODEDIR/scripts/germline_somatic_assoc/summarize_germline_burden_sets.py \
   --burden-sets $WRKDIR/data/variant_set_freqs/filtered/TCGA.germline.burden_sets.freq.ac10plus.tsv.gz \
-  --burden-sets $WRKDIR/data/variant_set_freqs/filtered/PROFILE.germline.burden_sets.freq.ac10plus.tsv.gz
+  --burden-sets $WRKDIR/data/variant_set_freqs/filtered/PROFILE.germline.burden_sets.freq.ac10plus.tsv.gz \
+  --out-prefix $WRKDIR/data/variant_sets/test_sets/
 
 
 ### Filter somatic variants to define list of conditions to test
@@ -200,7 +202,8 @@ done
 
 
 ### Summarize somatic conditions to test as endpoints for association
-$CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
+# $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
+$TMPDIR/summarize_somatic_endpoints.py \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.coding_variants.freq.1pct.tsv.gz \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.coding_variants.freq.1pct.tsv.gz \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.other_variants.freq.1pct.tsv.gz \
@@ -213,4 +216,5 @@ $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
   --comutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.comutations.freq.1pct.tsv.gz \
   --ras-nonras-comut $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.ras_plus_nonRas_comutations.freq.5pct.tsv.gz \
   --ras-nonras-comut $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.ras_plus_nonRas_comutations.freq.5pct.tsv.gz \
-  --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz
+  --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
+  --out-prefix $WRKDIR/data/variant_sets/test_sets/

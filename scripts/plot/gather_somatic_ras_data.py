@@ -19,6 +19,10 @@ path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
 from general_utils import load_tx_map
 
 
+ras_genes = 'NRAS HRAS KRAS'.split()
+cancers = 'PDAC CRAD LUAD SKCM'.split()
+
+
 def load_coords(coords_in):
     """
     Load map of variant coordinates and split by cohort
@@ -46,20 +50,28 @@ def load_set_map(set_map_in):
 
     var_sets = {}
     for cohort, subdf in df.groupby('cohort'):
-
-        ##############################
-        # DEV: remove this one cleaned data are available. This is just a warning/reminder
-        if subdf.set_id.duplicated().any():
-            print('\n\nWARNING: SOME SET IDS ARE DUPLICATED IN {}. DROPPING THESE FOR NOW, BUT NEED TO FIX THIS UP AS SOON AS CLEAN DATA ARE AVAILABLE\n\n'.format(cohort))
-            subdf = subdf[~subdf.set_id.duplicated()]
-        ##############################
-
         sub_map = subdf.drop('cohort', axis=1).\
                         set_index('set_id', drop=True).\
-                        to_dict(orient='index')
+                        vids.to_dict()
         var_sets[cohort] = sub_map
 
     return var_sets
+
+
+def update_res_df(res_df, cohort, set_id, freqs, coords, var_sets, auto_add=False):
+    """
+    Update res_df for a single variant set in a single cohort 
+    """
+
+    # Get basic info
+    vids = var_sets[cohort].get(set_id, set())
+
+    # Attempt to find matching variant unless auto_add is specified
+    # if auto_add:
+
+    import pdb; pdb.set_trace()
+    return res_df
+
 
 
 def unify_data(freqs, coords, var_sets, tx_map):
@@ -68,9 +80,25 @@ def unify_data(freqs, coords, var_sets, tx_map):
     table for plotting
     """
 
+    cohorts = sorted(freqs.cohort.unique().tolist())
 
+    # Link variants/sets between cohorts
+    res_df = pd.DataFrame(columns='gene position csq'.split())
+    for cohort, subdf in freqs.groupby('cohort'):
 
-    import pdb; pdb.set_trace()
+        # Add missing columns to res_df for cohort-specific info and cancer frequencies
+        for suffix in 'set_id vids'.split():
+            res_df[cohort + '_' + suffix] = [set()] * len(res_df)
+        for cancer in cancers:
+            for suffix in 'AN AC AF'.split():
+                res_df['{}.{}_{}'.format(cohort, cancer, suffix)] = pd.NA
+
+        # Update res_df for each variant set in serial
+        for set_id in subdf.set_id.unique():
+            res_df = update_res_df(res_df, cohort, set_id, freqs, coords, var_sets,
+                                   auto_add=cohort == cohorts[0])
+
+    return res_df
 
 
 def main():

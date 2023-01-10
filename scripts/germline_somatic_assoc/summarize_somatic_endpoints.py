@@ -13,6 +13,7 @@ Summarize number of somatic endpoints to test for each cancer type & gene
 import argparse
 import os
 import pandas as pd
+import re
 from sys import stdout, path
 path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
 from general_utils import load_tx_map
@@ -84,11 +85,12 @@ def update_res(subres, infile, tx_map, min_freq=0.01):
                 if gene not in subres[cancer].keys():
                     continue
                 # Convert DEL/AMP to simple set ID to avoid slightly different variant IDs
-                clean_set_id = ''
+                clean_parts = []
                 for sub_id in set_id.split('|'):
                     if any([sub_id.endswith(x) for x in '_DEL _AMP _DUP'.split()]):
                         sub_id = '_'.join([gene, set_id.split('_')[-1]])
-                    clean_set_id = '|'.join([clean_set_id, sub_id])
+                    clean_parts.append(sub_id)
+                clean_set_id = '|'.join(clean_parts)
                 subres[cancer][gene].add(clean_set_id)
 
     # Return updated subres
@@ -111,14 +113,20 @@ def main():
     parser.add_argument('--comutations', action='append', 
                         help='frequencies corresponding to comutation pairs')
     parser.add_argument('--ras-nonras-comut', action='append', 
-                        help='frequencies corresponding to RAS + non-RAS ' + \
+                        help='frequencies corresponding to RAS + non-RAS ' + 
                         'comutation pairs')
-    parser.add_argument('-t', '--transcript-info', required=True, help='.tsv ' + \
+    parser.add_argument('-t', '--transcript-info', required=True, help='.tsv ' + 
                         'mapping ENST:ENSG:symbol:length')
-    parser.add_argument('-m', '--min-freq', default=0.01, type=float, help='Minimum ' + \
+    parser.add_argument('-m', '--min-freq', default=0.01, type=float, help='Minimum ' + 
                         'frequency for a category to be retained per cancer type.')
-    parser.add_argument('-o', '--outfile', help='output .tsv [default: stdout]', 
-                        default='stdout')
+    parser.add_argument('--min-ras-nonras-comut', default=0.05, type=float, 
+                        help='Minimum frequency for a RAS-nonRAS comutation pair ' +
+                        'to be retained per cancer type.')
+    parser.add_argument('-o', '--outfile', help='output .tsv of summary table ' + 
+                        '[default: stdout]', default='stdout')
+    parser.add_argument('-P', '--out-prefix', help='prefix for output lists of ' +
+                        'somatic endpoints to test [default: %default]',
+                        type=str, default='./')
     args = parser.parse_args()
 
     # Build dict for collecting results
@@ -151,7 +159,16 @@ def main():
     # Load RAS + non-RAS comutation pairs
     for infile in args.ras_nonras_comut:
         res['ras_nonras_comut'] = \
-            update_res(res['ras_nonras_comut'], infile, tx_map, args.min_freq)
+            update_res(res['ras_nonras_comut'], infile, tx_map, args.min_ras_nonras_comut)
+
+    # Output lists of somatic endpoints per gene & cancer type
+    for cancer in cancers:
+        for gene in ras_genes:
+            fout = open('{}{}.{}.somatic_endpoints.list'.format(args.out_prefix, cancer, gene), 'w')
+            for cat in category_descriptions.keys():
+                for val in res[cat][cancer][gene]:
+                    fout.write(val + '\n')
+            fout.close()
 
     # Open connection to --outfile
     if args.outfile in '- stdout /dev/stdout':
