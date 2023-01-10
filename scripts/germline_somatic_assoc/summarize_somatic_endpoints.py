@@ -166,7 +166,7 @@ def main():
     # Output lists of somatic endpoints per gene & cancer type
     for cancer in cancers:
         for gene in ras_genes:
-            fout = open('{}{}.{}.somatic_endpoints.list'.format(args.out_prefix, cancer, gene), 'w')
+            fout = open('{}{}.{}.somatic_endpoints.tsv'.format(args.out_prefix, cancer, gene), 'w')
             for cat in category_descriptions.keys():
                 for val in res[cat][cancer][gene]:
                     fout.write(val + '\n')

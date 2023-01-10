@@ -88,7 +88,7 @@ def main():
     # Output lists of somatic endpoints per gene & cancer type
     for cancer in cancers:
         for gene in ras_genes:
-            fout = open('{}{}.{}.germline_sets.list'.format(args.out_prefix, cancer, gene), 'w')
+            fout = open('{}{}.{}.germline_sets.tsv'.format(args.out_prefix, cancer, gene), 'w')
             for val in res[cancer][gene]:
                 fout.write(val + '\n')
             fout.close()
