@@ -107,6 +107,17 @@ $CODEDIR/scripts/germline_somatic_assoc/summarize_germline_burden_sets.py \
   --burden-sets $WRKDIR/data/variant_set_freqs/filtered/PROFILE.germline.burden_sets.freq.ac10plus.tsv.gz \
   --out-prefix $WRKDIR/data/variant_sets/test_sets/
 
+# Supplement filtered sets with individual variant IDs per gene & cancer type
+for cancer in PDAC CRAD LUAD SKCM; do
+  while read chrom start end gene; do
+    bcftools query \
+      --format '%ID\n' \
+      --regions $chrom \
+      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.vcf.gz \
+    >> $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.germline_sets.list
+  done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
+done
+
 
 ### Filter somatic variants to define list of conditions to test
 # 1. Frequent RAS mutations
@@ -202,8 +213,7 @@ done
 
 
 ### Summarize somatic conditions to test as endpoints for association
-# $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
-$TMPDIR/summarize_somatic_endpoints.py \
+$CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.coding_variants.freq.1pct.tsv.gz \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.coding_variants.freq.1pct.tsv.gz \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.other_variants.freq.1pct.tsv.gz \
@@ -218,3 +228,12 @@ $TMPDIR/summarize_somatic_endpoints.py \
   --ras-nonras-comut $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.ras_plus_nonRas_comutations.freq.5pct.tsv.gz \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
   --out-prefix $WRKDIR/data/variant_sets/test_sets/
+
+
+### Annotate somatic and germline endpoint/test sets with their constitutent variant IDs
+for context in germline somatic; do
+  for cancer in PDAC CRAD LUAD SKCM; do
+    while read chrom start end gene; do
+    done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
+  done
+done

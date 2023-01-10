@@ -90,6 +90,8 @@ def update_res(subres, infile, tx_map, min_freq=0.01):
                     if any([sub_id.endswith(x) for x in '_DEL _AMP _DUP'.split()]):
                         sub_id = '_'.join([gene, set_id.split('_')[-1]])
                     clean_parts.append(sub_id)
+                if len(clean_parts) != len(set(clean_parts)):
+                    continue
                 clean_set_id = '|'.join(clean_parts)
                 subres[cancer][gene].add(clean_set_id)
 
