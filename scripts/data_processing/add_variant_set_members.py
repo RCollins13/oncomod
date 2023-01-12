@@ -75,7 +75,7 @@ def main():
     mappings = {s : get_members(s, members) for s in slist}
 
     # Step 4: overwrite args.setlist with mappings
-    pd.DataFrame.from_dict(mappings, orient='index').\
+    pd.DataFrame.from_dict(args.set_list, orient='index').\
                  to_csv('.test.tsv', sep='\t', index=True, header=False)
 
 
