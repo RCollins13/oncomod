@@ -114,7 +114,7 @@ for cancer in PDAC CRAD LUAD SKCM; do
       --format '%ID\n' \
       --regions $chrom \
       $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.vcf.gz \
-    >> $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.germline_sets.list
+    >> $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.germline_sets.tsv
   done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
 done
 
@@ -232,8 +232,26 @@ $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
 
 ### Annotate somatic and germline endpoint/test sets with their constitutent variant IDs
 for context in germline somatic; do
+  case $context in
+    "germline")
+      suffix="sets"
+      ;;
+    "somatic")
+      suffix="endpoints"
+      ;;
+  esac
   for cancer in PDAC CRAD LUAD SKCM; do
     while read chrom start end gene; do
+      $CODEDIR/scripts/data_processing/add_variant_set_members.py \
+        --set-list $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.${context}_$suffix.tsv \
+        --memberships $WRKDIR/data/variant_sets/PROFILE.$context.burden_sets.tsv.gz \
+        --memberships $WRKDIR/data/variant_sets/PROFILE.$context.collapsed_coding_csqs.tsv.gz \
+        --memberships $WRKDIR/data/variant_sets/PROFILE.$context.other_single_variants.tsv.gz \
+        --memberships $WRKDIR/data/variant_sets/PROFILE.$context.recurrently_mutated_codons.tsv.gz \
+        --memberships $WRKDIR/data/variant_sets/TCGA.$context.burden_sets.tsv.gz \
+        --memberships $WRKDIR/data/variant_sets/TCGA.$context.collapsed_coding_csqs.tsv.gz \
+        --memberships $WRKDIR/data/variant_sets/TCGA.$context.other_single_variants.tsv.gz \
+        --memberships $WRKDIR/data/variant_sets/TCGA.$context.recurrently_mutated_codons.tsv.gz
     done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
   done
 done
