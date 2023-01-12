@@ -12,7 +12,6 @@ Add variant set members to a list of variant sets
 
 import argparse
 import pandas as pd
-from sys import stdout
 
 
 def get_members(setid, members, return_as_string=True):
@@ -47,13 +46,10 @@ def main():
              description=__doc__,
              formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--set-list', required=True, help='List of variant set ' +
-                        'IDs to populate. Will be updated in-place unless --outfile ' +
-                        'is specified')
+                        'IDs to populate. Will be updated in-place.')
     parser.add_argument('--memberships', action='append', help='.tsv mapping ' +
                         'set IDs (first column) to constituent variant IDs ' +
                         '(final column). Can be specified multiple times.')
-    parser.add_argument('-o', '--outfile', help='output .tsv of summary table ' + 
-                        '[default: overwrite --set-list]')
     args = parser.parse_args()
 
     # Step 1: read set list into memory
@@ -75,8 +71,8 @@ def main():
     mappings = {s : get_members(s, members) for s in slist}
 
     # Step 4: overwrite args.setlist with mappings
-    pd.DataFrame.from_dict(args.set_list, orient='index').\
-                 to_csv('.test.tsv', sep='\t', index=True, header=False)
+    pd.DataFrame.from_dict(mappings, orient='index').\
+                 to_csv(args.set_list, sep='\t', index=True, header=False)
 
 
 if __name__ == '__main__':
