@@ -23,7 +23,8 @@ cd $WRKDIR
 
 ### Set up directory trees as necessary
 for SUBDIR in data data/variant_set_freqs/filtered data/germline_vcfs \
-              data/variant_sets/test_sets; do
+              data/variant_sets/test_sets results results/assoc_stats \
+              results/assoc_stats/single; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -255,3 +256,41 @@ for context in germline somatic; do
     done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
   done
 done
+
+
+### Submit germline-somatic association jobs
+# One submission per (gene, cancer type, cohort)
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  for cancer in PDAC CRAD LUAD SKCM; do
+    while read chrom start end gene; do
+      $TMPDIR/germline_somatic_assoc.single.R \
+        --somatic-ad $COHORTDIR/data/$cohort.somatic_variants.dosage.tsv.gz \
+        --germline-ad $COHORTDIR/data/$cohort.RAS_loci.dosage.tsv.gz \
+        --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
+        --germline-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.germline_sets.tsv \
+        --outfile $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.tsv
+      gzip -f $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.tsv
+    done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
+  done
+done
+
+
+
+
+### Plot Q-Qs for each set of association statistics
+# 1. Combine association statistics across all genes per cancer type & cohort
+# 2. Plot one QQ for each cancer type & cohort
+# TODO: implement this
+
+
+### Submit meta-analyses for overlapping variants between cohorts
+# TODO: implement this
+

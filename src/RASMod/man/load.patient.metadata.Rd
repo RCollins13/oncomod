@@ -4,15 +4,22 @@
 \alias{load.patient.metadata}
 \title{Load Patient Metadata}
 \usage{
-load.patient.metadata(file, fill.missing = NA, missing.columns = NULL)
+load.patient.metadata(
+  file,
+  fill.missing = NA,
+  missing.columns = NULL,
+  deduplicate = FALSE
+)
 }
 \arguments{
 \item{file}{Path to input patient metadata .tsv}
 
 \item{fill.missing}{Behavior for handling missing values. See \code{Details}. [default: NA]}
 
-\item{fill.columns}{Specify in which columns missing values should be filled.
+\item{deduplicate}{Deduplicate based on patient ID / first column [default: FALSE]
 See \code{Details}. [default: NULL]}
+
+\item{fill.columns}{Specify in which columns missing values should be filled.}
 }
 \value{
 data.frame of patient metadata
