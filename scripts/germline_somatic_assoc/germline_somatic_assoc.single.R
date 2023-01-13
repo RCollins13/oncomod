@@ -55,16 +55,17 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta){
   test.df[, -c(1:2)] <- apply(test.df[, -c(1:2)], 2, scale)
 
   # Run association model
-  fit <- glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df)
+  fit <- glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df, family="binomial")
 
   # Extract association stats for germline variants
-  assoc.res <- as.numeric(summary(fit)$coefficients["X", c("Estimate", "Std. Error", "Pr(>|t|)")])
+  assoc.res <- as.numeric(summary(fit)$coefficients["X", ])
   c("samples"=n.samples,
     "somatic_AC"=somatic.ac,
     "germline_AC"=germline.ac,
     "beta"=assoc.res[1],
     "beta_SE"=assoc.res[2],
-    "p"=assoc.res[3])
+    "z"=assoc.res[3],
+    "p"=assoc.res[4])
 }
 
 
