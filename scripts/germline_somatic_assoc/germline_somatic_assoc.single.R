@@ -76,9 +76,6 @@ parser <- ArgumentParser(description=paste("Conduct single-cohort germline-somat
                                            "association tests for a single cancer type"))
 parser$add_argument('--sample-metadata', metavar='.tsv', type="character",
                     help='sample metadata .tsv', required=TRUE)
-parser$add_argument('--cancer-type', metavar='character',
-                    help=paste("Subset to samples from this cancer type",
-                               "[default: use all samples]"))
 parser$add_argument('--somatic-ad', metavar='.tsv', type="character",
                     help='Somatic allele dosage matrix', required=TRUE)
 parser$add_argument('--germline-ad', metavar='.tsv', type="character",
@@ -89,6 +86,9 @@ parser$add_argument('--germline-variant-sets', metavar='.tsv', type="character",
                     help='Two-column .tsv of germline variant sets', required=TRUE)
 parser$add_argument('--outfile', metavar='path', type="character", required=TRUE,
                     help='output .tsv file for association statistics')
+parser$add_argument('--cancer-type', metavar='character',
+                    help=paste("Subset to samples from this cancer type",
+                               "[default: use all samples]"))
 args <- parser$parse_args()
 
 # # DEV
@@ -101,25 +101,26 @@ args <- parser$parse_args()
 #              "somatic-variant-sets" = "~/scratch/PDAC.KRAS.somatic_endpoints.tsv")
 
 # Load patient metadata and subset to cancer type of interest (if optioned)
-meta <- load.patient.metadata(args$`sample-metadata`, fill.missing="median",
+meta <- load.patient.metadata(args$sample_metadata, fill.missing="median",
                               deduplicate=TRUE)
-if(!is.null(args$`cancer-type`)){
-  meta <- meta[which(meta$CANCER_TYPE == args$`cancer-type`), ]
+if(!is.null(args$cancer_type)){
+  meta <- meta[which(meta$CANCER_TYPE == args$cancer_type), ]
+  cat(paste("Retained", nrow(meta), "samples from cancer type", args$cancer_type, "\n"))
 }
 rownames(meta) <- meta[, 1]
 meta[, 1] <- NULL
 samples.w.pheno <- rownames(meta)
 
 # Load germline and somatic variant lists
-germline.sets <- load.variant.sets(args$`germline-variant-sets`)
+germline.sets <- load.variant.sets(args$germline_variant_sets)
 germline.vids <- unique(unlist(germline.sets$variant_ids))
-somatic.sets <- load.variant.sets(args$`somatic-variant-sets`)
+somatic.sets <- load.variant.sets(args$somatic_variant_sets)
 somatic.vids <- unique(unlist(somatic.sets$variant_ids))
 
 # Load germline and somatic allele depth matrixes
-germline.ad <- load.ad.matrix(args$`germline-ad`, sample.subset=samples.w.pheno,
+germline.ad <- load.ad.matrix(args$germline_ad, sample.subset=samples.w.pheno,
                               variant.subset=germline.vids)
-somatic.ad <- load.ad.matrix(args$`somatic-ad`, sample.subset=samples.w.pheno,
+somatic.ad <- load.ad.matrix(args$somatic_ad, sample.subset=samples.w.pheno,
                              variant.subset=somatic.vids)
 
 # Compute association statistics for each somatic endpoint

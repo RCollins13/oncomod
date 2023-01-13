@@ -259,6 +259,10 @@ done
 
 
 ### Submit germline-somatic association jobs
+# Ensure most recent version of RASMod R package is installed from source
+Rscript -e "install.packages('$CODEDIR/src/RASMod_0.1.tar.gz', \
+                             lib='~/R/x86_64-pc-linux-gnu-library/3.6', \
+                             type='source', repos=NULL)"
 # One submission per (gene, cancer type, cohort)
 for cohort in TCGA PROFILE; do
   case $cohort in
@@ -271,13 +275,27 @@ for cohort in TCGA PROFILE; do
   esac
   for cancer in PDAC CRAD LUAD SKCM; do
     while read chrom start end gene; do
-      $TMPDIR/germline_somatic_assoc.single.R \
-        --somatic-ad $COHORTDIR/data/$cohort.somatic_variants.dosage.tsv.gz \
-        --germline-ad $COHORTDIR/data/$cohort.RAS_loci.dosage.tsv.gz \
-        --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
-        --germline-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.germline_sets.tsv \
-        --outfile $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.tsv
-      gzip -f $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.tsv
+      cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sh
+$CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
+  --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+  --cancer-type $cancer \
+  --somatic-ad $COHORTDIR/data/$cohort.somatic_variants.dosage.tsv.gz \
+  --germline-ad $COHORTDIR/data/$cohort.RAS_loci.dosage.tsv.gz \
+  --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
+  --germline-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.germline_sets.tsv \
+  --outfile $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.tsv
+gzip -f $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.tsv
+EOF
+      chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sh
+      for suf in err log; do
+        logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$suf
+        if [ -e $logfile ]; then rm $logfile; fi
+      done
+      bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+        -J germline_somatic_assoc_${cohort}_${cancer}_${gene} \
+        -o $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.log \
+        -e $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.err \
+        $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sh
     done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
   done
 done
