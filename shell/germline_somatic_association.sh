@@ -24,7 +24,8 @@ cd $WRKDIR
 ### Set up directory trees as necessary
 for SUBDIR in data data/variant_set_freqs/filtered data/germline_vcfs \
               data/variant_sets/test_sets results results/assoc_stats \
-              results/assoc_stats/single; do
+              results/assoc_stats/single results/assoc_stats/merged \
+              results/assoc_stats/meta; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -268,14 +269,20 @@ for cohort in TCGA PROFILE; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
+      mem=16000
+      cpu=4
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      mem=32000
+      cpu=8
       ;;
   esac
   for cancer in PDAC CRAD LUAD SKCM; do
     while read chrom start end gene; do
-      cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sh
+      if ! [ -e $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.tsv.gz ] || \
+         ! [ -s $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.tsv.gz ]; then
+        cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sh
 $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
   --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
   --cancer-type $cancer \
@@ -286,16 +293,17 @@ $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
   --outfile $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.tsv
 gzip -f $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.tsv
 EOF
-      chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sh
-      for suf in err log; do
-        logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$suf
-        if [ -e $logfile ]; then rm $logfile; fi
-      done
-      bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
-        -J germline_somatic_assoc_${cohort}_${cancer}_${gene} \
-        -o $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.log \
-        -e $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.err \
-        $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sh
+        chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sh
+        for suf in err log; do
+          logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$suf
+          if [ -e $logfile ]; then rm $logfile; fi
+        done
+        bsub -q big-multi -sla miket_sc -R "rusage[mem=${mem}]" -n $cpu \
+          -J germline_somatic_assoc_${cohort}_${cancer}_${gene} \
+          -o $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.log \
+          -e $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.err \
+          $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sh
+      fi
     done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
   done
 done
@@ -305,6 +313,17 @@ done
 
 ### Plot Q-Qs for each set of association statistics
 # 1. Combine association statistics across all genes per cancer type & cohort
+for cohort in TCGA PROFILE; do
+  for cancer in PDAC CRAD LUAD SKCM; do
+    if [ $( find $WRKDIR/results/assoc_stats/single/ -name "$cohort.$cancer.*.sumstats.tsv.gz" | wc -l ) -eq 3 ]; then
+      zcat $WRKDIR/results/assoc_stats/single/$cohort.$cancer.*.sumstats.tsv.gz \
+      | grep -v "^#" | sort -nk9,9 \
+      | cat <( zcat $WRKDIR/results/assoc_stats/single/$cohort.$cancer.NRAS.sumstats.tsv.gz | head -n1 ) - \
+      | gzip -c \
+      > $WRKDIR/results/assoc_stats/merged/$cohort.$cancer.sumstats.tsv.gz
+    fi
+  done
+done
 # 2. Plot one QQ for each cancer type & cohort
 # TODO: implement this
 

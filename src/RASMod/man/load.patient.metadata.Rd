@@ -7,7 +7,7 @@
 load.patient.metadata(
   file,
   fill.missing = NA,
-  missing.columns = NULL,
+  fill.columns = NULL,
   deduplicate = FALSE
 )
 }
@@ -16,10 +16,10 @@ load.patient.metadata(
 
 \item{fill.missing}{Behavior for handling missing values. See \code{Details}. [default: NA]}
 
+\item{fill.columns}{Specify in which columns missing values should be filled.}
+
 \item{deduplicate}{Deduplicate based on patient ID / first column [default: FALSE]
 See \code{Details}. [default: NULL]}
-
-\item{fill.columns}{Specify in which columns missing values should be filled.}
 }
 \value{
 data.frame of patient metadata
@@ -28,20 +28,9 @@ data.frame of patient metadata
 Load a standard patient metadata file for a single cohort
 }
 \details{
-Recognized values for \code{fill.missing} include:
-\itemize{
-\item \code{NA} : do not fill any missing values
-\item \code{"mean"} : impute missing values as the mean of all non-missing values
-\item \code{"median"} : impute missing values as the median of all non-missing values
-\item \code{"mode"} : impute missing values as the mode of all non-missing values
+See \link{impute.missing.values} for information on \code{fill.missing} and \code{fill.columns}.
+To disable missing value imputation, provide \code{fill.missing} = \code{NA}.
 }
-
-Note that \code{fill.missing} values of \code{"mean"} and \code{"median"} are only applicable to
-columns with numeric values (e.g., age, BMI, etc.). For non-numeric columns,
-the behavior of \code{fill.missing = "mode"} will always be applied unless \code{fill.missing}
-is set to \code{NA} (the default\).
-
-All columns will be subjected to automated missing value imputation unless a
-non-\code{NULL} value is supplied to \code{fill.columns}, in which case only the column
-names passed to \code{fill.columns}will be filled.
+\seealso{
+\link{impute.missing.values}
 }

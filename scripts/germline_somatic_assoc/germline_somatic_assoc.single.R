@@ -58,7 +58,11 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta){
   fit <- glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df, family="binomial")
 
   # Extract association stats for germline variants
-  assoc.res <- as.numeric(summary(fit)$coefficients["X", ])
+  if(is.na(fit$coefficients["X"])){
+    assoc.res <- rep(NA, 4)
+  }else{
+    assoc.res <- as.numeric(summary(fit)$coefficients["X", ])
+  }
   c("samples"=n.samples,
     "somatic_AC"=somatic.ac,
     "germline_AC"=germline.ac,
@@ -90,20 +94,40 @@ parser$add_argument('--outfile', metavar='path', type="character", required=TRUE
 parser$add_argument('--cancer-type', metavar='character',
                     help=paste("Subset to samples from this cancer type",
                                "[default: use all samples]"))
+parser$add_argument('--multiPop-min-ac', metavar='integer', default=10, type='numeric',
+                    help=paste("Restrict tests involving germline or somatic ",
+                               "counts below this threshold to European-only ",
+                               "[default: 10]"))
+parser$add_argument('--multiPop-min-freq', metavar='float', default=0.01, type='numeric',
+                    help=paste("Restrict tests involving germline or somatic ",
+                               "frequencies below this threshold to European-only ",
+                               "[default: 0.01]"))
 args <- parser$parse_args()
 
-# # DEV
-# args <- list("sample-metadata" = "~/scratch/TCGA.ALL.sample_metadata.tsv.gz",
-#              "cancer-type" = "PDAC",
-#              "germline-ad" = "~/scratch/TCGA.RAS_loci.dosage.tsv.gz",
-#              "germline-variant-sets" = "~/scratch/PDAC.KRAS.germline_sets.tsv",
+# # DEV - TCGA
+# args <- list("sample_metadata" = "~/scratch/TCGA.ALL.sample_metadata.tsv.gz",
+#              "cancer_type" = "PDAC",
+#              "germline_ad" = "~/scratch/TCGA.RAS_loci.dosage.tsv.gz",
+#              "germline_variant_sets" = "~/scratch/PDAC.KRAS.germline_sets.tsv",
 #              "outfile" = "~/scratch/TCGA.PDAC.KRAS.sumstats.tsv",
-#              "somatic-ad" = "~/scratch/TCGA.somatic_variants.dosage.tsv.gz",
-#              "somatic-variant-sets" = "~/scratch/PDAC.KRAS.somatic_endpoints.tsv")
+#              "somatic_ad" = "~/scratch/TCGA.somatic_variants.dosage.tsv.gz",
+#              "somatic_variant_sets" = "~/scratch/PDAC.KRAS.somatic_endpoints.tsv",
+#              "multiPop_min_ac" = 10,
+#              "multiPop_min_freq" = 0.01)
+
+# # DEV - PROFILE
+# args <- list("sample_metadata" = "~/scratch/PROFILE.ALL.sample_metadata.tsv.gz",
+#              "cancer_type" = "SKCM",
+#              "germline_ad" = "~/scratch/PROFILE.RAS_loci.dosage.tsv.gz",
+#              "germline_variant_sets" = "~/scratch/SKCM.NRAS.germline_sets.tsv",
+#              "outfile" = "~/scratch/PROFILE.SKCM.NRAS.sumstats.tsv",
+#              "somatic_ad" = "~/scratch/PROFILE.somatic_variants.dosage.tsv.gz",
+#              "somatic_variant_sets" = "~/scratch/SKCM.NRAS.somatic_endpoints.tsv",
+#              "multiPop_min_ac" = 10,
+#              "multiPop_min_freq" = 0.01)
 
 # Load patient metadata and subset to cancer type of interest (if optioned)
-meta <- load.patient.metadata(args$sample_metadata, fill.missing="median",
-                              deduplicate=TRUE)
+meta <- load.patient.metadata(args$sample_metadata, deduplicate=TRUE)
 if(!is.null(args$cancer_type)){
   meta <- meta[which(meta$CANCER_TYPE == args$cancer_type), ]
   cat(paste("Retained", nrow(meta), "samples from cancer type", args$cancer_type, "\n"))
@@ -111,6 +135,9 @@ if(!is.null(args$cancer_type)){
 rownames(meta) <- meta[, 1]
 meta[, 1] <- NULL
 samples.w.pheno <- rownames(meta)
+
+# Impute missing phenotype data as median or mode (depending on variable class)
+meta <- impute.missing.values(meta, fill.missing="median")
 
 # Load germline and somatic variant lists
 germline.sets <- load.variant.sets(args$germline_variant_sets)
@@ -151,6 +178,22 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
     samples <- intersect(som.samples, germ.samples)
     y.vals <- y.vals[samples]
     x.vals <- x.vals[samples]
+
+    # If germline or somatic variants are <1% freq / <10 counts, restrict to
+    # European samples to protect against pop strat
+    eur.only <- FALSE
+    if(sum(x.vals) < args$multiPop_min_ac
+       | sum(x.vals) / length(samples) < args$multiPop_min_freq
+       | sum(y.vals) < args$multiPop_min_ac
+       | sum(y.vals) / length(samples) < args$multiPop_min_freq){
+      eur.samples <- rownames(meta[which(meta$POPULATION == "EUR"), ])
+      samples <- intersect(samples, eur.samples)
+      x.vals <- x.vals[samples]
+      y.vals <- y.vals[samples]
+      eur.only <- TRUE
+    }
+
+    # Ensure non-zero counts for X and Y
     if(length(samples) == 0
        | length(table(x.vals)) < 2
        | length(table(y.vals)) < 2){
@@ -158,7 +201,8 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
     }
 
     # If all checks pass above, run association test
-    c("germline"=germ.sid, germline.somatic.assoc(y.vals, x.vals, samples, meta))
+    c("germline"=germ.sid, germline.somatic.assoc(y.vals, x.vals, samples, meta),
+      "EUR_only"=eur.only)
   })
   res.by.germline <- as.data.frame(do.call("rbind", res.by.germline))
   cbind("somatic"=som.sid, res.by.germline)
