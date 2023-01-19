@@ -31,22 +31,22 @@ parser$add_argument('--stats', metavar='.tsv', type="character",
                     help='sample metadata .tsv', required=TRUE)
 parser$add_argument('--outfile', metavar='path', type="character", required=TRUE,
                     help='output .png file for QQ plot')
-parser$add_argument('--cancer-type', metavar='string',
+parser$add_argument('--cancer', metavar='string',
                     help=paste("Color based on this cancer type [default: grey]"))
-pparser$add_argument('--cohort', metavar='string',
+parser$add_argument('--cohort', metavar='string',
                      help=paste("Color based on this cohort [default: color by cancer]"))
 parser$add_argument('--p-column', metavar='string', default='p',
                     help=paste("Column name for P-values [default: 'p']"))
-parser$add_argument('--p-threshold', metavar='numeric',
+parser$add_argument('--p-threshold', metavar='numeric', type="double",
                     help=paste("P-value threshold for significance [default: Bonferroni]"))
-parser$add_argument('--pt-cex', type=numeric, metavar="float", default=0.35,
+parser$add_argument('--pt-cex', type="double", metavar="float", default=0.35,
                     help=paste("Size scalar for points [default: 0.35]"))
 args <- parser$parse_args()
 
 # # DEV
 # args <- list("stats" = "~/scratch/TCGA.LUAD.sumstats.tsv.gz",
 #           "outfile" = "~/scratch/TCGA.LUAD.qq.png",
-#           "cancer_type" = "LUAD",
+#           "cancer" = "LUAD",
 #           "cohort" = "TCGA",
 #           "p_column" = "p",
 #           "p_threshold" = 0.0000003218497,

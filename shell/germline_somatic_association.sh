@@ -25,7 +25,8 @@ cd $WRKDIR
 for SUBDIR in data data/variant_set_freqs/filtered data/germline_vcfs \
               data/variant_sets/test_sets results results/assoc_stats \
               results/assoc_stats/single results/assoc_stats/merged \
-              results/assoc_stats/meta; do
+              results/assoc_stats/meta plots/germline_somatic_assoc \
+              plots/germline_somatic_assoc/qq; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -329,7 +330,22 @@ for cohort in TCGA PROFILE; do
     fi
   done
 done
+# TODO: explore necessity of saddlepoint reapproximation of null
+# If necessary, this should be applied here
 # 3. Plot one QQ for each cancer type & cohort
+for cohort in TCGA PROFILE; do
+  for cancer in PDAC CRAD LUAD SKCM; do
+    if [ -e $WRKDIR/results/assoc_stats/merged/$cohort.$cancer.sumstats.tsv.gz ]; then
+      $TMPDIR/plot_qq.R \
+        --stats $WRKDIR/results/assoc_stats/merged/$cohort.$cancer.sumstats.tsv.gz \
+        --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.$cancer.qq.png \
+        --cancer $cancer \
+        --cohort $cohort \
+        --p-threshold 0.0000003218497
+    fi
+  done
+done
+
 # TODO: implement this
 
 
