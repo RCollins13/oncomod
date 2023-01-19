@@ -310,7 +310,14 @@ done
 
 
 ### Plot Q-Qs for each set of association statistics
-# 1. Combine association statistics across all genes per cancer type & cohort
+# 1. Ensure newest version of rCNV2 R package is loaded
+cd $WRKDIR/../code/rCNV2 && \
+git pull && \
+cd - && \
+Rscript -e "install.packages('$WRKDIR/../code/rCNV2/source/rCNV2_1.0.0.tar.gz', \
+                             lib='~/R/x86_64-pc-linux-gnu-library/3.6', \
+                             type='source', repos=NULL)"
+# 2. Combine association statistics across all genes per cancer type & cohort
 for cohort in TCGA PROFILE; do
   for cancer in PDAC CRAD LUAD SKCM; do
     if [ $( find $WRKDIR/results/assoc_stats/single/ -name "$cohort.$cancer.*.sumstats.tsv.gz" | wc -l ) -eq 3 ]; then
@@ -322,7 +329,7 @@ for cohort in TCGA PROFILE; do
     fi
   done
 done
-# 2. Plot one QQ for each cancer type & cohort
+# 3. Plot one QQ for each cancer type & cohort
 # TODO: implement this
 
 
