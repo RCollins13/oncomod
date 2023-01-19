@@ -108,6 +108,7 @@ clinvar_remap = {'Pathogenic' : 'P',
                 'Conflicting_interpretations_of_pathogenicity' : 'CONFLICTING',
                 'Likely_benign' : 'LB',
                 'Benign' : 'B'}
+ras_genes = 'KRAS NRAS HRAS'.split()
 
 
 def reformat_header(invcf):
@@ -440,6 +441,16 @@ def cleanup_cnv(record, vep_fields, gtf_tabix):
         csq_entries.append('|'.join(vep_vals.values()))
 
     record.info['CSQ'] = ','.join(csq_entries)
+
+    # Rewrite variant ID based on protein-coding gene(s) impacted
+    pc_genes = [v.get('gene_name') for v in hit_dicts \
+                if v.get('transcript_type') == 'protein_coding']
+    pc_genes = sorted(list(set(pc_genes)))
+    # Ensure RAS genes are marked on their own, for clarity
+    if any([g in ras_genes for g in pc_genes]):
+        pc_genes = [g for g in pc_genes if g in ras_genes]
+    if len(pc_genes) > 0:
+        record.id = '_'.join(pc_genes + [record.info['SVTYPE']])
 
     return record
 

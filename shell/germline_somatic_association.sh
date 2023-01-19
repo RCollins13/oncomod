@@ -309,8 +309,6 @@ EOF
 done
 
 
-
-
 ### Plot Q-Qs for each set of association statistics
 # 1. Combine association statistics across all genes per cancer type & cohort
 for cohort in TCGA PROFILE; do
