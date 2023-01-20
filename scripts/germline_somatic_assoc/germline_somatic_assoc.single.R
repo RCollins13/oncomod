@@ -98,11 +98,11 @@ parser$add_argument('--outfile', metavar='path', type="character", required=TRUE
 parser$add_argument('--cancer-type', metavar='character',
                     help=paste("Subset to samples from this cancer type",
                                "[default: use all samples]"))
-parser$add_argument('--multiPop-min-ac', metavar='integer', default=10, type='numeric',
+parser$add_argument('--multiPop-min-ac', metavar='integer', default=10, type='integer',
                     help=paste("Restrict tests involving germline or somatic ",
                                "counts below this threshold to European-only ",
                                "[default: 10]"))
-parser$add_argument('--multiPop-min-freq', metavar='float', default=0.01, type='numeric',
+parser$add_argument('--multiPop-min-freq', metavar='float', default=0.01, type='double',
                     help=paste("Restrict tests involving germline or somatic ",
                                "frequencies below this threshold to European-only ",
                                "[default: 0.01]"))
