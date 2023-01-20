@@ -10,7 +10,8 @@ load.ad.matrix(
   sample.subset = NULL,
   sort.variants = TRUE,
   variant.subset = NULL,
-  drop.ref.records = TRUE
+  drop.ref.records = TRUE,
+  duplicate.variant.action = max
 )
 }
 \arguments{
@@ -29,6 +30,9 @@ will not be subset. [default: no subsetting]}
 
 \item{drop.ref.records}{Drop variants from matrix with no observed carriers
 [default: TRUE]}
+
+\item{duplicate.variant.action}{Action for collapsing rows with identical
+variant IDs [default: \link{max}]}
 }
 \value{
 data.frame

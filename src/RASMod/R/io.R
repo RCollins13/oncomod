@@ -136,6 +136,8 @@ load.variant.sets <- function(file){
 #' will not be subset. \[default: no subsetting\]
 #' @param drop.ref.records Drop variants from matrix with no observed carriers
 #' \[default: TRUE\]
+#' @param duplicate.variant.action Action for collapsing rows with identical
+#' variant IDs \[default: [max]\]
 #'
 #' @return data.frame
 #'
@@ -143,9 +145,21 @@ load.variant.sets <- function(file){
 #' @export
 load.ad.matrix <- function(file, sort.samples=TRUE, sample.subset=NULL,
                            sort.variants=TRUE, variant.subset=NULL,
-                           drop.ref.records=TRUE){
-  # Load matrix, clean header, and relocate variant ID to rownames
+                           drop.ref.records=TRUE, duplicate.variant.action=max){
+  # Load matrix
   ad <- read.table(file, header=T, sep="\t", comment.char="", check.names=F)
+
+  # Handle duplicate variant IDs
+  dup.ids <- unique(ad[, 1][duplicated(ad[, 1])])
+  for(dup.id in dup.ids){
+    dup.idxs <- which(ad[, 1] == dup.id)
+    dedup.values <- apply(ad[dup.idxs, -1], 2, duplicate.variant.action, na.rm=T)
+    dedup.values[which(is.infinite(dedup.values))] <- NA
+    ad[dup.idxs[1], -1] <- dedup.values
+    ad <- ad[-dup.idxs[2:length(dup.idxs)], ]
+  }
+
+  #relocate variant ID to rownames
   rownames(ad) <- ad[, 1]
   ad[, 1] <- NULL
 

@@ -112,10 +112,10 @@ args <- parser$parse_args()
 # args <- list("sample_metadata" = "~/scratch/TCGA.ALL.sample_metadata.tsv.gz",
 #              "cancer_type" = "PDAC",
 #              "germline_ad" = "~/scratch/TCGA.RAS_loci.dosage.tsv.gz",
-#              "germline_variant_sets" = "~/scratch/PDAC.KRAS.germline_sets.tsv",
-#              "outfile" = "~/scratch/TCGA.PDAC.KRAS.sumstats.tsv",
+#              "germline_variant_sets" = "~/scratch/PDAC.NRAS.germline_sets.tsv",
+#              "outfile" = "~/scratch/TCGA.PDAC.NRAS.sumstats.tsv",
 #              "somatic_ad" = "~/scratch/TCGA.somatic_variants.dosage.tsv.gz",
-#              "somatic_variant_sets" = "~/scratch/PDAC.KRAS.somatic_endpoints.tsv",
+#              "somatic_variant_sets" = "~/scratch/PDAC.NRAS.somatic_endpoints.tsv",
 #              "multiPop_min_ac" = 10,
 #              "multiPop_min_freq" = 0.01)
 
