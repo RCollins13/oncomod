@@ -122,12 +122,12 @@ args <- parser$parse_args()
 
 # # DEV - PROFILE
 # args <- list("sample_metadata" = "~/scratch/PROFILE.ALL.sample_metadata.tsv.gz",
-#              "cancer_type" = "SKCM",
+#              "cancer_type" = "PDAC",
 #              "germline_ad" = "~/scratch/PROFILE.RAS_loci.dosage.tsv.gz",
-#              "germline_variant_sets" = "~/scratch/SKCM.NRAS.germline_sets.tsv",
-#              "outfile" = "~/scratch/PROFILE.SKCM.NRAS.sumstats.tsv",
+#              "germline_variant_sets" = "~/scratch/PDAC.HRAS.germline_sets.tsv",
+#              "outfile" = "~/scratch/PROFILE.PDAC.HRAS.sumstats.tsv",
 #              "somatic_ad" = "~/scratch/PROFILE.somatic_variants.dosage.tsv.gz",
-#              "somatic_variant_sets" = "~/scratch/SKCM.NRAS.somatic_endpoints.tsv",
+#              "somatic_variant_sets" = "~/scratch/PDAC.HRAS.somatic_endpoints.tsv",
 #              "multiPop_min_ac" = 10,
 #              "multiPop_min_freq" = 0.01)
 

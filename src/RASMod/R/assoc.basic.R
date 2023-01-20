@@ -42,7 +42,7 @@ query.ad.matrix <- function(ad, vids, action="verbose"){
   if(action == "any"){
     query.res <- as.numeric(apply(sub.df, 2, function(vals){any(as.logical(vals), na.rm=T)}))
   }else if(action == "sum"){
-    query.res <- apply(sub.df, 2, sum)
+    query.res <- apply(sub.df, 2, sum, na.rm=T)
   }
   query.res[col.all.na] <- NA
   names(query.res) <- colnames(sub.df)
