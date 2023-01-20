@@ -66,6 +66,7 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta){
   }else{
     assoc.res <- as.numeric(summary(fit)$coefficients["X", ])
   }
+  # Return summary vector
   c("samples"=n.samples,
     "somatic_AC"=somatic.ac,
     "yes_somatic.germline_AC"=yes_somatic.germline.ac,
@@ -83,26 +84,26 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta){
 # Parse command line arguments and options
 parser <- ArgumentParser(description=paste("Conduct single-cohort germline-somatic",
                                            "association tests for a single cancer type"))
-parser$add_argument('--sample-metadata', metavar='.tsv', type="character",
-                    help='sample metadata .tsv', required=TRUE)
-parser$add_argument('--somatic-ad', metavar='.tsv', type="character",
-                    help='Somatic allele dosage matrix', required=TRUE)
-parser$add_argument('--germline-ad', metavar='.tsv', type="character",
-                    help='Germline allele dosage matrix', required=TRUE)
-parser$add_argument('--somatic-variant-sets', metavar='.tsv', type="character",
-                    help='Two-column .tsv of somatic variant sets', required=TRUE)
-parser$add_argument('--germline-variant-sets', metavar='.tsv', type="character",
-                    help='Two-column .tsv of germline variant sets', required=TRUE)
-parser$add_argument('--outfile', metavar='path', type="character", required=TRUE,
-                    help='output .tsv file for association statistics')
-parser$add_argument('--cancer-type', metavar='character',
+parser$add_argument("--sample-metadata", metavar=".tsv", type="character",
+                    help="sample metadata .tsv", required=TRUE)
+parser$add_argument("--somatic-ad", metavar=".tsv", type="character",
+                    help="Somatic allele dosage matrix", required=TRUE)
+parser$add_argument("--germline-ad", metavar=".tsv", type="character",
+                    help="Germline allele dosage matrix", required=TRUE)
+parser$add_argument("--somatic-variant-sets", metavar=".tsv", type="character",
+                    help="Two-column .tsv of somatic variant sets", required=TRUE)
+parser$add_argument("--germline-variant-sets", metavar=".tsv", type="character",
+                    help="Two-column .tsv of germline variant sets", required=TRUE)
+parser$add_argument("--outfile", metavar="path", type="character", required=TRUE,
+                    help="output .tsv file for association statistics")
+parser$add_argument("--cancer-type", metavar="character",
                     help=paste("Subset to samples from this cancer type",
                                "[default: use all samples]"))
-parser$add_argument('--multiPop-min-ac', metavar='integer', default=10, type='integer',
+parser$add_argument("--multiPop-min-ac", metavar="integer", default=10, type="integer",
                     help=paste("Restrict tests involving germline or somatic ",
                                "counts below this threshold to European-only ",
                                "[default: 10]"))
-parser$add_argument('--multiPop-min-freq', metavar='float', default=0.01, type='double',
+parser$add_argument("--multiPop-min-freq", metavar="float", default=0.01, type="double",
                     help=paste("Restrict tests involving germline or somatic ",
                                "frequencies below this threshold to European-only ",
                                "[default: 0.01]"))

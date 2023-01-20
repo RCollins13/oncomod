@@ -18,6 +18,7 @@ export TCGADIR=/data/gusev/USERS/rlc47/TCGA
 export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
 export CODEDIR=$WRKDIR/../code/ras_modifiers
+export bonf_sig=0.0000003218497
 cd $WRKDIR
 
 
@@ -349,14 +350,89 @@ for cohort in TCGA PROFILE; do
         --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.$cancer.qq.png \
         --cancer $cancer \
         --cohort $alt_cohort \
-        --p-threshold 0.0000003218497
+        --p-threshold $bonf_sig
     fi
   done
 done
 
-# TODO: implement this
-
 
 ### Submit meta-analyses for overlapping variants between cohorts
-# TODO: implement this
+# One submission per cancer type
+for cancer in PDAC CRAD LUAD SKCM; do
+  if ! [ -s $WRKDIR/results/assoc_stats/merged/TCGA.$cancer.sumstats.tsv.gz ] || \
+     ! [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.$cancer.sumstats.tsv.gz ]; then
+    cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_meta_$cancer.sh
+$CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.meta.R \
+  --stats $WRKDIR/results/assoc_stats/merged/TCGA.$cancer.sumstats.tsv.gz \
+  --name TCGA \
+  --stats $WRKDIR/results/assoc_stats/merged/PROFILE.$cancer.sumstats.tsv.gz \
+  --name DFCI \
+  --outfile $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv
+gzip -f $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv
+EOF
+    chmod a+x $WRKDIR/LSF/scripts/germline_somatic_meta_$cancer.sh
+    for suf in err log; do
+      logfile=$WRKDIR/LSF/logs/germline_somatic_meta_$cancer.$suf
+      if [ -e $logfile ]; then rm $logfile; fi
+    done
+    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+      -J germline_somatic_meta_$cancer \
+      -o $WRKDIR/LSF/logs/germline_somatic_meta_$cancer.log \
+      -e $WRKDIR/LSF/logs/germline_somatic_meta_$cancer.err \
+      $WRKDIR/LSF/scripts/germline_somatic_meta_$cancer.sh
+  fi
+done
+# Once complete, plot one QQ for each cancer type
+for cancer in PDAC CRAD LUAD SKCM; do
+  if [ -e $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz ]; then
+    $CODEDIR/utils/plot_qq.R \
+      --stats $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz \
+      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cancer.meta.qq.png \
+      --cancer $cancer \
+      --p-threshold $bonf_sig
+  fi
+done
 
+
+### Meta-analyze results across cancers
+if ! [ -s $WRKDIR/results/assoc_stats/merged/TCGA.PDAC.sumstats.tsv.gz ] || \
+   ! [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.PDAC.sumstats.tsv.gz ] || \
+   ! [ -s $WRKDIR/results/assoc_stats/merged/TCGA.CRAD.sumstats.tsv.gz ] || \
+   ! [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.CRAD.sumstats.tsv.gz ] || \
+   ! [ -s $WRKDIR/results/assoc_stats/merged/TCGA.LUAD.sumstats.tsv.gz ] || \
+   ! [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.LUAD.sumstats.tsv.gz ] || \
+   ! [ -s $WRKDIR/results/assoc_stats/merged/TCGA.SKCM.sumstats.tsv.gz ] || \
+   ! [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.SKCM.sumstats.tsv.gz ]; then
+  cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_meta_PanCancer.sh
+$CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.meta.R \
+  --stats $WRKDIR/results/assoc_stats/meta/PDAC.meta.sumstats.tsv.gz \
+  --name PDAC \
+  --stats $WRKDIR/results/assoc_stats/meta/CRAD.meta.sumstats.tsv.gz \
+  --name CRAD \
+  --stats $WRKDIR/results/assoc_stats/meta/LUAD.meta.sumstats.tsv.gz \
+  --name LUAD \
+  --stats $WRKDIR/results/assoc_stats/meta/SKCM.meta.sumstats.tsv.gz \
+  --name SKCM \
+  --outfile $WRKDIR/results/assoc_stats/meta/PanCancer.meta.sumstats.tsv
+gzip -f $WRKDIR/results/assoc_stats/meta/PanCancer.meta.sumstats.tsv
+EOF
+  chmod a+x $WRKDIR/LSF/scripts/germline_somatic_meta_PanCancer.sh
+  for suf in err log; do
+    logfile=$WRKDIR/LSF/logs/germline_somatic_meta_PanCancer.$suf
+    if [ -e $logfile ]; then rm $logfile; fi
+  done
+  bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+    -J germline_somatic_meta_PanCancer \
+    -o $WRKDIR/LSF/logs/germline_somatic_meta_PanCancer.log \
+    -e $WRKDIR/LSF/logs/germline_somatic_meta_PanCancer.err \
+    $WRKDIR/LSF/scripts/germline_somatic_meta_PanCancer.sh
+fi
+# Once complete, plot QQ
+for cancer in PDAC CRAD LUAD SKCM; do
+  if [ -e $WRKDIR/results/assoc_stats/meta/PanCancer.meta.sumstats.tsv.gz ]; then
+    $CODEDIR/utils/plot_qq.R \
+      --stats $WRKDIR/results/assoc_stats/meta/PanCancer.meta.sumstats.tsv.gz \
+      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/PanCancer.meta.qq.png \
+      --p-threshold $bonf_sig
+  fi
+done

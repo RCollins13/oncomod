@@ -37,9 +37,9 @@ parser$add_argument('--cohort', metavar='string',
                      help=paste("Color based on this cohort [default: color by cancer]"))
 parser$add_argument('--p-column', metavar='string', default='p',
                     help=paste("Column name for P-values [default: 'p']"))
-parser$add_argument('--p-threshold', metavar='numeric', type="double",
+parser$add_argument("--p-threshold", metavar="numeric", type="double",
                     help=paste("P-value threshold for significance [default: Bonferroni]"))
-parser$add_argument('--pt-cex', type="double", metavar="float", default=0.35,
+parser$add_argument("--pt-cex", type="double", metavar="float", default=0.35,
                     help=paste("Size scalar for points [default: 0.35]"))
 args <- parser$parse_args()
 

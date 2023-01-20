@@ -50,3 +50,29 @@ query.ad.matrix <- function(ad, vids, action="verbose"){
 }
 
 
+#' Inverse-variance weighted meta-analysis
+#'
+#' Conduct an inverse-variance weighted meta-analysis of effect sizes
+#'
+#' @param x vector of observed effect sizes
+#' @param se vector of observed standard errors
+#'
+#' @return named vector of meta-analysis effect size and standard error
+#'
+#' @export ivw.meta
+#' @export
+ivw.meta <- function(x, se){
+  # Compute weights as
+  vars <- se^2
+  weights <- 1 / vars
+
+  # Compute weighted mean
+  x.bar <- weighted.mean(x, weights, na.rm=T)
+
+  # Compute standard error of sum of weighted observations
+  se.bar <- sqrt(1 / sum(weights, na.rm=T))
+
+  return(c("statistic" = x.bar, "std.err" = se.bar))
+}
+
+

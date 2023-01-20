@@ -3,6 +3,7 @@
 export(clean.axis)
 export(get.cohort.palette)
 export(impute.missing.values)
+export(ivw.meta)
 export(km.curve)
 export(load.ad.matrix)
 export(load.constants)
