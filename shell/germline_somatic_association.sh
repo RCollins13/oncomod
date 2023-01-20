@@ -334,13 +334,21 @@ done
 # If necessary, this should be applied here
 # 3. Plot one QQ for each cancer type & cohort
 for cohort in TCGA PROFILE; do
+  case $cohort in
+    PROFILE)
+      alt_cohort=DFCI
+      ;;
+    *)
+      alt_cohort=$cohort
+      ;;
+  esac
   for cancer in PDAC CRAD LUAD SKCM; do
     if [ -e $WRKDIR/results/assoc_stats/merged/$cohort.$cancer.sumstats.tsv.gz ]; then
-      $TMPDIR/plot_qq.R \
+      $CODEDIR/utils/plot_qq.R \
         --stats $WRKDIR/results/assoc_stats/merged/$cohort.$cancer.sumstats.tsv.gz \
         --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.$cancer.qq.png \
         --cancer $cancer \
-        --cohort $cohort \
+        --cohort $alt_cohort \
         --p-threshold 0.0000003218497
     fi
   done

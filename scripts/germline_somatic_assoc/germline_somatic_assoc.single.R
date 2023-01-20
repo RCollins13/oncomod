@@ -36,10 +36,13 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta){
   n.samples <- length(samples)
   somatic.ac <- sum(y.vals, na.rm=T)
   germline.ac <- sum(x.vals, na.rm=T)
+  yes_somatic.germline.ac <- sum(x.vals[which(y.vals > 0)], na.rm=T)
+  no_somatic.germline.ac <- sum(x.vals[which(y.vals == 0)], na.rm=T)
   if(any(c(n.samples, somatic.ac, germline.ac) == 0)){
     return(c("samples"=n.samples,
              "somatic_AC"=somatic.ac,
-             "germline_AC"=germline.ac,
+             "yes_somatic.germline_AC"=yes_somatic.germline.ac,
+             "no_somatic.germline_AC"=no_somatic.germline.ac,
              "beta"=NA,
              "beta_SE"=NA,
              "p"=NA))
@@ -65,7 +68,8 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta){
   }
   c("samples"=n.samples,
     "somatic_AC"=somatic.ac,
-    "germline_AC"=germline.ac,
+    "yes_somatic.germline_AC"=yes_somatic.germline.ac,
+    "no_somatic.germline_AC"=no_somatic.germline.ac,
     "beta"=assoc.res[1],
     "beta_SE"=assoc.res[2],
     "z"=assoc.res[3],

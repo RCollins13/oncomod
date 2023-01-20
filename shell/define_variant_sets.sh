@@ -335,7 +335,7 @@ for cohort in TCGA PROFILE; do
     logfile=$WRKDIR/LSF/logs/get_somatic_comutation_freqs_$cohort.$suf
     if [ -e $logfile ]; then rm $logfile; fi
   done
-  bsub -q big -sla miket_sc -R "rusage[mem=12000]" \
+  bsub -q big-multi -sla miket_sc -R "rusage[mem=24000]" -n 4 \
     -J get_somatic_comutation_freqs_$cohort \
     -o $WRKDIR/LSF/logs/get_somatic_comutation_freqs_$cohort.log \
     -e $WRKDIR/LSF/logs/get_somatic_comutation_freqs_$cohort.err \
@@ -394,7 +394,7 @@ for cohort in TCGA PROFILE; do
     logfile=$WRKDIR/LSF/logs/get_somatic_ras_plus_nonRas_comutation_freqs_$cohort.$suf
     if [ -e $logfile ]; then rm $logfile; fi
   done
-  bsub -q big -sla miket_sc -R "rusage[mem=12000]" \
+  bsub -q big-multi -sla miket_sc -R "rusage[mem=24000]" -n 6 \
     -J get_somatic_ras_plus_nonRas_comutation_freqs_$cohort \
     -o $WRKDIR/LSF/logs/get_somatic_ras_plus_nonRas_comutation_freqs_$cohort.log \
     -e $WRKDIR/LSF/logs/get_somatic_ras_plus_nonRas_comutation_freqs_$cohort.err \

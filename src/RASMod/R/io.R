@@ -84,10 +84,10 @@ impute.missing.values <- function(df, fill.missing="mean", fill.columns=NULL){
     numeric.action <- mode
   }
 
-  if(is.null(missing.columns)){
-    missing.columns <- colnames(df)[-1]
+  if(is.null(fill.columns)){
+    fill.columns <- colnames(df)[-1]
   }
-  for(col in missing.columns){
+  for(col in fill.columns){
     na.idxs <- which(is.na(df[, col]))
     if(length(na.idxs) > 0 & length(na.idxs) < nrow(df)){
       if(is.numeric(df[, col])){
