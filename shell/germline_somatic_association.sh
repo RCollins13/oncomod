@@ -357,8 +357,8 @@ done
 ### Submit meta-analyses for overlapping variants between cohorts
 # One submission per cancer type
 for cancer in PDAC CRAD LUAD SKCM; do
-  if ! [ -s $WRKDIR/results/assoc_stats/merged/TCGA.$cancer.sumstats.tsv.gz ] || \
-     ! [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.$cancer.sumstats.tsv.gz ]; then
+  if [ -s $WRKDIR/results/assoc_stats/merged/TCGA.$cancer.sumstats.tsv.gz ] && \
+     [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.$cancer.sumstats.tsv.gz ]; then
     cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_meta_$cancer.sh
 $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.meta.R \
   --stats $WRKDIR/results/assoc_stats/merged/TCGA.$cancer.sumstats.tsv.gz \
@@ -386,11 +386,19 @@ for cancer in PDAC CRAD LUAD SKCM; do
     # Plot one QQ of all sumstats
     $CODEDIR/utils/plot_qq.R \
       --stats $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz \
-      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cancer.meta.qq.png \
+      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cancer.meta_plus_single.qq.png \
       --cancer $cancer \
       --p-threshold $bonf_sig
     # Plot a second QQ of only meta-analyzed sumstats
-    # TODO: implement this
+    zcat $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz \
+    | awk -v FS="\t" '{ if ($6>1) print }' | gzip -c \
+    > $TMPDIR/$cancer.meta.sumstats.meta_only.tsv.gz
+    $CODEDIR/utils/plot_qq.R \
+      --stats $TMPDIR/$cancer.meta.sumstats.meta_only.tsv.gz \
+      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cancer.meta_only.qq.png \
+      --cancer $cancer \
+      --cohort "Meta-analysis" \
+      --p-threshold $bonf_sig
   fi
 done
 

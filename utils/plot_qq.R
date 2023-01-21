@@ -62,10 +62,11 @@ if(args$p_column != "p"){
 if(!is.null(args$cancer)){
   title <- cancer.names.short[args$cancer]
   if(!is.null(args$cohort)){
-    title <- paste(title, " (", cohort.names.short[args$cohort], ")", sep="")
     if(args$cohort %in% names(cohort.names.short)){
+      title <- paste(title, " (", cohort.names.short[args$cohort], ")", sep="")
       color <- cancer.palettes[[args$cancer]][cohort.color.prefixes[args$cohort]]
     }else{
+      title <- paste(title, " (", args$cohort, ")", sep="")
       color <- cancer.colors[args$cancer]
     }
   }else{
