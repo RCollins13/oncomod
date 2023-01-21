@@ -57,16 +57,18 @@ merge.stats <- function(stats.list){
     som.ac <- as.numeric(rvals[grep("^somatic_AC\\.", names(rvals))])
     som.freqs <- som.ac / samps
     som.freq.w <- weighted.mean(som.freqs, weights, na.rm=T)
-    # TODO: update this to yes_somatic & no_somatic once data are available
-    germ.ac <- as.numeric(rvals[grep("^germline_AC\\.", names(rvals))])
-    germ.freqs <- germ.ac / (2 * samps)
-    germ.freq.w <- weighted.mean(germ.freqs, weights, na.rm=T)
-    return(c(som.freq.w, germ.freq.w))
+    yes_som.germ.ac <- as.numeric(rvals[grep("^yes_somatic.germline_AC\\.", names(rvals))])
+    yes_som.germ.freqs <- yes_som.germ.ac / (2 * samps)
+    yes_som.germ.freq.w <- weighted.mean(yes_som.germ.freqs, weights, na.rm=T)
+    no_som.germ.ac <- as.numeric(rvals[grep("^no_somatic.germline_AC\\.", names(rvals))])
+    no_som.germ.freqs <- no_som.germ.ac / (2 * samps)
+    no_som.germ.freq.w <- weighted.mean(no_som.germ.freqs, weights, na.rm=T)
+    return(c(som.freq.w, yes_som.germ.freq.w, no_som.germ.freq.w))
   })))
-  colnames(wfreqs) <- c("somatic_freq", "germline_AF")
+  colnames(wfreqs) <- c("somatic_freq", "yes_somatic.germline_AF", "no_somatic.germline_AF")
 
   # Add cohort info & weighted frequencies to merged dataframe and drop all single-cohort freq info
-  cols.to.drop <- grep("^samples\\.|^somatic_AC\\.|^germline_AC\\.", colnames(merged))
+  cols.to.drop <- grep("^samples\\.|^somatic_AC\\.|\\.germline_AC\\.", colnames(merged))
   merged <- cbind(merged[, -cols.to.drop], cohort.info, wfreqs)
 
   # Meta-analyze effect sizes
@@ -85,8 +87,9 @@ merge.stats <- function(stats.list){
 
   # Sort rows and reorder columns
   merged[with(merged, order(somatic, germline)),
-         c("somatic", "germline", "somatic_freq", "germline_AF",
-           "N_cohorts", "cohorts", "beta", "beta_SE", "z", "p")]
+         c("somatic", "germline", "somatic_freq", "yes_somatic.germline_AF",
+           "no_somatic.germline_AF", "N_cohorts", "cohorts",
+           "beta", "beta_SE", "z", "p")]
 }
 
 
@@ -106,11 +109,9 @@ parser$add_argument("--outfile", metavar="path", type="character", required=TRUE
 args <- parser$parse_args()
 
 # # DEV
-# args <- list("stats"=c("~/scratch/PROFILE.LUAD.sumstats.tsv.gz",
-#                        "~/scratch/TCGA.LUAD.sumstats.tsv.gz",
-#                        "~/scratch/PROFILE.LUAD.sumstats.tsv.gz",
-#                        "~/scratch/TCGA.LUAD.sumstats.tsv.gz"),
-#              "name"=c("PROFILE", "TCGA", "PROFILE2", "TCGA2"),
+# args <- list("stats"=c("~/scratch/PROFILE.SKCM.sumstats.tsv.gz",
+#                        "~/scratch/TCGA.SKCM.sumstats.tsv.gz"),
+#              "name"=c("PROFILE", "TCGA"),
 #              "outfile"="~/scratch/meta.test.tsv")
 
 # Sanity-check lengths of --stats and --names

@@ -331,8 +331,6 @@ for cohort in TCGA PROFILE; do
     fi
   done
 done
-# TODO: explore necessity of saddlepoint reapproximation of null
-# If necessary, this should be applied here
 # 3. Plot one QQ for each cancer type & cohort
 for cohort in TCGA PROFILE; do
   case $cohort in
@@ -385,11 +383,14 @@ done
 # Once complete, plot one QQ for each cancer type
 for cancer in PDAC CRAD LUAD SKCM; do
   if [ -e $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz ]; then
+    # Plot one QQ of all sumstats
     $CODEDIR/utils/plot_qq.R \
       --stats $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz \
       --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cancer.meta.qq.png \
       --cancer $cancer \
       --p-threshold $bonf_sig
+    # Plot a second QQ of only meta-analyzed sumstats
+    # TODO: implement this
   fi
 done
 

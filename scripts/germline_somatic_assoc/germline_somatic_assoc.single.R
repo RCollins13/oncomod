@@ -108,7 +108,7 @@ parser$add_argument("--multiPop-min-freq", metavar="float", default=0.01, type="
                                "frequencies below this threshold to European-only ",
                                "[default: 0.01]"))
 args <- parser$parse_args()
-
+#
 # # DEV - TCGA
 # args <- list("sample_metadata" = "~/scratch/TCGA.ALL.sample_metadata.tsv.gz",
 #              "cancer_type" = "PDAC",
@@ -212,7 +212,11 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
   if(typeof(res.by.germline) == "list"){
     res.by.germline <- as.data.frame(do.call("rbind", res.by.germline))
   }
-  cbind("somatic"=som.sid, res.by.germline)
+  if(!is.null(res.by.germline)){
+    cbind("somatic"=som.sid, res.by.germline)
+  }else{
+    return(NULL)
+  }
 })
 res <- as.data.frame(do.call("rbind", res.by.somatic))
 
