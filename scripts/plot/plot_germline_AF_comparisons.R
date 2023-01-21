@@ -45,7 +45,7 @@ load.vcf2bed <- function(file, suffix=NULL){
 # Plot a density-colored scatterplot of AF correlations between two cohorts
 plot.AF.scatter <- function(x, y, pair.names, pop){
   prep.plot.area(xlims=c(0, 1), ylims=c(0, 1), parmar=c(2.5, 2.5, 1.25, 1.25))
-  dens.scatter(x=x, y=y, add=T, pt.cex=0.3,
+  dens.scatter(x=x, y=y, add=T, pt.cex=0.3, xpd=T,
                palette=colorRampPalette(get(paste(pop, "colors", sep="."))))
   sapply(1:2, function(k){
     clean.axis(k, title=paste(pair.names[k], "AF"), infinite=T)
@@ -107,14 +107,32 @@ apply(combn(args$name, 2), 2, function(pair.names){
     sub.dat <- dat[, col.names]
     sub.dat <- sub.dat[complete.cases(sub.dat), ]
     if(nrow(sub.dat) == 0){return()}
-    png(paste(args$out_prefix, "intercohort_AF_comparison",
+    png(paste(args$out_prefix, "intercohort_comparison",
               pair.names[1], pair.names[2], pop, "png", sep="."),
         height=3*300, width=3*300, res=300)
-
+    plot.AF.scatter(x=sub.dat[, 1], y=sub.dat[, 2], pair.names, pop)
     dev.off()
   })
 })
 
 
-
+##########################
+# Comparisons vs. gnomAD #
+##########################
+sapply(args$name, function(cohort){
+  # One plot per ancestry
+  sapply(setdiff(names(pop.names.short), "SAS"), function(pop){
+    col.name <- paste(pop, "_AF.", cohort, sep="")
+    if(!(col.name %in% colnames(dat))){return()}
+    gpop <- if(pop == "EUR"){"NFE"}else{pop}
+    gcol.name <- paste("gnomAD_AF_", gpop, sep="")
+    sub.dat <- dat[, c(col.name, gcol.name)]
+    sub.dat <- sub.dat[complete.cases(sub.dat), ]
+    if(nrow(sub.dat) == 0){return()}
+    png(paste(args$out_prefix, "gnomAD_comparison", cohort, pop, "png", sep="."),
+        height=3*300, width=3*300, res=300)
+    plot.AF.scatter(x=sub.dat[, 1], y=sub.dat[, 2], c(cohort, "gnomAD"), pop)
+    dev.off()
+  })
+})
 

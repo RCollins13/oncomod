@@ -139,5 +139,11 @@ for cohort in TCGA PROFILE; do
   > $WRKDIR/data/plotting/$cohort.germline_variants.bed.gz
 done
 # Plot correlations of germline AFs (inter-cohort & each cohort vs. gnomAD)
-# Note: requires a merged VCF as generated in 
+$CODEDIR/scripts/plot/plot_germline_AF_comparisons.R \
+  --bed $WRKDIR/data/plotting/TCGA.germline_variants.bed.gz \
+  --name TCGA \
+  --bed $WRKDIR/data/plotting/PROFILE.germline_variants.bed.gz \
+  --name DFCI \
+  --out-prefix $WRKDIR/plots/overview/germline_AF
+  
 
