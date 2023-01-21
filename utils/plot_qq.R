@@ -41,6 +41,8 @@ parser$add_argument("--p-threshold", metavar="numeric", type="double",
                     help=paste("P-value threshold for significance [default: Bonferroni]"))
 parser$add_argument("--pt-cex", type="double", metavar="float", default=0.35,
                     help=paste("Size scalar for points [default: 0.35]"))
+parser$add_argument("--smallest-p", type="double", metavar="float", default=10e-20,
+                    help=paste("P-values below this threshold will be rounded [default: 10E-20]"))
 args <- parser$parse_args()
 
 # # DEV
@@ -50,7 +52,8 @@ args <- parser$parse_args()
 #           "cohort" = "TCGA",
 #           "p_column" = "p",
 #           "p_threshold" = 0.0000003218497,
-#           "pt_cex" = 0.35)
+#           "pt_cex" = 0.35,
+#           "smallest_p" = 10E-20)
 
 # Load data
 df <- read.table(args$stats, header=T, sep="\t", check.names=F, comment.char="")
@@ -79,7 +82,7 @@ if(!is.null(args$cancer)){
 
 # Plot QQ
 png(args$outfile, height=3*300, width=3*300, res=300)
-rCNV2::plot.qq(df, cutoff=args$p_threshold,
+rCNV2::plot.qq(df, smallest.p=args$smallest_p, cutoff=args$p_threshold,
                pt.color=color, pt.cex=args$pt_cex, echo.lambdas=T)
 mtext(title, 3, line=-0.5, cex=0.85)
 dev.off()
