@@ -316,7 +316,7 @@ done
 cd $WRKDIR/../code/rCNV2 && \
 git pull && \
 cd - && \
-Rscript -e "install.packages('$WRKDIR/../code/rCNV2/source/rCNV2_1.0.0.tar.gz', \
+Rscript -e "install.packages('$WRKDIR/../code/rCNV2/source/rCNV2_1.0.1.tar.gz', \
                              lib='~/R/x86_64-pc-linux-gnu-library/3.6', \
                              type='source', repos=NULL)"
 # 2. Combine association statistics across all genes per cancer type & cohort

@@ -471,7 +471,7 @@ for cohort in TCGA PROFILE; do
          $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
          $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
          $sample_field \
-         $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.wAF.gz"
+         $COHORTDIR/data/$cohort.$subset.anno.clean.wAF.vcf.gz"
   done
 done
 

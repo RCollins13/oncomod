@@ -278,3 +278,4 @@ km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
   yaxis.legend(legend.names, x=xlims[2] + (0.05*diff(xlims)), y.positions=final.y,
                sep.wex=0.05*diff(xlims), colors=colors)
 }
+

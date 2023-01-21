@@ -29,8 +29,14 @@ for SUBDIR in plots plots/overview data/plotting; do
 done
 
 
-### Ensure most recent version of RASMod R package is installed from source
+### Ensure most recent version of RASMod & rCNV2 R packages are installed from source
 Rscript -e "install.packages('$CODEDIR/src/RASMod_0.1.tar.gz', \
+                             lib='~/R/x86_64-pc-linux-gnu-library/3.6', \
+                             type='source', repos=NULL)"
+cd $WRKDIR/../code/rCNV2 && \
+git pull && \
+cd - && \
+Rscript -e "install.packages('$WRKDIR/../code/rCNV2/source/rCNV2_1.0.1.tar.gz', \
                              lib='~/R/x86_64-pc-linux-gnu-library/3.6', \
                              type='source', repos=NULL)"
 
@@ -114,4 +120,24 @@ $TMPDIR/gather_somatic_ras_data.py \
 # TODO: implement this
 # Scatterplots of inter-cohort somatic frequency correlations
 # TODO: implement this
+
+
+### Plot germline variant summaries
+# Convert each cohort's AF-annotated VCF to BED without samples
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  svtk vcf2bed -i ALL --no-samples \
+    $COHORTDIR/data/$cohort.RAS_loci.anno.clean.wAF.vcf.gz \
+    - | bgzip -c \
+  > $WRKDIR/data/plotting/$cohort.germline_variants.bed.gz
+done
+# Plot correlations of germline AFs (inter-cohort & each cohort vs. gnomAD)
+# Note: requires a merged VCF as generated in 
 
