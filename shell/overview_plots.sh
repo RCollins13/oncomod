@@ -22,7 +22,9 @@ cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in plots plots/overview data/plotting; do
+for SUBDIR in plots plots/overview plots/overview/germline_variants \
+              plots/overview/germline_variants/AF_comparisons \
+              data/plotting; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -144,6 +146,6 @@ $CODEDIR/scripts/plot/plot_germline_AF_comparisons.R \
   --name TCGA \
   --bed $WRKDIR/data/plotting/PROFILE.germline_variants.bed.gz \
   --name DFCI \
-  --out-prefix $WRKDIR/plots/overview/germline_AF
+  --out-prefix $WRKDIR/plots/overview/germline_variants/AF_comparisons/AF_comparisons
   
 

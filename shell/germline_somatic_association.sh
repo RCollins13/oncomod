@@ -26,8 +26,8 @@ cd $WRKDIR
 for SUBDIR in data data/variant_set_freqs/filtered data/germline_vcfs \
               data/variant_sets/test_sets results results/assoc_stats \
               results/assoc_stats/single results/assoc_stats/merged \
-              results/assoc_stats/meta plots/germline_somatic_assoc \
-              plots/germline_somatic_assoc/qq; do
+              results/assoc_stats/merged/filtered results/assoc_stats/meta \
+              plots/germline_somatic_assoc plots/germline_somatic_assoc/qq; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -331,7 +331,30 @@ for cohort in TCGA PROFILE; do
     fi
   done
 done
-# 3. Plot one QQ for each cancer type & cohort
+# 3. For QQ visualization, restrict to qualifying events in each cohort (based on somatic frequency)
+for cohort in TCGA PROFILE; do
+  for cancer in PDAC CRAD LUAD SKCM; do
+    stats=$WRKDIR/results/assoc_stats/merged/$cohort.$cancer.sumstats.tsv.gz
+    if [ -s $stats ]; then
+      cat \
+        <( zcat $stats | head -n1 ) \
+        <( zcat $stats | grep -ve '^COMUT\|^#' | awk '{ if ($4/$3 >= 0.01) print }' ) \
+        <( zcat $stats \
+           | fgrep -wf \
+               <( zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.freq.tsv.gz \
+                  | sed '1d' | cut -f1 ) \
+           | awk '{ if ($4/$3 >= 0.01) print }' ) \
+        <( zcat $stats \
+           | fgrep -wf \
+               <( zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.ras_plus_nonRas_comutations.freq.tsv.gz \
+                  | sed '1d' | cut -f1 ) \
+           | awk '{ if ($4/$3 >= 0.05) print }' ) \
+      | gzip -c \
+      > $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.tsv.gz
+    fi
+  done
+done
+# 4. Plot one QQ for each cancer type & cohort
 for cohort in TCGA PROFILE; do
   case $cohort in
     PROFILE)
@@ -342,13 +365,17 @@ for cohort in TCGA PROFILE; do
       ;;
   esac
   for cancer in PDAC CRAD LUAD SKCM; do
-    if [ -e $WRKDIR/results/assoc_stats/merged/$cohort.$cancer.sumstats.tsv.gz ]; then
-      $CODEDIR/utils/plot_qq.R \
-        --stats $WRKDIR/results/assoc_stats/merged/$cohort.$cancer.sumstats.tsv.gz \
-        --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.$cancer.qq.png \
-        --cancer $cancer \
-        --cohort $alt_cohort \
-        --p-threshold $bonf_sig
+    stats=$WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.tsv.gz
+    if [ -s $stats ]; then
+      bsub -q short -sla miket_sc -J plot_qq_single_${cohort}_${cancer} \
+        -o $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}.log \
+        -e $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}.err \
+        "$CODEDIR/utils/plot_qq.R \
+           --stats $stats \
+           --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.$cancer.qq.png \
+           --cancer $cancer \
+           --cohort $alt_cohort \
+           --p-threshold $bonf_sig"
     fi
   done
 done
@@ -357,13 +384,15 @@ done
 ### Submit meta-analyses for overlapping variants between cohorts
 # One submission per cancer type
 for cancer in PDAC CRAD LUAD SKCM; do
-  if [ -s $WRKDIR/results/assoc_stats/merged/TCGA.$cancer.sumstats.tsv.gz ] && \
-     [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.$cancer.sumstats.tsv.gz ]; then
+  TCGA_stats=$WRKDIR/results/assoc_stats/merged/filtered/TCGA.$cancer.sumstats.filtered.tsv.gz
+  PROFILE_stats=$WRKDIR/results/assoc_stats/merged/filtered/PROFILE.$cancer.sumstats.filtered.tsv.gz
+  if [ -s $TCGA_stats ] && \
+     [ -s $PROFILE_stats ]; then
     cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_meta_$cancer.sh
 $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.meta.R \
-  --stats $WRKDIR/results/assoc_stats/merged/TCGA.$cancer.sumstats.tsv.gz \
+  --stats $TCGA_stats \
   --name TCGA \
-  --stats $WRKDIR/results/assoc_stats/merged/PROFILE.$cancer.sumstats.tsv.gz \
+  --stats $PROFILE_stats \
   --name DFCI \
   --outfile $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv
 gzip -f $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv
@@ -388,6 +417,7 @@ for cancer in PDAC CRAD LUAD SKCM; do
       --stats $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz \
       --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cancer.meta_plus_single.qq.png \
       --cancer $cancer \
+      --cohort "All Results" \
       --p-threshold $bonf_sig
     # Plot a second QQ of only meta-analyzed sumstats
     zcat $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz \
@@ -404,14 +434,14 @@ done
 
 
 ### Meta-analyze results across cancers
-if ! [ -s $WRKDIR/results/assoc_stats/merged/TCGA.PDAC.sumstats.tsv.gz ] || \
-   ! [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.PDAC.sumstats.tsv.gz ] || \
-   ! [ -s $WRKDIR/results/assoc_stats/merged/TCGA.CRAD.sumstats.tsv.gz ] || \
-   ! [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.CRAD.sumstats.tsv.gz ] || \
-   ! [ -s $WRKDIR/results/assoc_stats/merged/TCGA.LUAD.sumstats.tsv.gz ] || \
-   ! [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.LUAD.sumstats.tsv.gz ] || \
-   ! [ -s $WRKDIR/results/assoc_stats/merged/TCGA.SKCM.sumstats.tsv.gz ] || \
-   ! [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.SKCM.sumstats.tsv.gz ]; then
+if [ -s $WRKDIR/results/assoc_stats/merged/TCGA.PDAC.sumstats.tsv.gz ] && \
+   [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.PDAC.sumstats.tsv.gz ] && \
+   [ -s $WRKDIR/results/assoc_stats/merged/TCGA.CRAD.sumstats.tsv.gz ] && \
+   [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.CRAD.sumstats.tsv.gz ] && \
+   [ -s $WRKDIR/results/assoc_stats/merged/TCGA.LUAD.sumstats.tsv.gz ] && \
+   [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.LUAD.sumstats.tsv.gz ] && \
+   [ -s $WRKDIR/results/assoc_stats/merged/TCGA.SKCM.sumstats.tsv.gz ] && \
+   [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.SKCM.sumstats.tsv.gz ]; then
   cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_meta_PanCancer.sh
 $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.meta.R \
   --stats $WRKDIR/results/assoc_stats/meta/PDAC.meta.sumstats.tsv.gz \
