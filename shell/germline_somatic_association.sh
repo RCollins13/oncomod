@@ -411,37 +411,44 @@ EOF
 done
 # Once complete, plot one QQ for each cancer type
 for cancer in PDAC CRAD LUAD SKCM; do
-  if [ -e $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz ]; then
+  stats=$WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz
+  if [ -s $stats ]; then
     # Plot one QQ of all sumstats
-    $CODEDIR/utils/plot_qq.R \
-      --stats $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz \
-      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cancer.meta_plus_single.qq.png \
-      --cancer $cancer \
-      --cohort "All Results" \
-      --p-threshold $bonf_sig
+    bsub -q short -sla miket_sc -J plot_qq_all_$cancer \
+      -o $WRKDIR/LSF/logs/plot_qq_all_$cancer.log \
+      -e $WRKDIR/LSF/logs/plot_qq_all_$cancer.err \
+      "$CODEDIR/utils/plot_qq.R \
+         --stats $stats \
+         --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cancer.meta_plus_single.qq.png \
+         --cancer $cancer \
+         --cohort \"All Results\" \
+         --p-threshold $bonf_sig"
     # Plot a second QQ of only meta-analyzed sumstats
-    zcat $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz \
-    | awk -v FS="\t" '{ if ($6>1) print }' | gzip -c \
+    zcat $stats | awk -v FS="\t" '{ if ($6>1) print }' | gzip -c \
     > $TMPDIR/$cancer.meta.sumstats.meta_only.tsv.gz
-    $CODEDIR/utils/plot_qq.R \
-      --stats $TMPDIR/$cancer.meta.sumstats.meta_only.tsv.gz \
-      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cancer.meta_only.qq.png \
-      --cancer $cancer \
-      --cohort "Meta-analysis" \
-      --p-threshold $bonf_sig
+    bsub -q short -sla miket_sc -J plot_qq_meta_$cancer \
+      -o $WRKDIR/LSF/logs/plot_qq_meta_$cancer.log \
+      -e $WRKDIR/LSF/logs/plot_qq_meta_$cancer.err \
+      "$CODEDIR/utils/plot_qq.R \
+        --stats $TMPDIR/$cancer.meta.sumstats.meta_only.tsv.gz \
+        --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cancer.meta_only.qq.png \
+        --cancer $cancer \
+        --cohort "Meta-analysis" \
+        --p-threshold $bonf_sig"
   fi
 done
 
 
 ### Meta-analyze results across cancers
-if [ -s $WRKDIR/results/assoc_stats/merged/TCGA.PDAC.sumstats.tsv.gz ] && \
-   [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.PDAC.sumstats.tsv.gz ] && \
-   [ -s $WRKDIR/results/assoc_stats/merged/TCGA.CRAD.sumstats.tsv.gz ] && \
-   [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.CRAD.sumstats.tsv.gz ] && \
-   [ -s $WRKDIR/results/assoc_stats/merged/TCGA.LUAD.sumstats.tsv.gz ] && \
-   [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.LUAD.sumstats.tsv.gz ] && \
-   [ -s $WRKDIR/results/assoc_stats/merged/TCGA.SKCM.sumstats.tsv.gz ] && \
-   [ -s $WRKDIR/results/assoc_stats/merged/PROFILE.SKCM.sumstats.tsv.gz ]; then
+any_missing=0
+for cohort in TCGA PROFILE; do
+  for cancer in PDAC CRAD LUAD SKCM; do
+    if ! [ -s $WRKDIR/results/assoc_stats/merged/$cohort.$cancer.sumstats.tsv.gz ]; then
+      any_missing=1
+    fi
+  done
+done
+if [ $any_missing -eq 0 ]; then
   cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_meta_PanCancer.sh
 $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.meta.R \
   --stats $WRKDIR/results/assoc_stats/meta/PDAC.meta.sumstats.tsv.gz \
@@ -452,6 +459,7 @@ $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.meta.R \
   --name LUAD \
   --stats $WRKDIR/results/assoc_stats/meta/SKCM.meta.sumstats.tsv.gz \
   --name SKCM \
+  --drop-frequencies \
   --outfile $WRKDIR/results/assoc_stats/meta/PanCancer.meta.sumstats.tsv
 gzip -f $WRKDIR/results/assoc_stats/meta/PanCancer.meta.sumstats.tsv
 EOF

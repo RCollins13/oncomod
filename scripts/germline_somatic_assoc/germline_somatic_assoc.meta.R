@@ -31,6 +31,8 @@ parser$add_argument("--stats", metavar=".tsv", type="character", action="append"
 parser$add_argument("--name", metavar="string", type="character", action="append",
                     help=paste("names for each --stats input, provided",
                                "in the same order as --stats"))
+parser$add_argument("--drop-frequencies", action="store_true", default=FALSE,
+                    help="Do not report variant frequencies in --outfile")
 parser$add_argument("--outfile", metavar="path", type="character", required=TRUE,
                     help="output .tsv file for meta-analysis statistics")
 args <- parser$parse_args()
@@ -39,7 +41,18 @@ args <- parser$parse_args()
 # args <- list("stats"=c("~/scratch/PROFILE.SKCM.sumstats.tsv.gz",
 #                        "~/scratch/TCGA.SKCM.sumstats.tsv.gz"),
 #              "name"=c("PROFILE", "TCGA"),
+#              "drop_frequencies"=FALSE,
 #              "outfile"="~/scratch/meta.test.tsv")
+
+# # DEV: PAN-CANCER
+# args <- list("stats"=c("~/scratch/PDAC.meta.sumstats.tsv.gz",
+#                        "~/scratch/CRAD.meta.sumstats.tsv.gz",
+#                        "~/scratch/LUAD.meta.sumstats.tsv.gz",
+#                        "~/scratch/SKCM.meta.sumstats.tsv.gz"),
+#              "name"=c("PDAC", "CRAD", "LUAD", "SKCM"),
+#              "drop_frequencies"=TRUE,
+#              "outfile"="~/scratch/meta.test.tsv")
+
 
 # Sanity-check lengths of --stats and --names
 if(is.null(args$name)){
@@ -61,8 +74,16 @@ names(stats.list) <- args$name
 # Merge stats across cohorts
 stats <- merge.assoc.stats(stats.list)
 
-# Average variant frequencies
-stats <- average.meta.freqs(stats)
+# Average variant frequencies, unless explicitly disabled
+if(args$drop_frequencies){
+  cols.to.drop <- grep("^samples\\.|^somatic_AC\\.|\\.germline_AC\\.|germline_AF\\.|^somatic_AF\\.",
+                       colnames(stats))
+  if(length(cols.to.drop) > 0){
+    stats <- stats[, -cols.to.drop]
+  }
+}else{
+  stats <- average.meta.freqs(stats)
+}
 
 # Annotate merged stats with weighted frequencies
 stats <- ivw.meta.analysis(stats)

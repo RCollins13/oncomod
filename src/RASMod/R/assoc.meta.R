@@ -27,6 +27,11 @@
 load.assoc.stats.single <- function(file, suffix=NULL, suffix.skip=1:2){
   df <- read.table(file, check.names=F, comment.char="", sep="\t", header=T)
   colnames(df)[1] <- gsub("^#", "", colnames(df)[1])
+  for(drop.col in c("N_cohorts", "cohorts")){
+    if(drop.col %in% colnames(df)){
+      df[, drop.col] <- NULL
+    }
+  }
   if(!is.null(suffix)){
     colnames(df)[-suffix.skip] <- paste(colnames(df)[-suffix.skip], suffix, sep=".")
   }
