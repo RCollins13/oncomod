@@ -59,7 +59,7 @@ merge.assoc.stats <- function(stats.list){
                    stats.list)
 
   # Gather information on non-NA cohorts
-  cohort.info <- as.data.frame(t(apply(merged[, grep("^z\\.", colnames(merged))], 1,
+  cohort.info <- as.data.frame(t(apply(merged[, grep("^z\\.|^chisq\\.", colnames(merged))], 1,
                                        function(zscores){
                                          idxs <- which(!is.na(zscores) & !is.infinite(zscores))
                                          cohorts <- names(stats.list)[idxs]

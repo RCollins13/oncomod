@@ -16,6 +16,7 @@
 #########
 # Load necessary libraries and constants
 require(RASMod, quietly=TRUE)
+require(logistf, quietly=TRUE)
 require(argparse, quietly=TRUE)
 RASMod::load.constants("names")
 
@@ -24,7 +25,7 @@ RASMod::load.constants("names")
 # Data functions #
 ##################
 # Run association test for germline & somatic interactions
-germline.somatic.assoc <- function(y.vals, x.vals, samples, meta){
+germline.somatic.assoc <- function(y.vals, x.vals, samples, meta, firth=TRUE){
   # Construct test df from y, x, and meta
   test.df <- meta[samples, c("AGE_AT_DIAGNOSIS", "SEX", paste("PC", 1:10, sep=""),
                              "TUMOR_PURITY")]
@@ -58,23 +59,40 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta){
   test.df[, -c(1:2)] <- apply(test.df[, -c(1:2)], 2, scale)
 
   # Run association model
-  fit <- glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df, family="binomial")
+  if(firth){
+    fit <- logistf(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df,
+                   control=logistf.control(maxit=100))
+  }else{
+    fit <- glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df, family="binomial")
+  }
+
 
   # Extract association stats for germline variants
   if(is.na(fit$coefficients["X"])){
     assoc.res <- rep(NA, 4)
   }else{
-    assoc.res <- as.numeric(summary(fit)$coefficients["X", ])
+    if(firth){
+      assoc.res <- as.numeric(c(fit$coefficients["X"],
+                              sqrt(diag(vcov(fit)))["X"],
+                              qchisq(1-fit$prob, df=1)["X"],
+                              fit$prob["X"]))
+      stat.name <- "chisq"
+    }else{
+      assoc.res <- as.numeric(summary(fit)$coefficients["X", ])
+      stat.name <- "z"
+    }
   }
   # Return summary vector
-  c("samples"=n.samples,
+  res <- c("samples"=n.samples,
     "somatic_AC"=somatic.ac,
     "yes_somatic.germline_AC"=yes_somatic.germline.ac,
     "no_somatic.germline_AC"=no_somatic.germline.ac,
     "beta"=assoc.res[1],
     "beta_SE"=assoc.res[2],
-    "z"=assoc.res[3],
+    "statistic"=assoc.res[3],
     "p"=assoc.res[4])
+  names(res)[which(names(res) == "statistic")] <- stat.name
+  return(res)
 }
 
 
