@@ -140,3 +140,13 @@ for cancer in PDAC CRAD LUAD SKCM; do
   | sort | uniq | wc -l | awk -v n=$n_samp '{ print $1/n }'
 done | paste - - - -
 
+
+# Curate selected PRS for PROFILE samples
+$TMPDIR/curate_profile_prs.R \
+  $BASEDIR/23andme/DFCI_PRS_scores.txt \
+  $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
+  $TMPDIR/PROFILE_selected_PRS.tsv \
+  $WRKDIR/data/PROFILE.PRS.tsv
+gzip -f $WRKDIR/data/PROFILE.PRS.tsv
+
+

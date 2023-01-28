@@ -1,0 +1,11 @@
+CRAD	score_imputed_colon_polyps
+CRAD	score_imputed_colorectal_cancer_dx_or_fh
+CRAD	score_imputed_colorectal_cancer
+SKCM	score_imputed_melanoma_dx_or_fh
+SKCM	score_imputed_melanoma
+SKCM	score_imputed_iqb.dysplastic_mole
+SKCM	score_imputed_squamous_cell_carcinoma
+SKCM	score_imputed_any_skin_cancer
+LUAD	score_imputed_lung_cancer_dx_or_fh
+LUAD	score_imputed_emphysema
+LUAD	score_imputed_COPD
