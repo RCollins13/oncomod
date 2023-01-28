@@ -34,43 +34,53 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta,
   test.df <- cbind(data.frame("Y" = y.vals, "X" = x.vals, row.names=names(y.vals)),
                    test.df)
 
+  # Check if X is allele count or Z-score (for PRS)
+  germ.is.ac <- if(all(is.integer(x.vals))){TRUE}else{FALSE}
+
   # Test dataset for quasi- or complete-separability
   # In the case of any zero counts in any of the X by Y matrix,
   # revert to Firth regression
   n.samples <- length(samples)
   somatic.ac <- sum(y.vals, na.rm=T)
-  germline.ac <- sum(x.vals, na.rm=T)
-  yes_somatic.germline.ac <- sum(x.vals[which(y.vals > 0)], na.rm=T)
-  no_somatic.germline.ac <- sum(x.vals[which(y.vals == 0)], na.rm=T)
-  if(firth.always){
-    firth <- TRUE
-  }else if(firth.fallback){
-    x.by.y <- t(sapply(unique(y.vals), function(y){
-      sapply(unique(x.vals), function(x){
-        length(which(x.vals[which(y.vals==y)]==x))
-        })
-    }))
-    # Require at least two counts per observed X, Y pair
-    # Otherwise, use Firth
-    if(any(x.by.y < 2)){
+  if(!germ.is.ac){
+    yes_somatic.germline.ac <- mean(x.vals[which(y.vals > 0)], na.rm=T)
+    no_somatic.germline.ac <- mean(x.vals[which(y.vals == 0)], na.rm=T)
+    firth <- if(somatic.ac < 10){TRUE}else{FALSE}
+  }else{
+    germline.ac <- sum(x.vals, na.rm=T)
+    yes_somatic.germline.ac <- sum(x.vals[which(y.vals > 0)], na.rm=T)
+    no_somatic.germline.ac <- sum(x.vals[which(y.vals == 0)], na.rm=T)
+    if(firth.always){
       firth <- TRUE
+    }else if(firth.fallback){
+      x.by.y <- t(sapply(unique(y.vals), function(y){
+        sapply(unique(x.vals), function(x){
+          length(which(x.vals[which(y.vals==y)]==x))
+        })
+      }))
+      # Require at least two counts per observed X, Y pair
+      # Otherwise, use Firth
+      if(any(x.by.y < 2)){
+        firth <- TRUE
+      }else{
+        firth <- FALSE
+      }
+    }else if(any(c(n.samples, somatic.ac, germline.ac) == 0)){
+      return(c("samples"=n.samples,
+               "somatic_AC"=somatic.ac,
+               "yes_somatic.germline_AC"=yes_somatic.germline.ac,
+               "no_somatic.germline_AC"=no_somatic.germline.ac,
+               "beta"=NA,
+               "beta_SE"=NA,
+               "z"=NA,
+               "chisq"=NA,
+               "model"=NA,
+               "p"=NA))
     }else{
       firth <- FALSE
     }
-  }else if(any(c(n.samples, somatic.ac, germline.ac) == 0)){
-    return(c("samples"=n.samples,
-             "somatic_AC"=somatic.ac,
-             "yes_somatic.germline_AC"=yes_somatic.germline.ac,
-             "no_somatic.germline_AC"=no_somatic.germline.ac,
-             "beta"=NA,
-             "beta_SE"=NA,
-             "z"=NA,
-             "chisq"=NA,
-             "model"=NA,
-             "p"=NA))
-  }else{
-    firth <- FALSE
   }
+
 
   # Drop covariates with no informative observations
   all.na <- which(apply(test.df, 2, function(vals){all(is.na(vals))}))
@@ -156,6 +166,9 @@ parser$add_argument("--outfile", metavar="path", type="character", required=TRUE
 parser$add_argument("--cancer-type", metavar="character",
                     help=paste("Subset to samples from this cancer type",
                                "[default: use all samples]"))
+parser$add_argument("--normalize-germline-ad", action="store_true", default=FALSE,
+                    help=paste("Standard normalize each entry in --germline-ad",
+                               "before analysis. [default: FALSE]"))
 parser$add_argument("--multiPop-min-ac", metavar="integer", default=10, type="integer",
                     help=paste("Restrict tests involving germline or somatic ",
                                "counts below this threshold to European-only ",
@@ -174,6 +187,7 @@ args <- parser$parse_args()
 #              "outfile" = "~/scratch/TCGA.PDAC.KRAS.sumstats.tsv",
 #              "somatic_ad" = "~/scratch/TCGA.somatic_variants.dosage.tsv.gz",
 #              "somatic_variant_sets" = "~/scratch/PDAC.KRAS.somatic_endpoints.tsv",
+#              "normalize_germline_ad" = FALSE,
 #              "multiPop_min_ac" = 10,
 #              "multiPop_min_freq" = 0.01)
 
@@ -185,6 +199,19 @@ args <- parser$parse_args()
 #              "outfile" = "~/scratch/PROFILE.PDAC.HRAS.sumstats.tsv",
 #              "somatic_ad" = "~/scratch/PROFILE.somatic_variants.dosage.tsv.gz",
 #              "somatic_variant_sets" = "~/scratch/PDAC.HRAS.somatic_endpoints.tsv",
+#              "normalize_germline_ad" = FALSE,
+#              "multiPop_min_ac" = 10,
+#              "multiPop_min_freq" = 0.01)
+
+# # DEV - PROFILE PRS
+# args <- list("sample_metadata" = "~/scratch/PROFILE.ALL.sample_metadata.tsv.gz",
+#              "cancer_type" = "CRAD",
+#              "germline_ad" = "~/scratch/PROFILE.PRS.tsv.gz",
+#              "germline_variant_sets" = "~/scratch/CRAD.germline_PRS.tsv",
+#              "outfile" = "~/scratch/PROFILE.CRAD.KRAS.PRS.sumstats.tsv",
+#              "somatic_ad" = "~/scratch/PROFILE.somatic_variants.dosage.tsv.gz",
+#              "somatic_variant_sets" = "~/scratch/CRAD.KRAS.somatic_endpoints.tsv",
+#              "normalize_germline_ad" = TRUE,
 #              "multiPop_min_ac" = 10,
 #              "multiPop_min_freq" = 0.01)
 
@@ -209,7 +236,8 @@ somatic.vids <- unique(unlist(somatic.sets$variant_ids))
 
 # Load germline and somatic allele depth matrixes
 germline.ad <- load.ad.matrix(args$germline_ad, sample.subset=samples.w.pheno,
-                              variant.subset=germline.vids)
+                              variant.subset=germline.vids,
+                              normalize=args$normalize_germline_ad)
 somatic.ad <- load.ad.matrix(args$somatic_ad, sample.subset=samples.w.pheno,
                              variant.subset=somatic.vids)
 
@@ -268,8 +296,11 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
     c("germline"=germ.sid, germline.somatic.assoc(y.vals, x.vals, samples, meta),
       "EUR_only"=eur.only)
   })
-  if(typeof(res.by.germline) == "list"){
+  res.type <- typeof(res.by.germline)
+  if(res.type == "list"){
     res.by.germline <- as.data.frame(do.call("rbind", res.by.germline))
+  }else if(res.type == "character"){
+    res.by.germline <- as.data.frame(t(res.by.germline))
   }
   if(!is.null(res.by.germline)){
     cbind("somatic"=som.sid, res.by.germline)

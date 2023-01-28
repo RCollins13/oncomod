@@ -123,6 +123,14 @@ for cancer in PDAC CRAD LUAD SKCM; do
   done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
 done
 
+# Make lists of PRS to test per cancer type in PROFILE
+for cancer in PDAC CRAD LUAD SKCM; do
+  awk -v cancer=$cancer -v OFS="\t" '{ if ($1==cancer) print $2, $2 }' \
+    $CODEDIR/refs/PROFILE_selected_PRS.tsv \
+  | sort -V \
+  > $WRKDIR/data/variant_sets/test_sets/$cancer.germline_PRS.tsv
+done
+
 
 ### Filter somatic variants to define list of conditions to test
 # 1. Frequent RAS mutations
@@ -323,6 +331,37 @@ EOF
       done
     done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
   done
+done
+# Submit one PRS association job per cancer type per gene
+for cancer in PDAC CRAD LUAD SKCM; do
+  prs_sets=$WRKDIR/data/variant_sets/test_sets/$cancer.germline_PRS.tsv
+  if [ $( cat $prs_sets | wc -l ) -gt 0 ]; then
+    while read chrom start end gene; do
+      cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.PRS.sh
+#!/usr/bin/env bash
+$PROFILEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
+  --sample-metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
+  --cancer-type $cancer \
+  --somatic-ad $PROFILEDIR/data/PROFILE.somatic_variants.dosage.tsv.gz \
+  --germline-ad $PROFILEDIR/data/PROFILE.PRS.tsv.gz \
+  --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
+  --germline-variant-sets $prs_sets \
+  --normalize-germline-ad \
+  --outfile $WRKDIR/results/assoc_stats/single/PROFILE.$cancer.$gene.sumstats.PRS.tsv
+gzip -f $WRKDIR/results/assoc_stats/single/PROFILE.$cancer.$gene.sumstats.PRS.tsv
+EOF
+      chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.PRS.sh
+      for suf in err log; do
+        logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.PRS.$suf
+        if [ -e $logfile ]; then rm $logfile; fi
+      done
+      bsub -q normal -sla miket_sc -R "rusage[mem=8000]" \
+        -J germline_somatic_assoc_${cohort}_${cancer}_${gene}_PRS \
+        -o $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.PRS.log \
+        -e $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.PRS.err \
+        $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.PRS.sh
+    done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
+  fi
 done
 
 

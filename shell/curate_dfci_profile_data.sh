@@ -142,11 +142,10 @@ done | paste - - - -
 
 
 # Curate selected PRS for PROFILE samples
-$TMPDIR/curate_profile_prs.R \
+$CODEDIR/scripts/data_processing/curate_profile_prs.R \
   $BASEDIR/23andme/DFCI_PRS_scores.txt \
   $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
-  $TMPDIR/PROFILE_selected_PRS.tsv \
+  $CODEDIR/refs/PROFILE_selected_PRS.tsv \
   $WRKDIR/data/PROFILE.PRS.tsv
 gzip -f $WRKDIR/data/PROFILE.PRS.tsv
-
 

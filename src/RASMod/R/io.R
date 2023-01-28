@@ -138,6 +138,8 @@ load.variant.sets <- function(file){
 #' \[default: TRUE\]
 #' @param duplicate.variant.action Action for collapsing rows with identical
 #' variant IDs \[default: [max]\]
+#' @param normalize Standard normalize each variant across all samples
+#' \[default: no normalization\]
 #'
 #' @return data.frame
 #'
@@ -145,7 +147,8 @@ load.variant.sets <- function(file){
 #' @export
 load.ad.matrix <- function(file, sort.samples=TRUE, sample.subset=NULL,
                            sort.variants=TRUE, variant.subset=NULL,
-                           drop.ref.records=TRUE, duplicate.variant.action=max){
+                           drop.ref.records=TRUE, duplicate.variant.action=max,
+                           normalize=FALSE){
   # Load matrix
   ad <- read.table(file, header=T, sep="\t", comment.char="", check.names=F)
 
@@ -159,7 +162,7 @@ load.ad.matrix <- function(file, sort.samples=TRUE, sample.subset=NULL,
     ad <- ad[-dup.idxs[2:length(dup.idxs)], ]
   }
 
-  #relocate variant ID to rownames
+  # Relocate variant ID to rownames
   rownames(ad) <- ad[, 1]
   ad[, 1] <- NULL
 
@@ -186,6 +189,11 @@ load.ad.matrix <- function(file, sort.samples=TRUE, sample.subset=NULL,
 
   # Coerce all values to numeric
   ad[, 1:ncol(ad)] <- apply(ad, 2, as.numeric)
+
+  # Normalize, if optioned
+  if(normalize){
+    ad[1:nrow(ad), ] <- apply(ad, 1, scale)
+  }
 
   return(ad)
 }

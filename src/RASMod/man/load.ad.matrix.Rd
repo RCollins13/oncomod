@@ -11,7 +11,8 @@ load.ad.matrix(
   sort.variants = TRUE,
   variant.subset = NULL,
   drop.ref.records = TRUE,
-  duplicate.variant.action = max
+  duplicate.variant.action = max,
+  normalize = FALSE
 )
 }
 \arguments{
@@ -33,6 +34,9 @@ will not be subset. [default: no subsetting]}
 
 \item{duplicate.variant.action}{Action for collapsing rows with identical
 variant IDs [default: \link{max}]}
+
+\item{normalize}{Standard normalize each variant across all samples
+[default: no normalization]}
 }
 \value{
 data.frame
