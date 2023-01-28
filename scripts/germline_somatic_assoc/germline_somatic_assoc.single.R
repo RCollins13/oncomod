@@ -25,7 +25,8 @@ RASMod::load.constants("names")
 # Data functions #
 ##################
 # Run association test for germline & somatic interactions
-germline.somatic.assoc <- function(y.vals, x.vals, samples, meta, firth=TRUE){
+germline.somatic.assoc <- function(y.vals, x.vals, samples, meta,
+                                   firth.fallback=TRUE, firth.always=FALSE){
   # Construct test df from y, x, and meta
   test.df <- meta[samples, c("AGE_AT_DIAGNOSIS", "SEX", paste("PC", 1:10, sep=""),
                              "TUMOR_PURITY")]
@@ -33,20 +34,42 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta, firth=TRUE){
   test.df <- cbind(data.frame("Y" = y.vals, "X" = x.vals, row.names=names(y.vals)),
                    test.df)
 
-  # Ensure enough data are still present for association testing
+  # Test dataset for quasi- or complete-separability
+  # In the case of any zero counts in any of the X by Y matrix,
+  # revert to Firth regression
   n.samples <- length(samples)
   somatic.ac <- sum(y.vals, na.rm=T)
   germline.ac <- sum(x.vals, na.rm=T)
   yes_somatic.germline.ac <- sum(x.vals[which(y.vals > 0)], na.rm=T)
   no_somatic.germline.ac <- sum(x.vals[which(y.vals == 0)], na.rm=T)
-  if(any(c(n.samples, somatic.ac, germline.ac) == 0)){
+  if(firth.always){
+    firth <- TRUE
+  }else if(firth.fallback){
+    x.by.y <- t(sapply(unique(y.vals), function(y){
+      sapply(unique(x.vals), function(x){
+        length(which(x.vals[which(y.vals==y)]==x))
+        })
+    }))
+    # Require at least two counts per observed X, Y pair
+    # Otherwise, use Firth
+    if(any(x.by.y < 2)){
+      firth <- TRUE
+    }else{
+      firth <- FALSE
+    }
+  }else if(any(c(n.samples, somatic.ac, germline.ac) == 0)){
     return(c("samples"=n.samples,
              "somatic_AC"=somatic.ac,
              "yes_somatic.germline_AC"=yes_somatic.germline.ac,
              "no_somatic.germline_AC"=no_somatic.germline.ac,
              "beta"=NA,
              "beta_SE"=NA,
+             "z"=NA,
+             "chisq"=NA,
+             "model"=NA,
              "p"=NA))
+  }else{
+    firth <- FALSE
   }
 
   # Drop covariates with no informative observations
@@ -59,27 +82,42 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta, firth=TRUE){
   test.df[, -c(1:2)] <- apply(test.df[, -c(1:2)], 2, scale)
 
   # Run association model
-  if(firth){
-    fit <- logistf(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df,
-                   control=logistf.control(maxit=100))
-  }else{
-    fit <- glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df, family="binomial")
+  firth.regression <- function(data){
+    logistf(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=data,
+            control=logistf.control(maxit=100), flic=TRUE)
   }
-
+  if(firth){
+    fit <- firth.regression(test.df)
+  }else{
+    if(firth.fallback){
+      fit <- tryCatch(glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df, family="binomial"),
+                      warning=function(w){firth.regression(test.df)})
+      if(fit$method != "glm.fit"){
+        firth <- TRUE
+      }
+    }else{
+      fit <- glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df, family="binomial")
+    }
+  }
 
   # Extract association stats for germline variants
   if(is.na(fit$coefficients["X"])){
     assoc.res <- rep(NA, 4)
+    model <- chisq <- z <- NA
   }else{
     if(firth){
       assoc.res <- as.numeric(c(fit$coefficients["X"],
                               sqrt(diag(vcov(fit)))["X"],
                               qchisq(1-fit$prob, df=1)["X"],
                               fit$prob["X"]))
-      stat.name <- "chisq"
+      chisq <- assoc.res[3]
+      z <- NA
+      model <- "flic"
     }else{
       assoc.res <- as.numeric(summary(fit)$coefficients["X", ])
-      stat.name <- "z"
+      z <- assoc.res[3]
+      chisq <- NA
+      model <- "logit"
     }
   }
   # Return summary vector
@@ -89,9 +127,10 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta, firth=TRUE){
     "no_somatic.germline_AC"=no_somatic.germline.ac,
     "beta"=assoc.res[1],
     "beta_SE"=assoc.res[2],
-    "statistic"=assoc.res[3],
+    "z"=z,
+    "chisq"=chisq,
+    "model"=model,
     "p"=assoc.res[4])
-  names(res)[which(names(res) == "statistic")] <- stat.name
   return(res)
 }
 
@@ -126,7 +165,7 @@ parser$add_argument("--multiPop-min-freq", metavar="float", default=0.01, type="
                                "frequencies below this threshold to European-only ",
                                "[default: 0.01]"))
 args <- parser$parse_args()
-#
+
 # # DEV - TCGA
 # args <- list("sample_metadata" = "~/scratch/TCGA.ALL.sample_metadata.tsv.gz",
 #              "cancer_type" = "PDAC",
@@ -181,6 +220,8 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
   if(!any(som.vids %in% rownames(somatic.ad))){
     return(NULL)
   }
+
+  # Require at least one each of somatic carriers and reference to proceed
   y.vals <- query.ad.matrix(somatic.ad, som.vids, action="any")
   if(length(table(y.vals)) < 2){
     return(NULL)

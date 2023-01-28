@@ -262,12 +262,14 @@ for context in germline somatic; do
 done
 
 
-### Shard somatic test sets for improved parallelization
+### Shard germline test sets for improved parallelization
 for cancer in PDAC CRAD LUAD SKCM; do
   while read chrom start end gene; do
-    split -l 3 -d \
-      $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
-      $WRKDIR/data/variant_sets/test_sets/shards/$cancer.$gene.somatic_endpoints.shard_
+    $CODEDIR/../GenomicsToolbox/evenSplitter.R \
+      -L 250 \
+      --shuffle \
+      $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.germline_sets.tsv \
+      $WRKDIR/data/variant_sets/test_sets/shards/$cancer.$gene.germline_sets.shard_
   done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
 done
 
@@ -282,33 +284,38 @@ for cohort in TCGA PROFILE; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
+      mem=6000
+      queue=normal
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      mem=12000
+      queue=big
       ;;
   esac
   for cancer in PDAC CRAD LUAD SKCM; do
     while read chrom start end gene; do
       cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sharded.sh
+#!/usr/bin/env bash
 $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
   --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
   --cancer-type $cancer \
   --somatic-ad $COHORTDIR/data/$cohort.somatic_variants.dosage.tsv.gz \
   --germline-ad $COHORTDIR/data/$cohort.RAS_loci.dosage.tsv.gz \
-  --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/shards/$cancer.$gene.somatic_endpoints.shard_$1 \
-  --germline-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.germline_sets.tsv \
-  --outfile $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.$i.tsv
-gzip -f $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.$i.tsv
+  --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
+  --germline-variant-sets $WRKDIR/data/variant_sets/test_sets/shards/$cancer.$gene.germline_sets.shard_\$1 \
+  --outfile $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.\$1.tsv
+gzip -f $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.\$1.tsv
 EOF
-      chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sh
+      chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sharded.sh
       n_shards=$( find $WRKDIR/data/variant_sets/test_sets/shards/ \
-                    -name "$cancer.$gene.somatic_endpoints.shard_*" | wc -l )
-      for i in $( seq -w 0 $(( $n_shards - 1 )) ); do 
+                    -name "$cancer.$gene.germline_sets.shard_*" | wc -l )
+      for i in $( seq 1 $n_shards ); do 
         for suf in err log; do
           logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$i.$suf
           if [ -e $logfile ]; then rm $logfile; fi
         done
-        bsub -q normal -sla miket_sc -R "rusage[mem=6000]" \
+        bsub -q $queue -sla miket_sc -R "rusage[mem=$mem]" \
           -J germline_somatic_assoc_${cohort}_${cancer}_${gene}_$i \
           -o $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$i.log \
           -e $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$i.err \
@@ -327,13 +334,17 @@ cd - && \
 Rscript -e "install.packages('$WRKDIR/../code/rCNV2/source/rCNV2_1.0.1.tar.gz', \
                              lib='~/R/x86_64-pc-linux-gnu-library/3.6', \
                              type='source', repos=NULL)"
-# 2. Combine association statistics across all genes per cancer type & cohort
+# 2. Combine association statistics across all shards per cancer type & cohort
 for cohort in TCGA PROFILE; do
   for cancer in PDAC CRAD LUAD SKCM; do
-    if [ $( find $WRKDIR/results/assoc_stats/single/ -name "$cohort.$cancer.*.sumstats.tsv.gz" | wc -l ) -eq 3 ]; then
-      zcat $WRKDIR/results/assoc_stats/single/$cohort.$cancer.*.sumstats.tsv.gz \
-      | grep -v "^#" | sort -nk9,9 \
-      | cat <( zcat $WRKDIR/results/assoc_stats/single/$cohort.$cancer.NRAS.sumstats.tsv.gz | head -n1 ) - \
+    n_expected=$( find $WRKDIR/data/variant_sets/test_sets/shards/ \
+                    -name "$cancer.*.germline_sets.shard_*" | wc -l )
+    n_complete=$( find $WRKDIR/results/assoc_stats/single/ \
+                    -name "$cohort.$cancer.*.sumstats.*.tsv.gz" | wc -l )
+    if [ $n_expected -eq $n_complete ]; then
+      zcat $WRKDIR/results/assoc_stats/single/$cohort.$cancer.*.sumstats.*.tsv.gz \
+      | grep -v "^#" | sort -nrk9,9 \
+      | cat <( zcat $WRKDIR/results/assoc_stats/single/$cohort.$cancer.NRAS.sumstats.1.tsv.gz | head -n1 ) - \
       | gzip -c \
       > $WRKDIR/results/assoc_stats/merged/$cohort.$cancer.sumstats.tsv.gz
     fi
