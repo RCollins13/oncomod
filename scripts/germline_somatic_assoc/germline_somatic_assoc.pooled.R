@@ -111,14 +111,59 @@ germline.ad <- lapply(args$germline_ad, load.ad.matrix, sample.subset=samples.w.
 somatic.ad <- lapply(args$somatic_ad, load.ad.matrix, sample.subset=samples.w.pheno,
                      variant.subset=somatic.vids)
 
+# Compute association statistics for each somatic endpoint
+res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
+  som.sid <- as.character(somatic.info[1])
+  som.vids <- as.vector(unlist(somatic.info[2]))
+  if(!any(som.vids %in% unlist(sapply(somatic.ad, rownames)))){
+    return(NULL)
+  }
 
-# TODO: assoc test here
+  # Require at least one each of somatic carriers and reference to proceed
+  y.vals <- query.ad.matrix(somatic.ad, som.vids, action="any")
+  if(length(table(y.vals)) < 2){
+    return(NULL)
+  }
 
+  # Apply over germline sets
+  res.by.germline <- apply(germline.sets, 1, function(germline.info){
+    germ.sid <- as.character(germline.info[1])
+    germ.vids <- as.vector(unlist(germline.info[2]))
+    if(!any(germ.vids %in% unlist(sapply(germline.ad, rownames)))){
+      return(NULL)
+    }
+    x.vals <- query.ad.matrix(germline.ad, germ.vids, action="sum")
 
-#
-# # Add FDR Q-value
-# stats$fdr_q <- p.adjust(stats$p, method="fdr")
-#
-# # Write cleaned stats to --outfile
-# colnames(stats)[1] <- paste("#", colnames(stats)[1], sep="")
-# write.table(stats, args$outfile, col.names=T, row.names=F, sep="\t", quote=F)
+    # Run germline-somatic association
+    res <- tryCatch(germline.somatic.assoc(y.vals, x.vals, samples, meta,
+                                           multiPop.min.ac=args$multiPop_min_ac,
+                                           multiPop.min.freq=args$multiPop_min_freq),
+                    error=function(e){
+                      germline.somatic.assoc(y.vals, x.vals, samples, meta,
+                                             multiPop.min.ac=args$multiPop_min_ac,
+                                             multiPop.min.freq=args$multiPop_min_freq,
+                                             firth.fallback=F)
+                    })
+    if(!is.null(res)){
+      return(c("germline"=germ.sid, res))
+    }else{
+      return(NULL)
+    }
+  })
+  res.type <- typeof(res.by.germline)
+  if(res.type == "list"){
+    res.by.germline <- as.data.frame(do.call("rbind", res.by.germline))
+  }else if(res.type == "character"){
+    res.by.germline <- as.data.frame(t(res.by.germline))
+  }
+  if(!is.null(res.by.germline)){
+    cbind("somatic"=som.sid, res.by.germline)
+  }else{
+    return(NULL)
+  }
+})
+res <- as.data.frame(do.call("rbind", res.by.somatic))
+
+# Write cleaned results to --outfile
+colnames(res)[1] <- paste("#", colnames(res)[1], sep="")
+write.table(res, args$outfile, col.names=T, row.names=F, sep="\t", quote=F)

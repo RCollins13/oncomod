@@ -150,7 +150,11 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
                                              multiPop.min.freq=args$multiPop_min_freq,
                                              firth.fallback=F)
                     })
-    c("germline"=germ.sid, res)
+    if(!is.null(res)){
+      return(c("germline"=germ.sid, res))
+    }else{
+      return(NULL)
+    }
   })
   res.type <- typeof(res.by.germline)
   if(res.type == "list"){
