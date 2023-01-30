@@ -99,6 +99,9 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta,
                                    firth.fallback=TRUE, firth.always=FALSE,
                                    custom.covariates=c(), multiPop.min.ac=10,
                                    multiPop.min.freq=0.01){
+  # Ensure Firth package is loaded
+  require(logistf, quietly=TRUE)
+
   # Enforce strict intersection of non-NA samples between germline & somatic
   som.samples <- names(y.vals)[which(!is.na(y.vals))]
   germ.samples <- names(x.vals)[which(!is.na(x.vals))]

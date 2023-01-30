@@ -70,10 +70,10 @@ args <- parser$parse_args()
 # # DEV - PROFILE
 # args <- list("sample_metadata" = "~/scratch/PROFILE.ALL.sample_metadata.tsv.gz",
 #              "cancer_type" = "SKCM",
-#              "germline_ad" = "~/scratch/PROFILE.RAS_loci.dosage.sub.tsv.gz",
+#              "germline_ad" = "~/scratch/PROFILE.RAS_loci.dosage.tsv.gz",
 #              "germline_variant_sets" = "~/scratch/SKCM.KRAS.germline_sets.shard_39",
 #              "outfile" = "~/scratch/PROFILE.SKCM.KRAS.sumstats.tsv",
-#              "somatic_ad" = "~/scratch/PROFILE.somatic_variants.dosage.sub.tsv.gz",
+#              "somatic_ad" = "~/scratch/PROFILE.somatic_variants.dosage.tsv.gz",
 #              "somatic_variant_sets" = "~/scratch/SKCM.KRAS.somatic_endpoints.tsv",
 #              "normalize_germline_ad" = FALSE,
 #              "multiPop_min_ac" = 10,

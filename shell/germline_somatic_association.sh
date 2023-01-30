@@ -523,7 +523,46 @@ done
 
 
 ### Mega-analysis (pooled) of all cohorts per cancer type
-# TODO: implement this
+# One submission per gene & cancer type
+for cancer in PDAC CRAD LUAD SKCM; do
+  while read chrom start end gene; do
+    cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_pooled_${cancer}_${gene}.sharded.sh
+#!/usr/bin/env bash
+$CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.pooled.R \
+--sample-metadata $TCGADIR/data/sample_info/TCGA.ALL.sample_metadata.tsv.gz \
+--somatic-ad $TCGADIR/data/TCGA.somatic_variants.dosage.tsv.gz \
+--germline-ad $TCGADIR/data/TCGA.RAS_loci.dosage.tsv.gz \
+--name TCGA \
+--sample-metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
+--somatic-ad $PROFILEDIR/data/PROFILE.somatic_variants.dosage.tsv.gz \
+--germline-ad $PROFILEDIR/data/PROFILE.RAS_loci.dosage.tsv.gz \
+--name DFCI \
+--cancer-type $cancer \
+--somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
+--germline-variant-sets $WRKDIR/data/variant_sets/test_sets/shards/$cancer.$gene.germline_sets.shard_\$1 \
+--outfile $WRKDIR/results/assoc_stats/single/pooled.$cancer.$gene.sumstats.\$1.tsv
+gzip -f $WRKDIR/results/assoc_stats/single/pooled.$cancer.$gene.sumstats.\$1.tsv
+EOF
+    chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_pooled_${cancer}_${gene}.sharded.sh
+    n_shards=$( find $WRKDIR/data/variant_sets/test_sets/shards/ \
+                  -name "$cancer.$gene.germline_sets.shard_*" | wc -l )
+    for i in $( seq 1 $n_shards ); do 
+      for suf in err log; do
+        logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_pooled_${cancer}_${gene}.$i.$suf
+        if [ -e $logfile ]; then rm $logfile; fi
+      done
+      bsub -q big -sla miket_sc -R "rusage[mem=20000]" -n 4 \
+        -J germline_somatic_assoc_pooled_${cancer}_${gene}_$i \
+        -o $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_${cancer}_${gene}.$i.log \
+        -e $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_${cancer}_${gene}.$i.err \
+        "$WRKDIR/LSF/scripts/germline_somatic_assoc_pooled_${cancer}_${gene}.sharded.sh $i"
+    done
+  done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
+done
+# Once complete:
+# 1. pool results per cancer type
+# 2. plot QQs 
+# TODO: implement these steps
 
 
 ### Meta-analyze results across cancers

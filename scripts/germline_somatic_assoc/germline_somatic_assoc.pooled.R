@@ -16,6 +16,7 @@
 #########
 # Load necessary libraries and constants
 require(RASMod, quietly=TRUE)
+require(logistf, quietly=TRUE)
 require(argparse, quietly=TRUE)
 RASMod::load.constants("names")
 
