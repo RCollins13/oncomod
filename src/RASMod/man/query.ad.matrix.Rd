@@ -7,7 +7,8 @@
 query.ad.matrix(ad, vids, action = "verbose")
 }
 \arguments{
-\item{ad}{Allele dosage matrix as imported by \link{load.ad.matrix}}
+\item{ad}{One or more allele dosage matrix(es) as imported by
+\link{load.ad.matrix}. See \code{Details}}
 
 \item{vids}{Variant IDs to query}
 
@@ -20,6 +21,10 @@ numeric vector or data.frame, depending on \code{action}
 Subsets and optionally compresses an allele dosage matrix
 }
 \details{
+The \code{ad} argument accepts either a single data.frame or a list
+of data.frames. If a list is provided, each matrix will be queried individually
+and their results will be concatenated.
+
 Recognized values for \code{action} include:
 \itemize{
 \item \code{"verbose"} : return the full query matrix [default]

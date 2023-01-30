@@ -102,6 +102,69 @@ impute.missing.values <- function(df, fill.missing="mean", fill.columns=NULL){
 }
 
 
+#' Merge patient metadata
+#'
+#' Merge patient metadata across multiple cohorts
+#'
+#' @param meta.list List of data frames, one per cohort, as loaded by [load.patient.metadata]
+#' @param cancer Subset metadata to a specific cancer type before merging
+#' \[default: keep all samples\]
+#'
+#' @return data.frame
+#'
+#' @seealso [load.patient.metadata]
+#'
+#' @export merge.patient.metadata
+#' @export
+merge.patient.metadata <- function(meta.list, cancer, cohort.names=NULL){
+  if(is.null(cohort.names)){
+    cohort.names <- paste("cohort", 1:length(meta.list), sep="_")
+  }
+  n.cohorts <- length(cohort.names)
+  for(i in 1:n.cohorts){
+    meta.sub <- meta.list[[i]]
+    if(!is.null(cancer)){
+      meta.sub <- meta.sub[which(meta.sub$CANCER_TYPE == cancer), ]
+      cat(paste("Retained", nrow(meta.sub), "samples from cancer type", cancer,
+                "in cohort", cohort.names[i],"\n"))
+    }
+    rownames(meta.sub) <- meta.sub[, 1]
+    meta.sub[, 1] <- NULL
+
+    # Impute missing phenotype data as median or mode (depending on variable class)
+    meta.sub <- impute.missing.values(meta.sub, fill.missing="median")
+
+    # Suffix PC covariates with cohort name (to be imputed across cohorts separately)
+    pc.idxs <- grep("^PC[0-9]", colnames(meta.sub))
+    colnames(meta.sub)[pc.idxs] <- paste(colnames(meta.sub)[pc.idxs], cohort.names[i], sep=".")
+
+    # Add one-hot indicator column for every cohort after the first
+    if(i>1){
+      meta.sub[, paste("cohort", cohort.names[i], sep=".")] <- 1
+    }
+
+    # Update list of per-cohort metadata
+    meta.list[[i]] <- meta.sub
+  }
+
+  # Combine metadata across cohorts
+  meta <- dplyr::bind_rows(meta.list)
+
+  # Fill missing cohort indicators
+  cohort.col.idxs <- grep("^cohort\\.", colnames(meta))
+  for(cidx in cohort.col.idxs){
+    vals <- meta[, cidx]
+    na.idxs <- which(is.na(vals))
+    if(length(na.idxs) > 0){
+      vals[na.idxs] <- 0
+    }
+    meta[, cidx] <- vals
+  }
+
+  return(meta)
+}
+
+
 #' Load variant set membership
 #'
 #' Load a table linking variant sets to their constituent variant IDs

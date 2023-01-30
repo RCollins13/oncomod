@@ -88,6 +88,9 @@ if(args$drop_frequencies){
 # Annotate merged stats with weighted frequencies
 stats <- ivw.meta.analysis(stats)
 
+# Add FDR Q-value
+stats$fdr_q <- p.adjust(stats$p, method="fdr")
+
 # Write cleaned stats to --outfile
 colnames(stats)[1] <- paste("#", colnames(stats)[1], sep="")
 write.table(stats, args$outfile, col.names=T, row.names=F, sep="\t", quote=F)

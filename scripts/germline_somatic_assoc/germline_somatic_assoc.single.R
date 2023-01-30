@@ -21,130 +21,6 @@ require(argparse, quietly=TRUE)
 RASMod::load.constants("names")
 
 
-##################
-# Data functions #
-##################
-# Run association test for germline & somatic interactions
-germline.somatic.assoc <- function(y.vals, x.vals, samples, meta,
-                                   firth.fallback=TRUE, firth.always=FALSE){
-  # Construct test df from y, x, and meta
-  test.df <- meta[samples, c("AGE_AT_DIAGNOSIS", "SEX", paste("PC", 1:10, sep=""),
-                             "TUMOR_PURITY")]
-  test.df$SEX <- as.numeric(test.df$SEX == "MALE")
-  test.df <- cbind(data.frame("Y" = y.vals, "X" = x.vals, row.names=names(y.vals)),
-                   test.df)
-
-  # Check if X is allele count or Z-score (for PRS)
-  germ.is.ac <- if(all(is.integer(x.vals))){TRUE}else{FALSE}
-
-  # Test dataset for quasi- or complete-separability
-  # In the case of any zero counts in any of the X by Y matrix,
-  # revert to Firth regression
-  n.samples <- length(samples)
-  somatic.ac <- sum(y.vals, na.rm=T)
-  if(!germ.is.ac){
-    yes_somatic.germline.ac <- mean(x.vals[which(y.vals > 0)], na.rm=T)
-    no_somatic.germline.ac <- mean(x.vals[which(y.vals == 0)], na.rm=T)
-    firth <- if(somatic.ac < 10){TRUE}else{FALSE}
-  }else{
-    germline.ac <- sum(x.vals, na.rm=T)
-    yes_somatic.germline.ac <- sum(x.vals[which(y.vals > 0)], na.rm=T)
-    no_somatic.germline.ac <- sum(x.vals[which(y.vals == 0)], na.rm=T)
-    if(firth.always){
-      firth <- TRUE
-    }else if(firth.fallback){
-      x.by.y <- t(sapply(unique(y.vals), function(y){
-        sapply(unique(x.vals), function(x){
-          length(which(x.vals[which(y.vals==y)]==x))
-        })
-      }))
-      # Require at least two counts per observed X, Y pair
-      # Otherwise, use Firth
-      if(any(x.by.y < 2)){
-        firth <- TRUE
-      }else{
-        firth <- FALSE
-      }
-    }else if(any(c(n.samples, somatic.ac, germline.ac) == 0)){
-      return(c("samples"=n.samples,
-               "somatic_AC"=somatic.ac,
-               "yes_somatic.germline_AC"=yes_somatic.germline.ac,
-               "no_somatic.germline_AC"=no_somatic.germline.ac,
-               "beta"=NA,
-               "beta_SE"=NA,
-               "z"=NA,
-               "chisq"=NA,
-               "model"=NA,
-               "p"=NA))
-    }else{
-      firth <- FALSE
-    }
-  }
-
-
-  # Drop covariates with no informative observations
-  all.na <- which(apply(test.df, 2, function(vals){all(is.na(vals))}))
-  if(length(all.na > 0)){
-    test.df <- test.df[, -all.na]
-  }
-
-  # Standard normalize all covariates
-  test.df[, -c(1:2)] <- apply(test.df[, -c(1:2)], 2, scale)
-
-  # Run association model
-  firth.regression <- function(data){
-    logistf(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=data,
-            control=logistf.control(maxit=100), flic=TRUE)
-  }
-  if(firth){
-    fit <- firth.regression(test.df)
-  }else{
-    if(firth.fallback){
-      fit <- tryCatch(glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df, family="binomial"),
-                      warning=function(w){firth.regression(test.df)})
-      if(fit$method != "glm.fit"){
-        firth <- TRUE
-      }
-    }else{
-      fit <- glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df, family="binomial")
-    }
-  }
-
-  # Extract association stats for germline variants
-  if(is.na(fit$coefficients["X"])){
-    assoc.res <- rep(NA, 4)
-    model <- chisq <- z <- NA
-  }else{
-    if(firth){
-      assoc.res <- as.numeric(c(fit$coefficients["X"],
-                              sqrt(diag(vcov(fit)))["X"],
-                              qchisq(1-fit$prob, df=1)["X"],
-                              fit$prob["X"]))
-      chisq <- assoc.res[3]
-      z <- NA
-      model <- "flic"
-    }else{
-      assoc.res <- as.numeric(summary(fit)$coefficients["X", ])
-      z <- assoc.res[3]
-      chisq <- NA
-      model <- "logit"
-    }
-  }
-  # Return summary vector
-  res <- c("samples"=n.samples,
-    "somatic_AC"=somatic.ac,
-    "yes_somatic.germline_AC"=yes_somatic.germline.ac,
-    "no_somatic.germline_AC"=no_somatic.germline.ac,
-    "beta"=assoc.res[1],
-    "beta_SE"=assoc.res[2],
-    "z"=z,
-    "chisq"=chisq,
-    "model"=model,
-    "p"=assoc.res[4])
-  return(res)
-}
-
-
 ###########
 # RScript #
 ###########
@@ -182,10 +58,10 @@ args <- parser$parse_args()
 # # DEV - TCGA
 # args <- list("sample_metadata" = "~/scratch/TCGA.ALL.sample_metadata.tsv.gz",
 #              "cancer_type" = "PDAC",
-#              "germline_ad" = "~/scratch/TCGA.RAS_loci.dosage.tsv.gz",
+#              "germline_ad" = "~/scratch/TCGA.RAS_loci.dosage.sub.tsv.gz",
 #              "germline_variant_sets" = "~/scratch/PDAC.KRAS.germline_sets.tsv",
 #              "outfile" = "~/scratch/TCGA.PDAC.KRAS.sumstats.tsv",
-#              "somatic_ad" = "~/scratch/TCGA.somatic_variants.dosage.tsv.gz",
+#              "somatic_ad" = "~/scratch/TCGA.somatic_variants.dosage.sub.tsv.gz",
 #              "somatic_variant_sets" = "~/scratch/PDAC.KRAS.somatic_endpoints.tsv",
 #              "normalize_germline_ad" = FALSE,
 #              "multiPop_min_ac" = 10,
@@ -193,12 +69,12 @@ args <- parser$parse_args()
 
 # # DEV - PROFILE
 # args <- list("sample_metadata" = "~/scratch/PROFILE.ALL.sample_metadata.tsv.gz",
-#              "cancer_type" = "PDAC",
-#              "germline_ad" = "~/scratch/PROFILE.RAS_loci.dosage.tsv.gz",
-#              "germline_variant_sets" = "~/scratch/PDAC.HRAS.germline_sets.tsv",
-#              "outfile" = "~/scratch/PROFILE.PDAC.HRAS.sumstats.tsv",
-#              "somatic_ad" = "~/scratch/PROFILE.somatic_variants.dosage.tsv.gz",
-#              "somatic_variant_sets" = "~/scratch/PDAC.HRAS.somatic_endpoints.tsv",
+#              "cancer_type" = "SKCM",
+#              "germline_ad" = "~/scratch/PROFILE.RAS_loci.dosage.sub.tsv.gz",
+#              "germline_variant_sets" = "~/scratch/SKCM.KRAS.germline_sets.shard_39",
+#              "outfile" = "~/scratch/PROFILE.SKCM.KRAS.sumstats.tsv",
+#              "somatic_ad" = "~/scratch/PROFILE.somatic_variants.dosage.sub.tsv.gz",
+#              "somatic_variant_sets" = "~/scratch/SKCM.KRAS.somatic_endpoints.tsv",
 #              "normalize_germline_ad" = FALSE,
 #              "multiPop_min_ac" = 10,
 #              "multiPop_min_freq" = 0.01)
@@ -209,7 +85,7 @@ args <- parser$parse_args()
 #              "germline_ad" = "~/scratch/PROFILE.PRS.tsv.gz",
 #              "germline_variant_sets" = "~/scratch/CRAD.germline_PRS.tsv",
 #              "outfile" = "~/scratch/PROFILE.CRAD.KRAS.PRS.sumstats.tsv",
-#              "somatic_ad" = "~/scratch/PROFILE.somatic_variants.dosage.tsv.gz",
+#              "somatic_ad" = "~/scratch/PROFILE.somatic_variants.dosage.sub.tsv.gz",
 #              "somatic_variant_sets" = "~/scratch/CRAD.KRAS.somatic_endpoints.tsv",
 #              "normalize_germline_ad" = TRUE,
 #              "multiPop_min_ac" = 10,
@@ -264,37 +140,17 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
     }
     x.vals <- query.ad.matrix(germline.ad, germ.vids, action="sum")
 
-    # Enforce strict intersection of non-NA samples between germline & somatic
-    som.samples <- names(y.vals)[which(!is.na(y.vals))]
-    germ.samples <- names(x.vals)[which(!is.na(x.vals))]
-    samples <- intersect(som.samples, germ.samples)
-    y.vals <- y.vals[samples]
-    x.vals <- x.vals[samples]
-
-    # If germline or somatic variants are <1% freq / <10 counts, restrict to
-    # European samples to protect against pop strat
-    eur.only <- FALSE
-    if(sum(x.vals) < args$multiPop_min_ac
-       | sum(x.vals) / length(samples) < args$multiPop_min_freq
-       | sum(y.vals) < args$multiPop_min_ac
-       | sum(y.vals) / length(samples) < args$multiPop_min_freq){
-      eur.samples <- rownames(meta[which(meta$POPULATION == "EUR"), ])
-      samples <- intersect(samples, eur.samples)
-      x.vals <- x.vals[samples]
-      y.vals <- y.vals[samples]
-      eur.only <- TRUE
-    }
-
-    # Ensure non-zero counts for X and Y
-    if(length(samples) == 0
-       | length(table(x.vals)) < 2
-       | length(table(y.vals)) < 2){
-      return(NULL)
-    }
-
-    # If all checks pass above, run association test
-    c("germline"=germ.sid, germline.somatic.assoc(y.vals, x.vals, samples, meta),
-      "EUR_only"=eur.only)
+    # Run germline-somatic association
+    res <- tryCatch(germline.somatic.assoc(y.vals, x.vals, samples, meta,
+                                           multiPop.min.ac=args$multiPop_min_ac,
+                                           multiPop.min.freq=args$multiPop_min_freq),
+                    error=function(e){
+                      germline.somatic.assoc(y.vals, x.vals, samples, meta,
+                                             multiPop.min.ac=args$multiPop_min_ac,
+                                             multiPop.min.freq=args$multiPop_min_freq,
+                                             firth.fallback=F)
+                    })
+    c("germline"=germ.sid, res)
   })
   res.type <- typeof(res.by.germline)
   if(res.type == "list"){
