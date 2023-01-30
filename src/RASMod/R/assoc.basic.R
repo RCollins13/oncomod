@@ -197,14 +197,13 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta,
 
   # Run association model
   firth.regression <- function(data){
-    tryCatch(logistf(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=data,
-              control=logistf.control(maxit=100), flic=TRUE),
-             error=function(e){
-               glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df, family="binomial")
-             })
+    logistf(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=data,
+            control=logistf.control(maxit=100), flic=TRUE)
   }
   if(firth){
-    fit <- firth.regression(test.df)
+    fit <- tryCatch(firth.regression(test.df),
+                    error=function(e){glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX),
+                                          data=data, family="binomial")})
   }else{
     if(firth.fallback){
       fit <- tryCatch(glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df, family="binomial"),

@@ -377,6 +377,7 @@ for cohort in TCGA PROFILE; do
          [ -s $WRKDIR/data/variant_sets/test_sets/$cancer.germline_PRS.tsv ]; then
         if ! [ -s $WRKDIR/results/assoc_stats/single/PROFILE.$cancer.$gene.sumstats.PRS.tsv.gz ]; then
           echo -e "$cohort\t$cancer\t$gene\tPRS"
+          
         fi
       fi
     done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
