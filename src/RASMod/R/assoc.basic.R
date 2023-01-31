@@ -131,8 +131,10 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta,
   }
 
   # Construct test df from y, x, and meta
-  cov.to.keep <- union(c("AGE_AT_DIAGNOSIS", "SEX", paste("PC", 1:10, sep=""),
-                         "TUMOR_PURITY"), custom.covariates)
+  cov.to.keep <- Reduce(union,
+                        list(c("AGE_AT_DIAGNOSIS", "SEX", "TUMOR_PURITY"),
+                            custom.covariates,
+                            colnames(meta)[grep("^PC[0-9]", colnames(meta))]))
   test.df <- meta[samples, intersect(cov.to.keep, colnames(meta))]
   test.df$SEX <- as.numeric(test.df$SEX == "MALE")
   test.df <- cbind(data.frame("Y" = y.vals, "X" = x.vals, row.names=names(y.vals)),
