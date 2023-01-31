@@ -64,15 +64,15 @@ args <- parser$parse_args()
 # # DEV:
 # args <- list("sample_metadata" = c("~/scratch/TCGA.ALL.sample_metadata.tsv.gz",
 #                                    "~/scratch/PROFILE.ALL.sample_metadata.tsv.gz"),
-#              "somatic_ad" = c("~/scratch/TCGA.somatic_variants.dosage.sub.tsv.gz",
-#                               "~/scratch/PROFILE.somatic_variants.dosage.sub.tsv.gz"),
-#              "germline_ad" = c("~/scratch/TCGA.RAS_loci.dosage.sub.tsv.gz",
-#                                "~/scratch/PROFILE.RAS_loci.dosage.sub.tsv.gz"),
+#              "somatic_ad" = c("~/scratch/TCGA.somatic_variants.dosage.tsv.gz",
+#                               "~/scratch/PROFILE.somatic_variants.dosage.tsv.gz"),
+#              "germline_ad" = c("~/scratch/TCGA.RAS_loci.dosage.tsv.gz",
+#                                "~/scratch/PROFILE.RAS_loci.dosage.tsv.gz"),
 #              "name" = c("TCGA", "PROFILE"),
-#              "somatic_variant_sets" = "~/scratch/SKCM.KRAS.somatic_endpoints.tsv",
-#              "germline_variant_sets" = "~/scratch/SKCM.KRAS.germline_sets.shard_39",
+#              "somatic_variant_sets" = "~/scratch/PDAC.NRAS.somatic_endpoints.tsv",
+#              "germline_variant_sets" = "~/scratch/PDAC.NRAS.germline_sets.shard_1",
 #              "outfile" = "~/scratch/pooled.assoc.test.tsv",
-#              "cancer_type" = "SKCM",
+#              "cancer_type" = "PDAC",
 #              "normalize_germline_ad" = FALSE,
 #              "multiPop_min_ac" = 10,
 #              "multiPop_min_freq" = 0.01)
@@ -114,24 +114,31 @@ somatic.ad <- lapply(args$somatic_ad, load.ad.matrix, sample.subset=samples.w.ph
 
 # Compute association statistics for each somatic endpoint
 res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
-  som.sid <- as.character(somatic.info[1])
-  som.vids <- as.vector(unlist(somatic.info[2]))
-  if(!any(som.vids %in% unlist(sapply(somatic.ad, rownames)))){
-    return(NULL)
-  }
-
-  # Require at least one each of somatic carriers and reference to proceed
-  y.vals <- query.ad.matrix(somatic.ad, som.vids, action="any")
-  if(length(table(y.vals)) < 2){
-    return(NULL)
-  }
+  # RETURN CODE HERE
 
   # Apply over germline sets
-  res.by.germline <- apply(germline.sets, 1, function(germline.info){
+  # res.by.germline <- apply(germline.sets, 1, function(germline.info){
+  for(i in 1:nrow(germline.sets)){
+
+    som.sid <- as.character(somatic.info[1])
+    som.vids <- as.vector(unlist(somatic.info[2]))
+    if(!any(som.vids %in% unlist(sapply(somatic.ad, rownames)))){
+      return(NULL)
+    }
+
+    # Require at least one each of somatic carriers and reference to proceed
+    y.vals <- query.ad.matrix(somatic.ad, som.vids, action="any")
+    if(length(table(y.vals)) < 2){
+      return(NULL)
+    }
+
+    print(i)
+    germline.info <- germline.sets[i, ]
     germ.sid <- as.character(germline.info[1])
     germ.vids <- as.vector(unlist(germline.info[2]))
     if(!any(germ.vids %in% unlist(sapply(germline.ad, rownames)))){
-      return(NULL)
+      # return(NULL)
+      next
     }
     x.vals <- query.ad.matrix(germline.ad, germ.vids, action="sum")
 
@@ -148,11 +155,14 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
                                              firth.fallback=F)
                     })
     if(!is.null(res)){
-      return(c("germline"=germ.sid, res))
+      # return(c("germline"=germ.sid, res))
+      c("germline"=germ.sid, res)
     }else{
-      return(NULL)
+      # return(NULL)
+      next
     }
-  })
+  }
+  # })
   res.type <- typeof(res.by.germline)
   if(res.type == "list"){
     res.by.germline <- as.data.frame(do.call("rbind", res.by.germline))

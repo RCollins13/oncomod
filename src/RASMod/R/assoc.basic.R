@@ -189,9 +189,11 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta,
   }
 
   # Drop covariates with no informative observations
-  all.na <- which(apply(test.df, 2, function(vals){all(is.na(vals))}))
-  if(length(all.na > 0)){
-    test.df <- test.df[, -all.na]
+  useless.cov <- which(apply(test.df, 2, function(vals){
+    all(is.na(vals)) | (length(table(vals)) < 2)
+    }))
+  if(length(useless.cov > 0)){
+    test.df <- test.df[, -useless.cov]
   }
 
   # Standard normalize all covariates
