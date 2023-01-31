@@ -196,24 +196,27 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta,
   test.df[, -c(1:2)] <- apply(test.df[, -c(1:2)], 2, scale)
 
   # Run association model
+  logit.regression <- function(data){
+    glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=data, family="binomial")
+  }
   firth.regression <- function(data){
     logistf(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=data,
             control=logistf.control(maxit=100), flic=TRUE)
   }
   if(firth){
     fit <- tryCatch(firth.regression(test.df),
-                    error=function(e){glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX),
-                                          data=data, family="binomial")})
+                    error=function(e){logit.regression(test.df)})
   }else{
     if(firth.fallback){
-      fit <- tryCatch(glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df, family="binomial"),
-                      warning=function(w){firth.regression(test.df)})
-      if(fit$method != "glm.fit"){
-        firth <- TRUE
-      }
+      fit <- tryCatch(logit.regression(test.df),
+                      warning=function(w){firth.regression(test.df)},
+                      error=function(e){firth.regression(test.df)})
     }else{
-      fit <- glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=test.df, family="binomial")
+      fit <- logit.regression(test.df)
     }
+  }
+  if(fit$method != "glm.fit"){
+    firth <- TRUE
   }
 
   # Extract association stats for germline variants

@@ -21,6 +21,17 @@ require(argparse, quietly=TRUE)
 RASMod::load.constants("names")
 
 
+##################
+# Data Functions #
+##################
+# Subset a variant set dataframe based on variants present in an AD matrix
+subset.variant.sets <- function(variant.sets, ad.matrix){
+  variant.sets[which(unlist(sapply(variant.sets[, 2], function(vids){
+    any(vids %in% rownames(ad.matrix))
+  }))), ]
+}
+
+
 ###########
 # RScript #
 ###########
@@ -117,6 +128,10 @@ germline.ad <- load.ad.matrix(args$germline_ad, sample.subset=samples.w.pheno,
 somatic.ad <- load.ad.matrix(args$somatic_ad, sample.subset=samples.w.pheno,
                              variant.subset=somatic.vids)
 
+# Subset variant sets to ADs to avoid iterating over nonexistant germline-somatic pairs
+germline.sets <- subset.variant.sets(germline.sets, germline.ad)
+somatic.sets <- subset.variant.sets(somatic.sets, somatic.ad)
+
 # Compute association statistics for each somatic endpoint
 res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
   som.sid <- as.character(somatic.info[1])
@@ -141,15 +156,9 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
     x.vals <- query.ad.matrix(germline.ad, germ.vids, action="sum")
 
     # Run germline-somatic association
-    res <- tryCatch(germline.somatic.assoc(y.vals, x.vals, samples, meta,
+    res <- germline.somatic.assoc(y.vals, x.vals, samples, meta,
                                            multiPop.min.ac=args$multiPop_min_ac,
-                                           multiPop.min.freq=args$multiPop_min_freq),
-                    error=function(e){
-                      germline.somatic.assoc(y.vals, x.vals, samples, meta,
-                                             multiPop.min.ac=args$multiPop_min_ac,
-                                             multiPop.min.freq=args$multiPop_min_freq,
-                                             firth.fallback=F)
-                    })
+                                           multiPop.min.freq=args$multiPop_min_freq)
     if(!is.null(res)){
       return(c("germline"=germ.sid, res))
     }else{
