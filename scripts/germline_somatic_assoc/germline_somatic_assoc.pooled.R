@@ -114,31 +114,24 @@ somatic.ad <- lapply(args$somatic_ad, load.ad.matrix, sample.subset=samples.w.ph
 
 # Compute association statistics for each somatic endpoint
 res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
-  # RETURN CODE HERE
+  som.sid <- as.character(somatic.info[1])
+  som.vids <- as.vector(unlist(somatic.info[2]))
+  if(!any(som.vids %in% unlist(sapply(somatic.ad, rownames)))){
+    return(NULL)
+  }
+
+  # Require at least one each of somatic carriers and reference to proceed
+  y.vals <- query.ad.matrix(somatic.ad, som.vids, action="any")
+  if(length(table(y.vals)) < 2){
+    return(NULL)
+  }
 
   # Apply over germline sets
-  # res.by.germline <- apply(germline.sets, 1, function(germline.info){
-  for(i in 1:nrow(germline.sets)){
-
-    som.sid <- as.character(somatic.info[1])
-    som.vids <- as.vector(unlist(somatic.info[2]))
-    if(!any(som.vids %in% unlist(sapply(somatic.ad, rownames)))){
-      return(NULL)
-    }
-
-    # Require at least one each of somatic carriers and reference to proceed
-    y.vals <- query.ad.matrix(somatic.ad, som.vids, action="any")
-    if(length(table(y.vals)) < 2){
-      return(NULL)
-    }
-
-    print(i)
-    germline.info <- germline.sets[i, ]
+  res.by.germline <- apply(germline.sets, 1, function(germline.info){
     germ.sid <- as.character(germline.info[1])
     germ.vids <- as.vector(unlist(germline.info[2]))
     if(!any(germ.vids %in% unlist(sapply(germline.ad, rownames)))){
-      # return(NULL)
-      next
+      return(NULL)
     }
     x.vals <- query.ad.matrix(germline.ad, germ.vids, action="sum")
 
@@ -155,14 +148,11 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
                                              firth.fallback=F)
                     })
     if(!is.null(res)){
-      # return(c("germline"=germ.sid, res))
-      c("germline"=germ.sid, res)
+      return(c("germline"=germ.sid, res))
     }else{
-      # return(NULL)
-      next
+      return(NULL)
     }
-  }
-  # })
+  })
   res.type <- typeof(res.by.germline)
   if(res.type == "list"){
     res.by.germline <- as.data.frame(do.call("rbind", res.by.germline))
