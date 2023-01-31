@@ -142,6 +142,7 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
                                            multiPop.min.freq=args$multiPop_min_freq),
                     error=function(e){
                       germline.somatic.assoc(y.vals, x.vals, samples, meta,
+                                             custom.covariates=colnames(meta)[grep("^cohort\\.", colnames(meta))],
                                              multiPop.min.ac=args$multiPop_min_ac,
                                              multiPop.min.freq=args$multiPop_min_freq,
                                              firth.fallback=F)
