@@ -248,22 +248,26 @@ km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
 
   # Prep plot area
   prep.plot.area(xlims, c(0,1), parmar)
-  x.ax.step <- floor(xlims[2] / (365*6))
+  x.ax.step <- max(c(floor(xlims[2] / (365*6)), 1))
   x.ax.years <- seq(0, xlims[2]/365, by=x.ax.step)
   clean.axis(1, at=x.ax.years*365, labels=x.ax.years, infinite=TRUE,
              title="Years", label.line=-0.75, title.line=0)
   clean.axis(2, title="Survival Probability", infinite=FALSE)
 
   # Add confidence intervals
-  sapply(1:n.groups, function(i){
-    n.times <- length(surv.models[[i]]$time)
-    x.bottom <- c(0, RASMod::stretch.vector(surv.models[[i]]$time, 2)[-2*n.times])
-    x.top <- rev(x.bottom)
-    y.bottom <- c(1, 1, RASMod::stretch.vector(surv.models[[i]]$lower, 2)[-c(2*n.times-c(0, 1))])
-    y.top <- rev(c(1, 1, RASMod::stretch.vector(surv.models[[i]]$upper, 2)[-c(2*n.times-c(0, 1))]))
-    polygon(x=c(x.bottom, x.top), y=c(y.bottom, y.top),
-            border=NA, bty="n", col=adjustcolor(colors[[i]], alpha=ci.alpha))
-  })
+  # Loop over this twice: first to lay white backgrounds, then add colors
+  for(layer in c("white", "colors")){
+    sapply(1:n.groups, function(i){
+      n.times <- length(surv.models[[i]]$time)
+      x.bottom <- c(0, RASMod::stretch.vector(surv.models[[i]]$time, 2)[-2*n.times])
+      x.top <- rev(x.bottom)
+      y.bottom <- c(1, 1, RASMod::stretch.vector(surv.models[[i]]$lower, 2)[-c(2*n.times-c(0, 1))])
+      y.top <- rev(c(1, 1, RASMod::stretch.vector(surv.models[[i]]$upper, 2)[-c(2*n.times-c(0, 1))]))
+      polygon(x=c(x.bottom, x.top), y=c(y.bottom, y.top), border=NA, bty="n",
+              col=if(layer == "white"){"white"}else{adjustcolor(colors[[i]], alpha=ci.alpha)})
+    })
+  }
+
 
   # Add K-M curves
   sapply(1:n.groups, function(i){
@@ -274,8 +278,10 @@ km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
   })
 
   # Add legend
-  final.y <- sapply(surv.models, function(ss){tail(ss$surv, 2)[1]})
-  yaxis.legend(legend.names, x=xlims[2] + (0.05*diff(xlims)), y.positions=final.y,
-               sep.wex=0.05*diff(xlims), colors=colors)
+  if(legend){
+    final.y <- sapply(surv.models, function(ss){tail(ss$surv, 2)[1]})
+    yaxis.legend(legend.names, x=xlims[2] + (0.05*diff(xlims)), y.positions=final.y,
+                 sep.wex=0.05*diff(xlims), colors=colors)
+  }
 }
 

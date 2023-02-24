@@ -18,7 +18,7 @@ export TCGADIR=/data/gusev/USERS/rlc47/TCGA
 export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
 export CODEDIR=$WRKDIR/../code/ras_modifiers
-export bonf_sig=0.0000003199304
+export bonf_sig=0.0000006879566
 cd $WRKDIR
 
 
@@ -377,7 +377,7 @@ for cohort in TCGA PROFILE; do
          [ -s $WRKDIR/data/variant_sets/test_sets/$cancer.germline_PRS.tsv ]; then
         if ! [ -s $WRKDIR/results/assoc_stats/single/PROFILE.$cancer.$gene.sumstats.PRS.tsv.gz ]; then
           echo -e "$cohort\t$cancer\t$gene\tPRS"
-          
+
         fi
       fi
     done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
@@ -560,10 +560,49 @@ EOF
     done
   done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
 done
-# Once complete:
-# 1. pool results per cancer type
-# 2. plot QQs 
-# TODO: implement these steps
+# Find missing shards
+for cancer in PDAC CRAD LUAD SKCM; do
+  while read chrom start end gene; do
+    n_shards=$( find $WRKDIR/data/variant_sets/test_sets/shards/ \
+                    -name "$cancer.$gene.germline_sets.shard_*" | wc -l )
+    for i in $( seq 1 $n_shards ); do
+      if ! [ -s $WRKDIR/results/assoc_stats/single/pooled.$cancer.$gene.sumstats.$i.tsv.gz ]; then
+        echo -e "$cancer\t$gene\t$i"
+      fi
+    done 
+  done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
+done
+# Once complete, pool results per cancer type
+for cancer in PDAC CRAD LUAD SKCM; do
+  n_expected=$( find $WRKDIR/data/variant_sets/test_sets/shards/ \
+                  -name "$cancer.*.germline_sets.shard_*" | wc -l )
+  n_complete=$( find $WRKDIR/results/assoc_stats/single/ \
+                  -name "pooled.$cancer.*.sumstats.*.tsv.gz" | wc -l )
+  if [ $n_expected -eq $n_complete ]; then
+    zcat \
+      $WRKDIR/results/assoc_stats/single/pooled.$cancer.*.sumstats.*.tsv.gz \
+      $WRKDIR/results/assoc_stats/single/PROFILE.$cancer.*.sumstats.PRS.tsv.gz \
+    | grep -v "^#" | sort -nrk9,9 \
+    | cat <( zcat $WRKDIR/results/assoc_stats/single/pooled.$cancer.NRAS.sumstats.1.tsv.gz | head -n1 ) - \
+    | gzip -c \
+    > $WRKDIR/results/assoc_stats/merged/pooled.$cancer.sumstats.tsv.gz
+  fi
+done
+# Once complete, plot one QQ for each cancer type
+for cancer in PDAC CRAD LUAD SKCM; do
+  stats=$WRKDIR/results/assoc_stats/merged/pooled.$cancer.sumstats.tsv.gz
+  if [ -s $stats ]; then
+    bsub -q short -sla miket_sc -J plot_qq_pooled_$cancer \
+      -o $WRKDIR/LSF/logs/plot_qq_pooled_$cancer.log \
+      -e $WRKDIR/LSF/logs/plot_qq_pooled_$cancer.err \
+      "$CODEDIR/utils/plot_qq.R \
+         --stats $stats \
+         --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cancer.pooled.qq.png \
+         --cancer $cancer \
+         --cohort \"Pooled Analysis\" \
+         --p-threshold $bonf_sig"
+  fi
+done
 
 
 ### Meta-analyze results across cancers
@@ -603,14 +642,47 @@ EOF
     $WRKDIR/LSF/scripts/germline_somatic_meta_PanCancer.sh
 fi
 # From mega-analysis (pooled)
-# TODO: implement this
-# Once complete, subset to tests in two or more cancers and plot QQ
-stats=$WRKDIR/results/assoc_stats/meta/PanCancer.meta.sumstats.tsv.gz
-if [ -s $stats ]; then
-  zcat $stats | awk '{ if ($1 ~ "#" || $3>1) print $0 }' | gzip -c \
-  > $TMPDIR/PanCancer.meta.stats.tsv.gz
-  $CODEDIR/utils/plot_qq.R \
-    --stats $TMPDIR/PanCancer.meta.stats.tsv.gz \
-    --outfile $WRKDIR/plots/germline_somatic_assoc/qq/PanCancer.meta.qq.png \
-    --p-threshold $bonf_sig
+any_missing=0
+for cancer in PDAC CRAD LUAD SKCM; do
+  if ! [ -s $WRKDIR/results/assoc_stats/merged/pooled.$cancer.sumstats.tsv.gz ]; then
+    any_missing=1
+  fi
+done
+if [ $any_missing -eq 0 ]; then
+  cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_pooled_meta_PanCancer.sh
+$CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.meta.R \
+  --stats $WRKDIR/results/assoc_stats/merged/pooled.PDAC.sumstats.tsv.gz \
+  --name PDAC \
+  --stats $WRKDIR/results/assoc_stats/merged/pooled.CRAD.sumstats.tsv.gz \
+  --name CRAD \
+  --stats $WRKDIR/results/assoc_stats/merged/pooled.LUAD.sumstats.tsv.gz \
+  --name LUAD \
+  --stats $WRKDIR/results/assoc_stats/merged/pooled.SKCM.sumstats.tsv.gz \
+  --name SKCM \
+  --drop-frequencies \
+  --outfile $WRKDIR/results/assoc_stats/meta/PanCancer.pooled.meta.sumstats.tsv
+gzip -f $WRKDIR/results/assoc_stats/meta/PanCancer.pooled.meta.sumstats.tsv
+EOF
+  chmod a+x $WRKDIR/LSF/scripts/germline_somatic_pooled_meta_PanCancer.sh
+  for suf in err log; do
+    logfile=$WRKDIR/LSF/logs/germline_somatic_pooled_meta_PanCancer.$suf
+    if [ -e $logfile ]; then rm $logfile; fi
+  done
+  bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+    -J germline_somatic_pooled_meta_PanCancer \
+    -o $WRKDIR/LSF/logs/germline_somatic_pooled_meta_PanCancer.log \
+    -e $WRKDIR/LSF/logs/germline_somatic_pooled_meta_PanCancer.err \
+    $WRKDIR/LSF/scripts/germline_somatic_pooled_meta_PanCancer.sh
 fi
+# Once complete, subset to tests in two or more cancers and plot QQ
+for subset in meta pooled.meta; do
+  stats=$WRKDIR/results/assoc_stats/meta/PanCancer.$subset.sumstats.tsv.gz
+  if [ -s $stats ]; then
+    zcat $stats | awk '{ if ($1 ~ "#" || $3>1) print $0 }' | gzip -c \
+    > $TMPDIR/PanCancer.$subset.stats.tsv.gz
+    $CODEDIR/utils/plot_qq.R \
+      --stats $TMPDIR/PanCancer.$subset.stats.tsv.gz \
+      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/PanCancer.$subset.qq.png \
+      --p-threshold $bonf_sig
+  fi
+done

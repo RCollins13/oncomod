@@ -106,15 +106,15 @@ def main():
     parser = argparse.ArgumentParser(
              description=__doc__,
              formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--mutations', action='append', 
+    parser.add_argument('--mutations', action='append', default=[],
                         help='frequencies corresponding to individual mutations')
-    parser.add_argument('--codons', action='append', 
+    parser.add_argument('--codons', action='append', default=[],
                         help='frequencies corresponding to recurrent codon mutations')
-    parser.add_argument('--burden-sets', action='append', 
+    parser.add_argument('--burden-sets', action='append', default=[],
                         help='frequencies corresponding to burden sets')
-    parser.add_argument('--comutations', action='append', 
+    parser.add_argument('--comutations', action='append', default=[],
                         help='frequencies corresponding to comutation pairs')
-    parser.add_argument('--ras-nonras-comut', action='append', 
+    parser.add_argument('--ras-nonras-comut', action='append', default=[],
                         help='frequencies corresponding to RAS + non-RAS ' + 
                         'comutation pairs')
     parser.add_argument('-t', '--transcript-info', required=True, help='.tsv ' + 
