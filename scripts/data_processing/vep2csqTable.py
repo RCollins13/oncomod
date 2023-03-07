@@ -39,7 +39,7 @@ def main():
 
     # Prepare metadata for VEP parsing
     vep_map = parse_vep_map(invcf)
-    csq_df = pd.DataFrame(columns='set_id gene transcript codon change csq vids'.split())
+    csq_df = pd.DataFrame(columns='set_id gene transcript exon codon change csq vids'.split())
 
     # Iterate over records
     for record in invcf.fetch():
@@ -54,6 +54,7 @@ def main():
 
             gene = vals.SYMBOL
             tx = vals.Feature
+            exon = vals.EXON.split('/')[0]
             codon = vals.Protein_position
             if codon == '':
                 continue
@@ -72,8 +73,9 @@ def main():
                 csq_df[prev_idx].csq.map(lambda x: x.add(consequence))
             else:
                 csq_df = csq_df.append({'set_id' : set_id, 'gene' : gene, 
-                                        'transcript' : tx, 'codon' : codon, 
-                                        'change' : VSp, 'csq' : set([consequence]),
+                                        'transcript' : tx, 'exon' : exon , 
+                                        'codon' : codon, 'change' : VSp, 
+                                        'csq' : set([consequence]),
                                         'vids' : set([record.id])}, 
                                         ignore_index=True)
     
@@ -82,7 +84,7 @@ def main():
     csq_df['csq'] = csq_df.csq.str.join(',')
     csq_df['codon'] = \
         csq_df.codon.str.split('-').map(lambda x: np.nanmin(np.array([v for v in x if v.isnumeric()]).astype(int)))
-    csq_df.sort_values(by='gene codon transcript csq'.split()).\
+    csq_df.sort_values(by='gene exon codon transcript csq'.split()).\
            to_csv(args.outfile, sep='\t', index=False)
 
 
