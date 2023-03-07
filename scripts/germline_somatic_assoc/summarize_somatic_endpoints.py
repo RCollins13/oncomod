@@ -26,9 +26,10 @@ ras_chroms = {'1' : 'NRAS', '11' : 'HRAS', '12' : 'KRAS'}
 category_descriptions = \
     {'mutations'        : '1. Frequent RAS alterations',
      'codons'           : '2. Recurrently mutated RAS codons',
-     'burden'           : '3. Collapsed mutation sets',
-     'comutations'      : '4. Frequent co-mutations involving RAS',
-     'ras_nonras_comut' : '5. Frequent RAS + non-RAS comutations'}
+     'exons'            : '3. Recurrently mutated RAS exons',
+     'burden'           : '4. Collapsed mutation sets',
+     'comutations'      : '5. Frequent co-mutations involving RAS',
+     'ras_nonras_comut' : '6. Frequent RAS + non-RAS comutations'}
 tissue_map = {'PDAC' : 'pancreas',
               'CRAD' : 'colon',
               'SKCM' : 'skin',
@@ -110,6 +111,8 @@ def main():
                         help='frequencies corresponding to individual mutations')
     parser.add_argument('--codons', action='append', default=[],
                         help='frequencies corresponding to recurrent codon mutations')
+    parser.add_argument('--exons', action='append', default=[],
+                        help='frequencies corresponding to recurrent exon mutations')
     parser.add_argument('--burden-sets', action='append', default=[],
                         help='frequencies corresponding to burden sets')
     parser.add_argument('--comutations', action='append', default=[],
@@ -147,6 +150,11 @@ def main():
     for infile in args.codons:
         res['codons'] = \
             update_res(res['codons'], infile, tx_map, args.min_freq)
+
+    # Load recurrently mutated exons
+    for infile in args.exons:
+        res['exons'] = \
+            update_res(res['exons'], infile, tx_map, args.min_freq)
 
     # Load burden sets
     for infile in args.burden_sets:

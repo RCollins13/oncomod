@@ -6,7 +6,7 @@
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
 """
-Identify individual codons recurrently mutated by two or more distinct consequences
+Identify individual exons recurrently mutated at two or more distinct codons
 """
 
 
@@ -15,18 +15,19 @@ import pandas as pd
 from sys import stdin, stdout
 
 
-set_id_fmt = '{}_codon_{}'
+set_id_fmt = '{}_exon_{}'
 
 
 def _process_groupby(gbo):
     """
-    Count number of entries in a pd.DataFrameGroupBy and concatenate their VIDs
+    Count number of unique codons in a pd.DataFrameGroupBy and concatenate their VIDs
     """
 
     vids = gbo.vids.str.split(',').values.tolist()
     vids = ','.join(set([vid for sub in vids for vid in sub]))
+    codons = set(gbo.codon)
 
-    return len(gbo), vids
+    return len(codons), vids
 
 
 def main():
@@ -43,15 +44,16 @@ def main():
 
     # Load coding consequences tsv
     cdf = pd.read_csv(args.coding_tsv, sep='\t')
+    cdf.exon = cdf.exon.fillna(0).astype(int)
 
     # Open connection to outfile
     if args.outfile in '- stdout /dev/stdout':
         outfile = stdout
     else:
         outfile = open(args.outfile, 'w')
-    outfile.write('set_id\ttranscript\tcodon\tvids\n')
-    # Group entries by transcript and codon
-    group_res = cdf.groupby(by='transcript codon'.split()).apply(_process_groupby)
+    outfile.write('set_id\ttranscript\texon\tvids\n')
+    # Group entries by transcript and exon
+    group_res = cdf.groupby(by='transcript exon'.split()).apply(_process_groupby)
     for info, res in group_res.iteritems():
         if res[0] > 1:
             outvals = [set_id_fmt.format(*info), *info, res[1]]
