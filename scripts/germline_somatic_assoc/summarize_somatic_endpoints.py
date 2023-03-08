@@ -15,10 +15,9 @@ import os
 import pandas as pd
 import re
 from sys import stdout, path
-# TODO: uncomment before commit
-# path.insert(0, os.path.join(path[0], '..', 'data_processing'))
+path.insert(0, os.path.join(path[0], '..', 'data_processing'))
 from add_variant_set_members import load_members, get_members
-# path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
+path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
 from general_utils import load_tx_map
 
 
