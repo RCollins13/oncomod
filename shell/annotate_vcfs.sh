@@ -506,3 +506,70 @@ for cohort in TCGA PROFILE; do
   done
 done
 
+
+################################################################
+### Define sets of samples lacking COSMIC tier 1-2 mutations ###
+################################################################
+# Extract lists of samples
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+  esac
+  bcftools view \
+    --include 'INFO/COSMIC_mutation_tier < 3' \
+    $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
+  | grep -e '^#\|KRAS\|NRAS\|HRAS' \
+  | bcftools query --include 'GT="alt"' --format '[%ID\t%SAMPLE\t%GT\n]' \
+  > $COHORTDIR/data/sample_info/$cohort.somatic_variants.samples_with_tier1_tier2_ras_mutations.tsv
+done
+# Summarize as table
+for cancer in PDAC CRAD LUAD SKCM; do
+  for cohort in PROFILE TCGA; do
+    for wrapper in 1; do
+      echo -e "$cancer\t$cohort"
+      case $cohort in
+        TCGA)
+          COHORTDIR=$TCGADIR
+          sample_field="donors"
+          ;;
+        PROFILE)
+          COHORTDIR=$PROFILEDIR
+          sample_field="samples"
+          ;;
+      esac
+      elig_samps=$COHORTDIR/data/sample_info/$cohort.$cancer.$sample_field.list
+      missing_somatic=$COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.missing_somatic.list
+      while read chrom start end gene; do
+        grep -e "^${chrom}_" \
+          $COHORTDIR/data/sample_info/$cohort.somatic_variants.samples_with_tier1_tier2_ras_mutations.tsv \
+        | cut -f2 | fgrep -wvf - $elig_samps | fgrep -wvf $missing_somatic | wc -l
+      done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
+      cut -f2 $COHORTDIR/data/sample_info/$cohort.somatic_variants.samples_with_tier1_tier2_ras_mutations.tsv \
+      | fgrep -wvf - $elig_samps | fgrep -wvf $missing_somatic | wc -l
+    done | paste -s -
+  done
+done
+# Invert sample lists to produce lists of samples without any tier 1-2 RAS mutations
+for cohort in PROFILE TCGA; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      sample_field="donors"
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      sample_field="samples"
+      ;;
+  esac
+  elig_samps=$COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.list
+  missing_somatic=$COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.missing_somatic.list
+  cut -f2 $COHORTDIR/data/sample_info/$cohort.somatic_variants.samples_with_tier1_tier2_ras_mutations.tsv \
+  | fgrep -wvf - $elig_samps | fgrep -wvf $missing_somatic \
+  > $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list
+done
+

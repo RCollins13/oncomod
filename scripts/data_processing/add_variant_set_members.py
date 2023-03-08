@@ -12,6 +12,26 @@ Add variant set members to a list of variant sets
 
 import argparse
 import pandas as pd
+from sys import stdin, stdout
+
+
+def load_members(memberships_in):
+    """
+    Load a dict mapping variant set IDs to their constituent variant IDs
+    """
+
+    members = {}
+    
+    for fin in memberships_in:
+        map_df = pd.read_csv(fin, sep='\t').iloc[:, [0, -1]]
+        map_df.iloc[:, 1] = map_df.iloc[:, 1].apply(lambda x: set(x.split(',')))
+        for sid, vids in map_df.itertuples(index=False, name=None):
+            if sid in members.keys():
+                members[sid].update(vids)
+            else:
+                members[sid] = vids
+
+    return members
 
 
 def get_members(setid, members, return_as_string=True):
@@ -46,33 +66,31 @@ def main():
              description=__doc__,
              formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--set-list', required=True, help='List of variant set ' +
-                        'IDs to populate. Will be updated in-place.')
+                        'IDs to populate. Will be updated in-place unless stdin ' +
+                        'is specified, in which case it will write to stdout.')
     parser.add_argument('--memberships', action='append', help='.tsv mapping ' +
                         'set IDs (first column) to constituent variant IDs ' +
                         '(final column). Can be specified multiple times.')
     args = parser.parse_args()
 
     # Step 1: read set list into memory
-    with open(args.set_list) as fin:
-        slist = [l.rstrip() for l in fin.readlines()]
+    if args.set_list in 'stdin /dev/stdin -'.split():
+        fin = stdin
+        fout = stdout
+    else:
+        fin = open(args.set_list)
+        fout = args.set_list
+    slist = [l.rstrip() for l in fin.readlines()]
 
     # Step 2: load memberships into memory
-    members = {}
-    for fin in args.memberships:
-        map_df = pd.read_csv(fin, sep='\t').iloc[:, [0, -1]]
-        map_df.iloc[:, 1] = map_df.iloc[:, 1].apply(lambda x: set(x.split(',')))
-        for sid, vids in map_df.itertuples(index=False, name=None):
-            if sid in members.keys():
-                members[sid].update(vids)
-            else:
-                members[sid] = vids
+    members = load_members(args.memberships)
 
     # Step 3: map members onto set IDs
     mappings = {s : get_members(s, members) for s in slist}
 
     # Step 4: overwrite args.setlist with mappings
     pd.DataFrame.from_dict(mappings, orient='index').\
-                 to_csv(args.set_list, sep='\t', index=True, header=False)
+                 to_csv(fout, sep='\t', index=True, header=False)
 
 
 if __name__ == '__main__':
