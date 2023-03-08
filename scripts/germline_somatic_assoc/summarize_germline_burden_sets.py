@@ -14,6 +14,8 @@ import argparse
 import os
 import pandas as pd
 from sys import stdout, path
+path.insert(0, os.path.join(path[0], '..', 'data_processing'))
+from add_variant_set_members import load_members, get_members
 path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
 from general_utils import load_tx_map
 
@@ -27,7 +29,7 @@ tissue_map = {'PDAC' : 'pancreas',
               'LUAD' : 'lung'}
 
 
-def update_res(res, infile, min_ac=10):
+def update_res(res, infile, members, min_ac=10):
     """
     Update category ID sets based on data in infile
     """
@@ -45,6 +47,20 @@ def update_res(res, infile, min_ac=10):
         if tissue_rows.any():
             other_ac_cols = [c for c in df.columns if c.endswith('_AC') and cancer not in c]
             df.loc[tissue_rows, other_ac_cols] = 0
+
+    # Deduplicate sets based on identical member variant IDs
+    df['vids'] = df.set_id.map(members).apply(lambda x: ';'.join(sorted(x)))
+    df = df[~df.iloc[:, 1:].duplicated()]
+
+    # Also require all variant sets to have at least two distinct member variants
+    # Otherwise, these sets would be redundant with single-variant tests
+    df['unique_variants'] = df.vids.str.split(';').\
+                               apply(lambda vids: \
+                                         len(set(['_'.join(x.split('_')[-3:]) \
+                                                  for x in vids])))
+    df = df[df.unique_variants > 1]
+    df.drop('vids unique_variants'.split(), axis=1, inplace=True)
+    df.reset_index(inplace=True, drop=True)
 
     # Map categories onto cancer types & genes in res
     for cancer in cancers:
@@ -69,6 +85,9 @@ def main():
              formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--burden-sets', action='append', 
                         help='frequencies corresponding to burden sets')
+    parser.add_argument('--memberships', action='append', help='.tsv mapping ' +
+                        'set IDs (first column) to constituent variant IDs ' +
+                        '(final column). Can be specified multiple times.')
     parser.add_argument('-m', '--min-ac', default=10, type=int, help='Minimum ' + \
                         'AC for a category to be retained per cancer type.')
     parser.add_argument('-o', '--outfile', help='output .tsv [default: stdout]', 
@@ -80,17 +99,21 @@ def main():
 
     # Build dict for collecting results
     res = {cncr : {gene : set() for gene in ras_genes} for cncr in cancers}
+
+    # Load mapping of set ID to constitutent variant IDs
+    members = load_members(args.memberships)
     
-    # Load burden sets
+    # Load and deduplicate burden sets
     for infile in args.burden_sets:
-        res = update_res(res, infile, args.min_ac)
+        res = update_res(res, infile, members, args.min_ac)
 
     # Output lists of somatic endpoints per gene & cancer type
     for cancer in cancers:
         for gene in ras_genes:
             fout = open('{}{}.{}.germline_sets.tsv'.format(args.out_prefix, cancer, gene), 'w')
             for val in res[cancer][gene]:
-                fout.write(val + '\n')
+                mems = ','.join(sorted(list(members[val])))
+                fout.write('{}\t{}\n'.format(val, mems))
             fout.close()
 
     # Open connection to --outfile
