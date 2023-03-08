@@ -49,12 +49,12 @@ def update_res(res, infile, members, min_ac=10):
             df.loc[tissue_rows, other_ac_cols] = 0
 
     # Deduplicate sets based on identical member variant IDs
-    df['vids'] = df.set_id.map(members).apply(lambda x: ';'.join(sorted(x)))
+    df['vids'] = df.set_id.apply(get_members, members=members)
     df = df[~df.iloc[:, 1:].duplicated()]
 
     # Also require all variant sets to have at least two distinct member variants
     # Otherwise, these sets would be redundant with single-variant tests
-    df['unique_variants'] = df.vids.str.split(';').\
+    df['unique_variants'] = df.vids.str.split(',').\
                                apply(lambda vids: \
                                          len(set(['_'.join(x.split('_')[-3:]) \
                                                   for x in vids])))
@@ -112,7 +112,7 @@ def main():
         for gene in ras_genes:
             fout = open('{}{}.{}.germline_sets.tsv'.format(args.out_prefix, cancer, gene), 'w')
             for val in res[cancer][gene]:
-                mems = ','.join(sorted(list(members[val])))
+                mems = get_members(val, members)
                 fout.write('{}\t{}\n'.format(val, mems))
             fout.close()
 

@@ -107,7 +107,6 @@ for cohort in TCGA PROFILE; do
 done
 
 # Summarize filtered sets
-# TODO: DEDUPLICATE REDUNDANT SETS BASED ON IDENTICAL VARIANT IDS
 $CODEDIR/scripts/germline_somatic_assoc/summarize_germline_burden_sets.py \
   --burden-sets $WRKDIR/data/variant_set_freqs/filtered/TCGA.germline.burden_sets.freq.ac10plus.tsv.gz \
   --burden-sets $WRKDIR/data/variant_set_freqs/filtered/PROFILE.germline.burden_sets.freq.ac10plus.tsv.gz \
@@ -128,7 +127,7 @@ for cancer in PDAC CRAD LUAD SKCM; do
       --format '%ID\n' \
       --regions $chrom \
       $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.vcf.gz \
-    | $TMPDIR/add_variant_set_members.py \
+    | $CODEDIR/scripts/data_processing/add_variant_set_members.py \
       --set-list stdin \
       --memberships $WRKDIR/data/variant_sets/PROFILE.germline.burden_sets.tsv.gz \
       --memberships $WRKDIR/data/variant_sets/PROFILE.germline.collapsed_coding_csqs.tsv.gz \
@@ -215,9 +214,6 @@ for cohort in TCGA PROFILE; do
 done
 
 # 4. Functional mutation sets
-#    (Require mutation sets to have two or more individual mutations from 
-#     different exons, otherwise they would already be captured by single 
-#     variant/codon/exon tests)
 for cohort in TCGA PROFILE; do
   freqs=$WRKDIR/data/variant_set_freqs/$cohort.somatic.burden_sets.freq.tsv.gz
   zcat $WRKDIR/data/variant_sets/$cohort.somatic.burden_sets.tsv.gz \
@@ -264,7 +260,6 @@ done
 
 
 ### Summarize somatic conditions to test as endpoints for association
-# TODO: DEDUPLICATE BASED ON IDENTICAL VARIANT SET IDs
 $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.coding_variants.freq.1pct.tsv.gz \
   --mutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.coding_variants.freq.1pct.tsv.gz \
@@ -279,34 +274,16 @@ $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
   --comutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.comutations.freq.1pct.tsv.gz \
   --comutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.comutations.freq.1pct.tsv.gz \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/PROFILE.somatic.burden_sets.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/PROFILE.somatic.collapsed_coding_csqs.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/PROFILE.somatic.other_single_variants.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/PROFILE.somatic.recurrently_mutated_codons.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/PROFILE.somatic.recurrently_mutated_exons.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/TCGA.somatic.burden_sets.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/TCGA.somatic.collapsed_coding_csqs.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/TCGA.somatic.other_single_variants.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/TCGA.somatic.recurrently_mutated_exons.tsv.gz \
   --out-prefix $WRKDIR/data/variant_sets/test_sets/
-
-
-### Annotate somatic and germline endpoint/test sets with their constitutent variant IDs
-for context in germline somatic; do
-  case $context in
-    "germline")
-      suffix="sets"
-      ;;
-    "somatic")
-      suffix="endpoints"
-      ;;
-  esac
-  for cancer in PDAC CRAD LUAD SKCM; do
-    while read chrom start end gene; do
-      $CODEDIR/scripts/data_processing/add_variant_set_members.py \
-        --set-list $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.${context}_$suffix.tsv \
-        --memberships $WRKDIR/data/variant_sets/PROFILE.$context.burden_sets.tsv.gz \
-        --memberships $WRKDIR/data/variant_sets/PROFILE.$context.collapsed_coding_csqs.tsv.gz \
-        --memberships $WRKDIR/data/variant_sets/PROFILE.$context.other_single_variants.tsv.gz \
-        --memberships $WRKDIR/data/variant_sets/PROFILE.$context.recurrently_mutated_codons.tsv.gz \
-        --memberships $WRKDIR/data/variant_sets/TCGA.$context.burden_sets.tsv.gz \
-        --memberships $WRKDIR/data/variant_sets/TCGA.$context.collapsed_coding_csqs.tsv.gz \
-        --memberships $WRKDIR/data/variant_sets/TCGA.$context.other_single_variants.tsv.gz \
-        --memberships $WRKDIR/data/variant_sets/TCGA.$context.recurrently_mutated_codons.tsv.gz
-    done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
-  done
-done
 
 
 ### Shard germline test sets for improved parallelization

@@ -15,9 +15,10 @@ import os
 import pandas as pd
 import re
 from sys import stdout, path
-path.insert(0, os.path.join(path[0], '..', 'data_processing'))
+# TODO: uncomment before commit
+# path.insert(0, os.path.join(path[0], '..', 'data_processing'))
 from add_variant_set_members import load_members, get_members
-path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
+# path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
 from general_utils import load_tx_map
 
 
@@ -61,7 +62,7 @@ def infer_gene(set_id, tx_map):
         import pdb; pdb.set_trace()
 
 
-def update_res(subres, infile, tx_map, min_freq=0.01):
+def update_res(subres, infile, tx_map, members, combos_seen, min_freq=0.01):
     """
     Update category ID sets based on data in infile
     """
@@ -80,9 +81,18 @@ def update_res(subres, infile, tx_map, min_freq=0.01):
             other_freq_cols = [c for c in df.columns if c.endswith('_AF') and cancer not in c]
             df.loc[tissue_rows, other_freq_cols] = 0
 
+    # Deduplicate sets based on identical member variant IDs and frequencies
+    df['vids'] = df.set_id.apply(get_members, members=members)
+    df = df[~df.iloc[:, 1:].duplicated()]
+    df.reset_index(inplace=True, drop=True)
+
     # Map categories onto cancer types & genes in subres
     for cancer in cancers:
-        hits = df[cancer + '_AF'] >= min_freq
+        # Define a "hit" category per cancer type as one that exceeds min_freq
+        # and hasn't already been seen in that same cancer type
+        hits = (df[cancer + '_AF'] >= min_freq) & \
+               ~(df.vids.isin(combos_seen[cancer]))
+        combos_seen[cancer].update(set(df.vids[hits].tolist()))
         for idx, vals in df.loc[hits, 'set_id gene'.split()].iterrows():
             set_id, gstr = vals.values
             for gene in gstr.split(','):
@@ -99,8 +109,8 @@ def update_res(subres, infile, tx_map, min_freq=0.01):
                 clean_set_id = '|'.join(clean_parts)
                 subres[cancer][gene].add(clean_set_id)
 
-    # Return updated subres
-    return subres
+    # Return updated subres and updated list of member combos seen
+    return subres, combos_seen
 
 
 def main():
@@ -125,6 +135,9 @@ def main():
                         'comutation pairs')
     parser.add_argument('-t', '--transcript-info', required=True, help='.tsv ' + 
                         'mapping ENST:ENSG:symbol:length')
+    parser.add_argument('--memberships', action='append', help='.tsv mapping ' +
+                        'set IDs (first column) to constituent variant IDs ' +
+                        '(final column). Can be specified multiple times.')
     parser.add_argument('-m', '--min-freq', default=0.01, type=float, help='Minimum ' + 
                         'frequency for a category to be retained per cancer type.')
     parser.add_argument('--min-ras-nonras-comut', default=0.05, type=float, 
@@ -137,42 +150,52 @@ def main():
                         type=str, default='./')
     args = parser.parse_args()
 
-    # Build dict for collecting results
+    # Build dicts for collecting results
     res = {cat : {cncr : {gene : set() for gene in ras_genes} for cncr in cancers} \
            for cat in category_descriptions.keys()}
+    member_combos_seen = {cncr : set() for cncr in cancers}
+
+    # Load mapping of set ID to constitutent variant IDs
+    members = load_members(args.memberships)
 
     # Load transcript map
     tx_map = load_tx_map(args.transcript_info)
     
     # Load individual mutations
     for infile in args.mutations:
-        res['mutations'] = \
-            update_res(res['mutations'], infile, tx_map, args.min_freq)
+        res['mutations'], member_combos_seen = \
+            update_res(res['mutations'], infile, tx_map, members, 
+                       member_combos_seen, args.min_freq)
 
     # Load recurrently mutated codons
     for infile in args.codons:
-        res['codons'] = \
-            update_res(res['codons'], infile, tx_map, args.min_freq)
+        res['codons'], member_combos_seen = \
+            update_res(res['codons'], infile, tx_map, members, 
+                       member_combos_seen, args.min_freq)
 
     # Load recurrently mutated exons
     for infile in args.exons:
-        res['exons'] = \
-            update_res(res['exons'], infile, tx_map, args.min_freq)
+        res['exons'], member_combos_seen = \
+            update_res(res['exons'], infile, tx_map, members, 
+                       member_combos_seen, args.min_freq)
 
     # Load burden sets
     for infile in args.burden_sets:
-        res['burden'] = \
-            update_res(res['burden'], infile, tx_map, args.min_freq)
+        res['burden'], member_combos_seen = \
+            update_res(res['burden'], infile, tx_map, members, 
+                       member_combos_seen, args.min_freq)
 
     # Load comutation pairs
     for infile in args.comutations:
-        res['comutations'] = \
-            update_res(res['comutations'], infile, tx_map, args.min_freq)
+        res['comutations'], member_combos_seen = \
+            update_res(res['comutations'], infile, tx_map, members, 
+                       member_combos_seen, args.min_freq)
 
     # Load RAS + non-RAS comutation pairs
     for infile in args.ras_nonras_comut:
-        res['ras_nonras_comut'] = \
-            update_res(res['ras_nonras_comut'], infile, tx_map, args.min_ras_nonras_comut)
+        res['ras_nonras_comut'], member_combos_seen = \
+            update_res(res['ras_nonras_comut'], infile, tx_map, members, 
+                       member_combos_seen, args.min_ras_nonras_comut)
 
     # Output lists of somatic endpoints per gene & cancer type
     for cancer in cancers:
@@ -180,7 +203,8 @@ def main():
             fout = open('{}{}.{}.somatic_endpoints.tsv'.format(args.out_prefix, cancer, gene), 'w')
             for cat in category_descriptions.keys():
                 for val in res[cat][cancer][gene]:
-                    fout.write(val + '\n')
+                    mems = get_members(val, members)
+                    fout.write('{}\t{}\n'.format(val, mems))
             fout.close()
 
     # Open connection to --outfile
