@@ -50,6 +50,10 @@ parser$add_argument("--germline-variant-sets", metavar=".tsv", type="character",
                     help="Two-column .tsv of germline variant sets", required=TRUE)
 parser$add_argument("--outfile", metavar="path", type="character", required=TRUE,
                     help="output .tsv file for association statistics")
+parser$add_argument("--eligible-controls", metavar="path", type="character",
+                    help=paste("path to list of samples eligible to be treated as",
+                               "controls for association testing. If no file is",
+                               "provided, all samples are eligible."))
 parser$add_argument("--cancer-type", metavar="character",
                     help=paste("Subset to samples from this cancer type",
                                "[default: use all samples]"))
@@ -74,6 +78,7 @@ args <- parser$parse_args()
 #              "outfile" = "~/scratch/TCGA.PDAC.KRAS.sumstats.tsv",
 #              "somatic_ad" = "~/scratch/TCGA.somatic_variants.dosage.sub.tsv.gz",
 #              "somatic_variant_sets" = "~/scratch/PDAC.KRAS.somatic_endpoints.tsv",
+#              "eligible_controls" = "~/scratch/TCGA.ALL.eligible_controls.list",
 #              "normalize_germline_ad" = FALSE,
 #              "multiPop_min_ac" = 10,
 #              "multiPop_min_freq" = 0.01)
@@ -111,6 +116,12 @@ if(!is.null(args$cancer_type)){
 rownames(meta) <- meta[, 1]
 meta[, 1] <- NULL
 samples.w.pheno <- rownames(meta)
+if(is.null(args$eligible_controls)){
+  elig.controls <- samples.w.pheno
+}else{
+  all.elig.controls <- unique(read.table(args$eligible_controls, header=F)[, 1])
+  elig.controls <- intersect(samples.w.pheno, all.elig.controls)
+}
 
 # Impute missing phenotype data as median or mode (depending on variable class)
 meta <- impute.missing.values(meta, fill.missing="median")
@@ -141,7 +152,11 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
   }
 
   # Require at least one each of somatic carriers and reference to proceed
-  y.vals <- query.ad.matrix(somatic.ad, som.vids, action="any")
+  if(length(grep('^COMUT', som.sid)) == 0){
+    y.vals <- query.ad.matrix(somatic.ad, som.vids, elig.controls, action="any")
+  }else{
+
+  }
   if(length(table(y.vals)) < 2){
     return(NULL)
   }

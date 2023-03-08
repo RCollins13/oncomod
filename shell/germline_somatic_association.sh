@@ -18,7 +18,7 @@ export TCGADIR=/data/gusev/USERS/rlc47/TCGA
 export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
 export CODEDIR=$WRKDIR/../code/ras_modifiers
-export bonf_sig=0.0000006879566
+export bonf_sig=0.0000005987522
 cd $WRKDIR
 
 
@@ -290,7 +290,7 @@ $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
 for cancer in PDAC CRAD LUAD SKCM; do
   while read chrom start end gene; do
     $CODEDIR/../GenomicsToolbox/evenSplitter.R \
-      -L 250 \
+      -L 750 \
       --shuffle \
       $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.germline_sets.tsv \
       $WRKDIR/data/variant_sets/test_sets/shards/$cancer.$gene.germline_sets.shard_
@@ -298,109 +298,107 @@ for cancer in PDAC CRAD LUAD SKCM; do
 done
 
 
-### Submit germline-somatic association jobs
-# TODO: UPDATE ASSOCIATION TESTS TO ACCEPT --eligible-controls LIST WHEN FILTERED
-# TO SAMPLES LACKING RAS TIER1-2 MUTATION
-# # Ensure most recent version of RASMod R package is installed from source
-# Rscript -e "install.packages('$CODEDIR/src/RASMod_0.1.tar.gz', \
-#                              lib='~/R/x86_64-pc-linux-gnu-library/3.6', \
-#                              type='source', repos=NULL)"
-# # One submission per (gene, cancer type, cohort)
-# for cohort in TCGA PROFILE; do
-#   case $cohort in
-#     TCGA)
-#       COHORTDIR=$TCGADIR
-#       mem=6000
-#       queue=normal
-#       ;;
-#     PROFILE)
-#       COHORTDIR=$PROFILEDIR
-#       mem=12000
-#       queue=big
-#       ;;
-#   esac
-#   for cancer in PDAC CRAD LUAD SKCM; do
-#     while read chrom start end gene; do
-#       cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sharded.sh
-# #!/usr/bin/env bash
-# $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
-#   --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
-#   --cancer-type $cancer \
-#   --somatic-ad $COHORTDIR/data/$cohort.somatic_variants.dosage.tsv.gz \
-#   --germline-ad $COHORTDIR/data/$cohort.RAS_loci.dosage.tsv.gz \
-#   --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
-#   --germline-variant-sets $WRKDIR/data/variant_sets/test_sets/shards/$cancer.$gene.germline_sets.shard_\$1 \
-#   --outfile $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.\$1.tsv
-# gzip -f $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.\$1.tsv
-# EOF
-#       chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sharded.sh
-#       n_shards=$( find $WRKDIR/data/variant_sets/test_sets/shards/ \
-#                     -name "$cancer.$gene.germline_sets.shard_*" | wc -l )
-#       for i in $( seq 1 $n_shards ); do 
-#         for suf in err log; do
-#           logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$i.$suf
-#           if [ -e $logfile ]; then rm $logfile; fi
-#         done
-#         bsub -q $queue -sla miket_sc -R "rusage[mem=$mem]" \
-#           -J germline_somatic_assoc_${cohort}_${cancer}_${gene}_$i \
-#           -o $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$i.log \
-#           -e $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$i.err \
-#           "$WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sharded.sh $i"
-#       done
-#     done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
-#   done
-# done
-# # Submit one PRS association job per cancer type per gene (for PROFILE only)
-# for cancer in PDAC CRAD LUAD SKCM; do
-#   prs_sets=$WRKDIR/data/variant_sets/test_sets/$cancer.germline_PRS.tsv
-#   if [ $( cat $prs_sets | wc -l ) -gt 0 ]; then
-#     while read chrom start end gene; do
-#       cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.sh
-# $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
-#   --sample-metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
-#   --cancer-type $cancer \
-#   --somatic-ad $PROFILEDIR/data/PROFILE.somatic_variants.dosage.tsv.gz \
-#   --germline-ad $PROFILEDIR/data/PROFILE.PRS.tsv.gz \
-#   --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
-#   --germline-variant-sets $prs_sets \
-#   --normalize-germline-ad \
-#   --outfile $WRKDIR/results/assoc_stats/single/PROFILE.$cancer.$gene.sumstats.PRS.tsv
-# gzip -f $WRKDIR/results/assoc_stats/single/PROFILE.$cancer.$gene.sumstats.PRS.tsv
-# EOF
-#       chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.sh
-#       for suf in err log; do
-#         logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.$suf
-#         if [ -e $logfile ]; then rm $logfile; fi
-#       done
-#       bsub -q big -sla miket_sc -R "rusage[mem=12000]" \
-#         -J germline_somatic_assoc_PROFILE_${cancer}_${gene}_PRS \
-#         -o $WRKDIR/LSF/logs/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.log \
-#         -e $WRKDIR/LSF/logs/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.err \
-#         $WRKDIR/LSF/scripts/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.sh
-#     done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
-#   fi
-# done
-# # Find missing/incomplete shards
-# for cohort in TCGA PROFILE; do
-#   for cancer in PDAC CRAD LUAD SKCM; do
-#     while read chrom start end gene; do
-#       n_shards=$( find $WRKDIR/data/variant_sets/test_sets/shards/ \
-#                       -name "$cancer.$gene.germline_sets.shard_*" | wc -l )
-#       for i in $( seq 1 $n_shards ); do
-#         if ! [ -s $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.$i.tsv.gz ]; then
-#           echo -e "$cohort\t$cancer\t$gene\t$i"
-#         fi
-#       done 
-#       if [ $cohort == "PROFILE" ] && \
-#          [ -s $WRKDIR/data/variant_sets/test_sets/$cancer.germline_PRS.tsv ]; then
-#         if ! [ -s $WRKDIR/results/assoc_stats/single/PROFILE.$cancer.$gene.sumstats.PRS.tsv.gz ]; then
-#           echo -e "$cohort\t$cancer\t$gene\tPRS"
-
-#         fi
-#       fi
-#     done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
-#   done
-# done
+## Submit germline-somatic association jobs
+# Ensure most recent version of RASMod R package is installed from source
+Rscript -e "install.packages('$CODEDIR/src/RASMod_0.1.tar.gz', \
+                             lib='~/R/x86_64-pc-linux-gnu-library/3.6', \
+                             type='source', repos=NULL)"
+# One submission per (gene, cancer type, cohort)
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      mem=6000
+      queue=normal
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      mem=12000
+      queue=big
+      ;;
+  esac
+  for cancer in PDAC CRAD LUAD SKCM; do
+    while read chrom start end gene; do
+      cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sharded.sh
+#!/usr/bin/env bash
+$CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
+  --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+  --cancer-type $cancer \
+  --somatic-ad $COHORTDIR/data/$cohort.somatic_variants.dosage.tsv.gz \
+  --germline-ad $COHORTDIR/data/$cohort.RAS_loci.dosage.tsv.gz \
+  --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
+  --germline-variant-sets $WRKDIR/data/variant_sets/test_sets/shards/$cancer.$gene.germline_sets.shard_\$1 \
+  --outfile $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.\$1.tsv \
+  --eligible-controls $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list \
+gzip -f $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.\$1.tsv
+EOF
+      chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sharded.sh
+      n_shards=$( find $WRKDIR/data/variant_sets/test_sets/shards/ \
+                    -name "$cancer.$gene.germline_sets.shard_*" | wc -l )
+      for i in $( seq 1 $n_shards ); do 
+        for suf in err log; do
+          logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$i.$suf
+          if [ -e $logfile ]; then rm $logfile; fi
+        done
+        bsub -q $queue -sla miket_sc -R "rusage[mem=$mem]" \
+          -J germline_somatic_assoc_${cohort}_${cancer}_${gene}_$i \
+          -o $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$i.log \
+          -e $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$i.err \
+          "$WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sharded.sh $i"
+      done
+    done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
+  done
+done
+# Submit one PRS association job per cancer type per gene (for PROFILE only)
+for cancer in PDAC CRAD LUAD SKCM; do
+  prs_sets=$WRKDIR/data/variant_sets/test_sets/$cancer.germline_PRS.tsv
+  if [ $( cat $prs_sets | wc -l ) -gt 0 ]; then
+    while read chrom start end gene; do
+      cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.sh
+$CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
+  --sample-metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
+  --cancer-type $cancer \
+  --somatic-ad $PROFILEDIR/data/PROFILE.somatic_variants.dosage.tsv.gz \
+  --germline-ad $PROFILEDIR/data/PROFILE.PRS.tsv.gz \
+  --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
+  --germline-variant-sets $prs_sets \
+  --normalize-germline-ad \
+  --outfile $WRKDIR/results/assoc_stats/single/PROFILE.$cancer.$gene.sumstats.PRS.tsv
+gzip -f $WRKDIR/results/assoc_stats/single/PROFILE.$cancer.$gene.sumstats.PRS.tsv
+EOF
+      chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.sh
+      for suf in err log; do
+        logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.$suf
+        if [ -e $logfile ]; then rm $logfile; fi
+      done
+      bsub -q big -sla miket_sc -R "rusage[mem=12000]" \
+        -J germline_somatic_assoc_PROFILE_${cancer}_${gene}_PRS \
+        -o $WRKDIR/LSF/logs/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.log \
+        -e $WRKDIR/LSF/logs/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.err \
+        $WRKDIR/LSF/scripts/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.sh
+    done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
+  fi
+done
+# Find missing/incomplete shards
+for cohort in TCGA PROFILE; do
+  for cancer in PDAC CRAD LUAD SKCM; do
+    while read chrom start end gene; do
+      n_shards=$( find $WRKDIR/data/variant_sets/test_sets/shards/ \
+                      -name "$cancer.$gene.germline_sets.shard_*" | wc -l )
+      for i in $( seq 1 $n_shards ); do
+        if ! [ -s $WRKDIR/results/assoc_stats/single/$cohort.$cancer.$gene.sumstats.$i.tsv.gz ]; then
+          echo -e "$cohort\t$cancer\t$gene\t$i"
+        fi
+      done 
+      if [ $cohort == "PROFILE" ] && \
+         [ -s $WRKDIR/data/variant_sets/test_sets/$cancer.germline_PRS.tsv ]; then
+        if ! [ -s $WRKDIR/results/assoc_stats/single/PROFILE.$cancer.$gene.sumstats.PRS.tsv.gz ]; then
+          echo -e "$cohort\t$cancer\t$gene\tPRS"
+        fi
+      fi
+    done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
+  done
+done
 
 
 ### Plot Q-Qs for each set of association statistics

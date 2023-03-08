@@ -18,6 +18,7 @@
 #' @param ad One or more allele dosage matrix(es) as imported by
 #' [load.ad.matrix]. See `Details`
 #' @param vids Variant IDs to query
+#' @param elig.controls Sample IDs eligible to be reported as 0 \[default: all samples\]
 #' @param action Action to apply to query rows; see `Details`
 #'
 #' @details The `ad` argument accepts either a single data.frame or a list
@@ -28,13 +29,15 @@
 #' * `"verbose"` : return the full query matrix \[default\]
 #' * `"any"` : return numeric indicator if any of the query rows are non-zero
 #' for each sample
+#' * `"all"` : return numeric indicator if all of the query rows are non-zero
+#' for each sample
 #' * `"sum"` : return the sum of allele dosages for all query rows per sample
 #'
 #' @return numeric vector or data.frame, depending on `action`
 #'
 #' @export query.ad.matrix
 #' @export
-query.ad.matrix <- function(ad, vids, action="verbose"){
+query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose"){
 
   # If ad is a list, call this function recursively on each separately and
   # return the combined query results
@@ -57,11 +60,16 @@ query.ad.matrix <- function(ad, vids, action="verbose"){
   col.all.na <- apply(sub.df, 2, function(vals){all(is.na(vals))})
   if(action == "any"){
     query.res <- as.numeric(apply(sub.df, 2, function(vals){any(as.logical(vals), na.rm=T)}))
+  }else if(action == "all"){
+    query.res <- as.numeric(apply(sub.df, 2, function(vals){all(as.logical(vals), na.rm=T)}))
   }else if(action == "sum"){
     query.res <- apply(sub.df, 2, sum, na.rm=T)
   }
   query.res[col.all.na] <- NA
   names(query.res) <- colnames(sub.df)
+  if(!is.null(elig.controls)){
+    query.res[which(query.res == 0 & !(names(query.res) %in% elig.controls))] <- NA
+  }
   return(query.res)
 }
 

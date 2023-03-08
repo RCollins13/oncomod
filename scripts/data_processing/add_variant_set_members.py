@@ -39,23 +39,30 @@ def get_members(setid, members, return_as_string=True):
     Map the constituent variant members onto a single set ID
     """
 
-    mset = set([])
+    if '|' in setid:
 
-    for subid in setid.split('|'):
-        
-        if subid == 'COMUT':
-            continue
+        mems = [get_members(subid, members, False) \
+                for subid in setid.split('|')]
+        mems = [m for m in mems if m is not None]
 
-        elif subid in members.keys():
-            mset.update(members[subid])
+        if return_as_string:
+            return '|'.join([','.join(sorted(list(m))) for m in mems])
+    
+    else:
+
+        if setid == 'COMUT':
+            mems = None
+
+        elif setid in members.keys():
+            mems = members[setid]
 
         else:
-            mset.update(set(list(subid.split(';'))))
+            mems = set(list(subid.split(';')))
 
     if return_as_string:
-        return ','.join(sorted(list(mset)))
+        return ','.join(sorted(list(mems)))
     else:
-        return mset
+        return mems
 
 
 def main():
