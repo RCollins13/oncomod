@@ -80,7 +80,6 @@ query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose"){
 #'
 #' @param y.vals Numeric vector indicating presence or absence of somatic endpoint
 #' @param x.vals Numeric vector of germline values to test
-#' @param samples Vector of sample IDs to consider
 #' @param meta Metadata for all samples as loaded by [load.patient.metadata]
 #' @param firth.fallback Attempt to use Firth bias-reduced logistic regression when
 #' traditional logistic regression fails to converge or dataset is quasi-separable
@@ -103,7 +102,7 @@ query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose"){
 #' @return Vector of test results
 #' @export germline.somatic.assoc
 #' @export
-germline.somatic.assoc <- function(y.vals, x.vals, samples, meta,
+germline.somatic.assoc <- function(y.vals, x.vals, meta,
                                    firth.fallback=TRUE, firth.always=FALSE,
                                    custom.covariates=c(), multiPop.min.ac=10,
                                    multiPop.min.freq=0.01){
@@ -149,7 +148,7 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta,
                    test.df)
 
   # Check if X is allele count or Z-score (for PRS)
-  germ.is.ac <- if(all(is.integer(x.vals))){TRUE}else{FALSE}
+  germ.is.ac <- if(all(sapply(x.vals, function(x){as.integer(x) == x}))){TRUE}else{FALSE}
 
   # Test dataset for quasi- or complete-separability
   # In the case of any zero counts in any of the X by Y matrix,
@@ -159,7 +158,7 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta,
   if(!germ.is.ac){
     yes_somatic.germline.ac <- mean(x.vals[which(y.vals > 0)], na.rm=T)
     no_somatic.germline.ac <- mean(x.vals[which(y.vals == 0)], na.rm=T)
-    firth <- if(somatic.ac < 10){TRUE}else{FALSE}
+    firth <- if(firth.always | somatic.ac < 10){TRUE}else{FALSE}
   }else{
     germline.ac <- sum(x.vals, na.rm=T)
     yes_somatic.germline.ac <- sum(x.vals[which(y.vals > 0)], na.rm=T)
@@ -167,17 +166,17 @@ germline.somatic.assoc <- function(y.vals, x.vals, samples, meta,
     if(firth.always){
       firth <- TRUE
     }else if(firth.fallback){
-      x.by.y <- t(sapply(unique(y.vals), function(y){
-        sapply(unique(x.vals), function(x){
-          length(which(x.vals[which(y.vals==y)]==x))
-        })
-      }))
-      # Require at least two counts per observed X, Y pair
-      # Otherwise, use Firth
-      if(any(x.by.y < 2)){
-        firth <- TRUE
+      if(length(unique(x.vals)) > 2){
+        firth <- if(somatic.ac < 10){TRUE}else{FALSE}
       }else{
-        firth <- FALSE
+        x.by.y <- t(sapply(unique(y.vals), function(y){
+          sapply(unique(x.vals), function(x){
+            length(which(x.vals[which(y.vals==y)]==x))
+          })
+        }))
+        # Require at least two counts per observed X, Y pair
+        # Otherwise, use Firth
+        firth <- if(any(x.by.y < 2)){TRUE}else{FALSE}
       }
     }else if(any(c(n.samples, somatic.ac, germline.ac) == 0)){
       return(c("samples"=n.samples,

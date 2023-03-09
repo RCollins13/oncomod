@@ -7,7 +7,6 @@
 germline.somatic.assoc(
   y.vals,
   x.vals,
-  samples,
   meta,
   firth.fallback = TRUE,
   firth.always = FALSE,
@@ -20,8 +19,6 @@ germline.somatic.assoc(
 \item{y.vals}{Numeric vector indicating presence or absence of somatic endpoint}
 
 \item{x.vals}{Numeric vector of germline values to test}
-
-\item{samples}{Vector of sample IDs to consider}
 
 \item{meta}{Metadata for all samples as loaded by \link{load.patient.metadata}}
 

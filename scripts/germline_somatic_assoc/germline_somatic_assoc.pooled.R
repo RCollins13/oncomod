@@ -45,6 +45,11 @@ parser$add_argument("--germline-variant-sets", metavar=".tsv", type="character",
                     help="Two-column .tsv of germline variant sets", required=TRUE)
 parser$add_argument("--outfile", metavar="path", type="character", required=TRUE,
                     help="output .tsv file for association statistics")
+parser$add_argument("--eligible-controls", metavar="path", type="character",
+                    help=paste("path to one or more lists of samples eligible to",
+                               "be treated as controls for association testing.",
+                               "If no file is provided, all samples are eligible."),
+                    action="append")
 parser$add_argument("--cancer-type", metavar="character",
                     help=paste("Subset to samples from this cancer type",
                                "[default: use all samples]"))
@@ -72,6 +77,8 @@ args <- parser$parse_args()
 #              "somatic_variant_sets" = "~/scratch/PDAC.NRAS.somatic_endpoints.tsv",
 #              "germline_variant_sets" = "~/scratch/PDAC.NRAS.germline_sets.shard_1",
 #              "outfile" = "~/scratch/pooled.assoc.test.tsv",
+#              "eligible_controls" = c("~/scratch/TCGA.ALL.eligible_controls.list",
+#                                      "~/scratch/PROFILE.ALL.eligible_controls.list"),
 #              "cancer_type" = "PDAC",
 #              "normalize_germline_ad" = FALSE,
 #              "multiPop_min_ac" = 10,
@@ -100,28 +107,41 @@ samples.w.pheno <- rownames(meta)
 # to be fit by the association models
 meta <- impute.missing.values(meta, fill.missing="mean")
 
+# Load lists of eligible control samples, if optioned
+all.elig.controls <- unique(unlist(sapply(args$eligible_controls, function(path){
+  as.character(read.table(path)[, 1])
+})))
+elig.controls <- intersect(samples.w.pheno, all.elig.controls)
+
 # Load germline and somatic variant lists
 germline.sets <- load.variant.sets(args$germline_variant_sets)
-germline.vids <- unique(unlist(germline.sets$variant_ids))
+all.germline.vids <- unique(unlist(sapply(germline.sets$variant_ids, parse.variant.set)))
 somatic.sets <- load.variant.sets(args$somatic_variant_sets)
-somatic.vids <- unique(unlist(somatic.sets$variant_ids))
+all.somatic.vids <- unique(unlist(sapply(somatic.sets$variant_ids, parse.variant.set)))
 
 # Load germline and somatic allele depth matrixes
 germline.ad <- lapply(args$germline_ad, load.ad.matrix, sample.subset=samples.w.pheno,
-                      variant.subset=germline.vids, normalize=args$normalize_germline_ad)
+                      variant.subset=all.germline.vids,
+                      normalize=args$normalize_germline_ad)
 somatic.ad <- lapply(args$somatic_ad, load.ad.matrix, sample.subset=samples.w.pheno,
-                     variant.subset=somatic.vids)
+                     variant.subset=all.somatic.vids)
 
 # Compute association statistics for each somatic endpoint
 res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
   som.sid <- as.character(somatic.info[1])
-  som.vids <- as.vector(unlist(somatic.info[2]))
-  if(!any(som.vids %in% unlist(sapply(somatic.ad, rownames)))){
+  som.vids <- parse.variant.set(somatic.info[2])
+  if(!all(sapply(som.vids, function(vids){any(vids %in% unlist(sapply(somatic.ad, rownames)))}))){
     return(NULL)
   }
 
   # Require at least one each of somatic carriers and reference to proceed
-  y.vals <- query.ad.matrix(somatic.ad, som.vids, action="any")
+  if(is.list(som.vids) & length(som.vids) > 1){
+    y.parts <- sapply(som.vids, query.ad.matrix, ad=somatic.ad,
+                      elig.controls=elig.controls, action="any")
+    y.vals <- apply(y.parts, 1, min)
+  }else{
+    y.vals <- query.ad.matrix(somatic.ad, unlist(som.vids), elig.controls, action="any")
+  }
   if(length(table(y.vals)) < 2){
     return(NULL)
   }
@@ -129,19 +149,19 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
   # Apply over germline sets
   res.by.germline <- apply(germline.sets, 1, function(germline.info){
     germ.sid <- as.character(germline.info[1])
-    germ.vids <- as.vector(unlist(germline.info[2]))
+    germ.vids <- unlist(parse.variant.set(germline.info[2]))
     if(!any(germ.vids %in% unlist(sapply(germline.ad, rownames)))){
       return(NULL)
     }
     x.vals <- query.ad.matrix(germline.ad, germ.vids, action="sum")
 
     # Run germline-somatic association
-    res <- tryCatch(germline.somatic.assoc(y.vals, x.vals, samples, meta,
+    res <- tryCatch(germline.somatic.assoc(y.vals, x.vals, meta,
                                            custom.covariates=colnames(meta)[grep("^cohort\\.", colnames(meta))],
                                            multiPop.min.ac=args$multiPop_min_ac,
                                            multiPop.min.freq=args$multiPop_min_freq),
                     error=function(e){
-                      germline.somatic.assoc(y.vals, x.vals, samples, meta,
+                      germline.somatic.assoc(y.vals, x.vals, meta,
                                              custom.covariates=colnames(meta)[grep("^cohort\\.", colnames(meta))],
                                              multiPop.min.ac=args$multiPop_min_ac,
                                              multiPop.min.freq=args$multiPop_min_freq,

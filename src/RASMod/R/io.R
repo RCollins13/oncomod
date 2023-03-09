@@ -179,8 +179,6 @@ merge.patient.metadata <- function(meta.list, cancer, cohort.names=NULL){
 load.variant.sets <- function(file){
   df <- read.table(file, header=F, sep="\t")
   colnames(df) <- c("set_id", "variant_ids")
-  df$variant_ids <- sapply(df$variant_ids, strsplit, split=",")
-  df$variant_ids <- sapply(df$variant_ids, unlist)
   return(df)
 }
 

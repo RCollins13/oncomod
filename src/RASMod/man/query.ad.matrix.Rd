@@ -4,13 +4,15 @@
 \alias{query.ad.matrix}
 \title{Query allele dosage matrix}
 \usage{
-query.ad.matrix(ad, vids, action = "verbose")
+query.ad.matrix(ad, vids, elig.controls = NULL, action = "verbose")
 }
 \arguments{
 \item{ad}{One or more allele dosage matrix(es) as imported by
 \link{load.ad.matrix}. See \code{Details}}
 
 \item{vids}{Variant IDs to query}
+
+\item{elig.controls}{Sample IDs eligible to be reported as 0 [default: all samples]}
 
 \item{action}{Action to apply to query rows; see \code{Details}}
 }
@@ -29,6 +31,8 @@ Recognized values for \code{action} include:
 \itemize{
 \item \code{"verbose"} : return the full query matrix [default]
 \item \code{"any"} : return numeric indicator if any of the query rows are non-zero
+for each sample
+\item \code{"all"} : return numeric indicator if all of the query rows are non-zero
 for each sample
 \item \code{"sum"} : return the sum of allele dosages for all query rows per sample
 }
