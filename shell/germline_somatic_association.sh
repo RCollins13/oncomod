@@ -38,7 +38,10 @@ done
 ### Determine LD-independent number of individual germline variants to test per cancer type
 module load plink/1.90b3
 for cancer in PDAC CRAD LUAD SKCM; do
-  # Subset VCFs per cohort to non-rare (AC≥10) variants
+  # Subset VCFs per cohort to:
+  # 1. Non-rare (10≤AC≤(2*N_samples - 10)) variants
+  # 2. called in at least 75% of samples and 
+  # 3. in HWE
   for cohort in TCGA PROFILE; do
     case $cohort in
       TCGA)
@@ -51,29 +54,31 @@ for cancer in PDAC CRAD LUAD SKCM; do
         ;;
     esac
     bcftools view \
-      --min-ac 10 \
       --samples-file $COHORTDIR/data/sample_info/$cohort.$cancer.$sample_name.list \
-      -o $COHORTDIR/data/$cohort.RAS_loci.$cancer.ac10plus.vcf.gz \
-      -O z \
-      $COHORTDIR/data/$cohort.RAS_loci.vcf.gz
-    tabix -p vcf -f $COHORTDIR/data/$cohort.RAS_loci.$cancer.ac10plus.vcf.gz
+      $COHORTDIR/data/$cohort.RAS_loci.vcf.gz \
+    | bcftools +fill-tags - -- -t AC,AN,F_MISSING,HWE \
+    | bcftools view \
+      --include 'AC >= 10 & (AN-AC) >= 10 & F_MISSING < 0.5 & HWE>0.000001' \
+      -o $COHORTDIR/data/$cohort.RAS_loci.$cancer.qc_pass.vcf.gz \
+      -O z
+    tabix -p vcf -f $COHORTDIR/data/$cohort.RAS_loci.$cancer.qc_pass.vcf.gz
   done
 
-  # Merge AC≥10 VCFs across cohorts
+  # Merge QC-pass VCFs across cohorts
   bcftools merge \
     -m none \
-    -o $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.vcf.gz \
+    -o $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
     -O z \
-    $TCGADIR/data/TCGA.RAS_loci.$cancer.ac10plus.vcf.gz \
-    $PROFILEDIR/data/PROFILE.RAS_loci.$cancer.ac10plus.vcf.gz
-  tabix -p vcf -f $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.vcf.gz
+    $TCGADIR/data/TCGA.RAS_loci.$cancer.qc_pass.vcf.gz \
+    $PROFILEDIR/data/PROFILE.RAS_loci.$cancer.qc_pass.vcf.gz
+  tabix -p vcf -f $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz
 
   # LD prune with PLINK
   plink \
-    --vcf $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.vcf.gz \
+    --vcf $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
     --indep-pairwise 100kb 5 0.2 \
     --recode vcf bgz \
-    --out $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.pruned
+    --out $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.pruned
 done
 
 # Once merged & LD-pruned, determine number of variants retained per cancer type per gene 
@@ -81,9 +86,9 @@ for cancer in PDAC CRAD LUAD SKCM; do
   while read chrom start end gene; do
     bcftools query \
       -f '%ID\n' -r "$chrom" \
-      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.vcf.gz \
+      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
     | fgrep -wf - \
-      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.pruned.prune.in \
+      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.pruned.prune.in \
     | wc -l
   done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz ) | paste -s - \
   | awk -v OFS="\t" '{ print $0, $1+$2+$3 }'
@@ -103,13 +108,13 @@ for cohort in TCGA PROFILE; do
     --min-ac 10 \
     --min-freq 0 \
     --report-ac \
-    --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.germline.burden_sets.freq.ac10plus.tsv.gz
+    --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.germline.burden_sets.freq.qc_pass.tsv.gz
 done
 
 # Summarize filtered sets
 $CODEDIR/scripts/germline_somatic_assoc/summarize_germline_burden_sets.py \
-  --burden-sets $WRKDIR/data/variant_set_freqs/filtered/TCGA.germline.burden_sets.freq.ac10plus.tsv.gz \
-  --burden-sets $WRKDIR/data/variant_set_freqs/filtered/PROFILE.germline.burden_sets.freq.ac10plus.tsv.gz \
+  --burden-sets $WRKDIR/data/variant_set_freqs/filtered/TCGA.germline.burden_sets.freq.qc_pass.tsv.gz \
+  --burden-sets $WRKDIR/data/variant_set_freqs/filtered/PROFILE.germline.burden_sets.freq.qc_pass.tsv.gz \
   --memberships $WRKDIR/data/variant_sets/PROFILE.germline.burden_sets.tsv.gz \
   --memberships $WRKDIR/data/variant_sets/PROFILE.germline.collapsed_coding_csqs.tsv.gz \
   --memberships $WRKDIR/data/variant_sets/PROFILE.germline.other_single_variants.tsv.gz \
@@ -126,7 +131,7 @@ for cancer in PDAC CRAD LUAD SKCM; do
     bcftools query \
       --format '%ID\n' \
       --regions $chrom \
-      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.ac10plus.vcf.gz \
+      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
     | $CODEDIR/scripts/data_processing/add_variant_set_members.py \
       --set-list stdin \
       --memberships $WRKDIR/data/variant_sets/PROFILE.germline.burden_sets.tsv.gz \

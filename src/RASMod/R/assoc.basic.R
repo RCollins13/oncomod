@@ -146,6 +146,7 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta,
   test.df$SEX <- as.numeric(test.df$SEX == "MALE")
   test.df <- cbind(data.frame("Y" = y.vals, "X" = x.vals, row.names=names(y.vals)),
                    test.df)
+  test.df$AGE_BY_SEX <- test.df$AGE_AT_DIAGNOSIS * test.df$SEX
 
   # Check if X is allele count or Z-score (for PRS)
   germ.is.ac <- if(all(sapply(x.vals, function(x){as.integer(x) == x}))){TRUE}else{FALSE}
@@ -206,13 +207,27 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta,
   # Standard normalize all covariates
   test.df[, -c(1:2)] <- apply(test.df[, -c(1:2)], 2, scale)
 
+  # Check to ensure number of samples is greater than number of features
+  if(nrow(test.df) <= ncol(test.df) - 1){
+    return(c("samples"=n.samples,
+             "somatic_AC"=somatic.ac,
+             "yes_somatic.germline_AC"=yes_somatic.germline.ac,
+             "no_somatic.germline_AC"=no_somatic.germline.ac,
+             "beta"=NA,
+             "beta_SE"=NA,
+             "z"=NA,
+             "chisq"=NA,
+             "model"=NA,
+             "p"=NA,
+             "EUR_only"=eur.only))
+  }
+
   # Run association model
   logit.regression <- function(data){
-    glm(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=data, family="binomial")
+    glm(Y ~ ., data=data, family="binomial")
   }
   firth.regression <- function(data){
-    logistf(Y ~ . + (AGE_AT_DIAGNOSIS * SEX), data=data,
-            control=logistf.control(maxit=100), flic=TRUE)
+    logistf(Y ~ ., data=data, control=logistf.control(maxit=100), flic=TRUE)
   }
   if(firth){
     fit <- tryCatch(firth.regression(test.df),
