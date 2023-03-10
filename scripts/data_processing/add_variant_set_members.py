@@ -57,7 +57,7 @@ def get_members(setid, members, return_as_string=True):
             mems = members[setid]
 
         else:
-            mems = set(list(subid.split(';')))
+            mems = set(list(setid.split(';')))
 
     if return_as_string:
         return ','.join(sorted(list(mems)))
