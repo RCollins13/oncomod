@@ -42,7 +42,8 @@ query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose"){
   # If ad is a list, call this function recursively on each separately and
   # return the combined query results
   if(inherits(ad, "list")){
-    res <- lapply(ad, query.ad.matrix, vids=vids, action=action)
+    res <- lapply(ad, query.ad.matrix, vids=vids,
+                  elig.controls=elig.controls, action=action)
     if(is.data.frame(res[[1]])){
       return(as.data.frame(do.call("rbind", res)))
     }else{
@@ -84,6 +85,13 @@ query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose"){
 #' @param firth.fallback Attempt to use Firth bias-reduced logistic regression when
 #' traditional logistic regression fails to converge or dataset is quasi-separable
 #' \[default: TRUE\]
+#' @param strict.fallback Implement Firth regression if a standard logit model returns
+#' any errors or warnings. Setting this to `FALSE` will only default to Firth
+#' regression if logit returns any errors or if the standard error of the genotype
+#' coefficient exceeds `nonstrict.se.tolerance` \[default: TRUE\]
+#' @param nonstrict.se.tolerance If `strict.fallback` is `FALSE`, only use Firth
+#' regression if a standard logit model produces a genotype effect standard error
+#' exceeding this value \[default: 10\]
 #' @param firth.always Always use Firth regression \[default: FALSE\]
 #' @param custom.covariates Character vector of columns from `meta` to include
 #' as covariates in the regression model. See `Details`.
@@ -103,8 +111,10 @@ query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose"){
 #' @export germline.somatic.assoc
 #' @export
 germline.somatic.assoc <- function(y.vals, x.vals, meta,
-                                   firth.fallback=TRUE, firth.always=FALSE,
-                                   custom.covariates=c(), multiPop.min.ac=10,
+                                   firth.fallback=TRUE, strict.fallback=TRUE,
+                                   nonstrict.se.tolerance=10,
+                                   firth.always=FALSE, custom.covariates=c(),
+                                   multiPop.min.ac=10,
                                    multiPop.min.freq=0.01){
   # Ensure Firth package is loaded
   require(logistf, quietly=TRUE)
@@ -234,9 +244,19 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta,
                     error=function(e){logit.regression(test.df)})
   }else{
     if(firth.fallback){
-      fit <- tryCatch(logit.regression(test.df),
-                      warning=function(w){firth.regression(test.df)},
-                      error=function(e){firth.regression(test.df)})
+      if(strict.fallback){
+        fit <- tryCatch(logit.regression(test.df),
+                        warning=function(w){firth.regression(test.df)},
+                        error=function(e){firth.regression(test.df)})
+      }else{
+        fit <- tryCatch(logit.regression(test.df),
+                        error=function(e){firth.regression(test.df)})
+        if(fit$method == "glm.fit"){
+          if(summary(fit)$coefficients["X", 2] > nonstrict.se.tolerance){
+            fit <- firth.regression(test.df)
+          }
+        }
+      }
     }else{
       fit <- logit.regression(test.df)
     }

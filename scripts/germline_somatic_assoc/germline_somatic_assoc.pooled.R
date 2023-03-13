@@ -74,12 +74,12 @@ args <- parser$parse_args()
 #              "germline_ad" = c("~/scratch/TCGA.RAS_loci.dosage.tsv.gz",
 #                                "~/scratch/PROFILE.RAS_loci.dosage.tsv.gz"),
 #              "name" = c("TCGA", "PROFILE"),
-#              "somatic_variant_sets" = "~/scratch/PDAC.NRAS.somatic_endpoints.tsv",
-#              "germline_variant_sets" = "~/scratch/PDAC.NRAS.germline_sets.shard_1",
+#              "somatic_variant_sets" = "~/scratch/CRAD.KRAS.somatic_endpoints.tsv",
+#              "germline_variant_sets" = "~/scratch/CRAD.KRAS.germline_sets.shard_19",
 #              "outfile" = "~/scratch/pooled.assoc.test.tsv",
 #              "eligible_controls" = c("~/scratch/TCGA.ALL.eligible_controls.list",
 #                                      "~/scratch/PROFILE.ALL.eligible_controls.list"),
-#              "cancer_type" = "PDAC",
+#              "cancer_type" = "CRAD",
 #              "normalize_germline_ad" = FALSE,
 #              "multiPop_min_ac" = 10,
 #              "multiPop_min_freq" = 0.01)
@@ -157,6 +157,7 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
 
     # Run germline-somatic association
     res <- tryCatch(germline.somatic.assoc(y.vals, x.vals, meta,
+                                           strict.fallback=F,
                                            custom.covariates=colnames(meta)[grep("^cohort\\.", colnames(meta))],
                                            multiPop.min.ac=args$multiPop_min_ac,
                                            multiPop.min.freq=args$multiPop_min_freq),
