@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
 
-###############################
-#    RAS Modifiers Project    #
-###############################
+################################
+#    EGFR Modifiers Project    #
+################################
 
-# Copyright (c) 2022-Present Ryan L. Collins and the Van Allen/Gusev/Haigis Laboratories
+# Copyright (c) 2023-Present Ryan L. Collins, Jackie LoPiccolo, and the Gusev/Van Allen Laboratories
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
-# Locus refinement for targeted KRAS/NRAS/HRAS analyses
+# Locus refinement for targeted EGFR analyses
 
 # Note: intended to be executed on the Broad cluster
 
 
 ### Set local parameters
 export BASEDIR=/broad/VanAllenLab/xchip/cga_home/rcollins
-export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers
+export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/egfr_modifiers
 export CODEDIR=$WRKDIR/code/ras_modifiers
+cd $CODEDIR && \
+git checkout EGFR && \
+git pull && \
+cd -
 cd $WRKDIR
 
 
@@ -143,8 +147,8 @@ contig=\$2
 echo -e "Running contig \$contig for population \$pop"
 
 export BASEDIR=/broad/VanAllenLab/xchip/cga_home/rcollins
-export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers
-export CODEDIR=$WRKDIR/code/ras_modifiers
+export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/egfr_modifiers
+export CODEDIR=$WRKDIR/code/egfr_modifiers
 
 source /broad/software/scripts/useuse
 source /home/unix/rcollins/.bashrc
@@ -180,10 +184,10 @@ cat << EOF > $WRKDIR/UGER/submit_1000G_LD.batch.sh
 #$ -t 1-15
 #$ -l h_vmem=4G
 #$ -l h_rt=01:00:00
-#$ -o /broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers/UGER/logs/
-#$ -e /broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers/UGER/logs/
+#$ -o /broad/VanAllenLab/xchip/cga_home/rcollins/egfr_modifiers/UGER/logs/
+#$ -e /broad/VanAllenLab/xchip/cga_home/rcollins/egfr_modifiers/UGER/logs/
 
-export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers
+export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/egfr_modifiers
 
 pop=\$( sed -n "\${SGE_TASK_ID}p" $WRKDIR/UGER/1000G_LD.inputs.tsv | cut -f1 )
 contig=\$( sed -n "\${SGE_TASK_ID}p" $WRKDIR/UGER/1000G_LD.inputs.tsv | cut -f2 )
