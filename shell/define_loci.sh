@@ -20,7 +20,6 @@ export CODEDIR=$WRKDIR/code/ras_modifiers
 cd $CODEDIR && \
 git checkout EGFR && \
 git pull && \
-cd -
 cd $WRKDIR
 
 
@@ -33,7 +32,7 @@ done
 
 
 ### Write simple reference files
-echo -e "NRAS\nHRAS\nKRAS" > $WRKDIR/refs/genes.list
+echo -e "EGFR" > $WRKDIR/refs/genes.list
 
 
 ### Extract gene bodies from MANE-Select GTF
@@ -55,49 +54,36 @@ zcat $GTF | fgrep -wf $WRKDIR/refs/genes.list \
 
 ### Find most distant eQTLs from GTEx v8 (any tissue)
 wget -O - https://storage.googleapis.com/gtex_analysis_v8/multi_tissue_qtl_data/GTEx_Analysis_v8.metasoft.txt.gz \
-| gunzip -c | head -n1 > $WRKDIR/data/GTEx_Analysis_v8.metasoft.RAS_genes.tsv
+| gunzip -c | head -n1 > $WRKDIR/data/GTEx_Analysis_v8.metasoft.EGFR.tsv
 wget -O - https://storage.googleapis.com/gtex_analysis_v8/multi_tissue_qtl_data/GTEx_Analysis_v8.metasoft.txt.gz \
 | gunzip -c | fgrep -f <( cut -f1 -d \. $WRKDIR/refs/ENSG_to_symbol.tsv ) \
->> $WRKDIR/data/GTEx_Analysis_v8.metasoft.RAS_genes.tsv
-gzip -f $WRKDIR/data/GTEx_Analysis_v8.metasoft.RAS_genes.tsv
+>> $WRKDIR/data/GTEx_Analysis_v8.metasoft.EGFR.tsv
+gzip -f $WRKDIR/data/GTEx_Analysis_v8.metasoft.EGFR.tsv
 $CODEDIR/scripts/data_processing/preprocess_eQTLs.py \
   --ensg-map $WRKDIR/refs/ENSG_to_symbol.tsv \
-  --outfile $WRKDIR/data/RAS_eQTLs.tsv.gz \
-  --verbose-outfile $WRKDIR/data/RAS_eQTLs.verbose.tsv.gz \
-  $WRKDIR/data/GTEx_Analysis_v8.metasoft.RAS_genes.tsv.gz
+  --outfile $WRKDIR/data/EGFR_eQTLs.tsv.gz \
+  --verbose-outfile $WRKDIR/data/EGFR_eQTLs.verbose.tsv.gz \
+  $WRKDIR/data/GTEx_Analysis_v8.metasoft.EGFR.tsv.gz
 while read gene; do
-  zcat $WRKDIR/data/RAS_eQTLs.tsv.gz \
+  zcat $WRKDIR/data/EGFR_eQTLs.tsv.gz \
   | fgrep -w $gene | cut -f2 | sort -nk1,1 | sed -e 1b -e '$!d' | paste -s -
 done < $WRKDIR/refs/genes.list
 
 
 ### Find most permissive TAD boundaries per gene in any tissue
 # Note: need to have downloaded & unpacked data from Schmitt et al., and uploaded
-# primary_cohort_TAD_boundaries.tgz to $WRKDIR/data/Schmitt_2016/
-# Unpack & liftOver TAD boundaries 
-tar -xvf $WRKDIR/data/Schmitt_2016/primary_cohort_TAD_boundaries.tgz
-wget -P $WRKDIR/refs/ https://hgdownload.cse.ucsc.edu/goldenpath/hg19/liftOver/hg19ToHg38.over.chain.gz
-mkdir $WRKDIR/data/Schmitt_2016/hg38_liftOver
-for hg19bed in $WRKDIR/data/Schmitt_2016/primary_cohort_TAD_boundaries/*bed; do
-  newName=$( basename $hg19bed | sed 's/.bed/.hg38.bed/g' )
-  liftOver \
-    $hg19bed \
-    $WRKDIR/refs/hg19ToHg38.over.chain.gz \
-    /dev/stdout \
-    /dev/null \
-  | sort -Vk1,1 -k2,2n -k3,3n | bgzip -c \
-  > $WRKDIR/data/Schmitt_2016/hg38/$newName.gz
-done
+# primary_cohort_TAD_boundaries.tgz to $WRKDIR/../ras_modifiers/data/Schmitt_2016/
+# Also need to have pre-processed data (see main code for RAS modifiers)
 while read gene; do
   # Upstream boundary
-  zcat $WRKDIR/data/Schmitt_2016/hg38/*.gz \
-  | grep -E '^chr1[^0,3-9]' \
+  zcat $WRKDIR/../ras_modifiers/data/Schmitt_2016/hg38/*.gz \
+  | grep -E '^chr7' \
   | sort -Vk1,1 -k2,2n -k3,3n \
   | bedtools closest -D ref -io -id -a $WRKDIR/refs/genes.bed.gz -b - \
   | fgrep -w $gene | cut -f6 | sort -nk6,6 | head -n1
   # Downstream boundary
-  zcat $WRKDIR/data/Schmitt_2016/hg38/*.gz \
-  | grep -E '^chr1[^0,3-9]' \
+  zcat $WRKDIR/../ras_modifiers/data/Schmitt_2016/hg38/*.gz \
+  | grep -E '^chr7' \
   | sort -Vk1,1 -k2,2n -k3,3n \
   | bedtools closest -D ref -io -iu -a $WRKDIR/refs/genes.bed.gz -b - \
   | fgrep -w $gene | cut -f6 | sort -nk7,7 | tail -n1
@@ -105,7 +91,6 @@ done < $WRKDIR/refs/genes.list | paste - -
 
 
 ### Find haplotype block decay around genes
-# Download 1000 Genomes VCFs
 mkdir $WRKDIR/data/1000G/
 while read contig; do
   for suffix in gz gz.tbi; do
@@ -119,7 +104,10 @@ EOF
     done
 done < <( zcat $WRKDIR/refs/genes.bed.gz | cut -f1 )
 # Define regions ±5Mb to query
-bedtools slop -b 5000000 -i $WRKDIR/refs/genes.bed.gz -g $WRKDIR/refs/hg38.genome \
+bedtools slop \
+  -b 5000000 \
+  -i $WRKDIR/refs/genes.bed.gz \
+  -g $WRKDIR/../ras_modifiers/refs/hg38.genome \
 | bgzip -c > $WRKDIR/refs/genes.5Mb_buffer.bed.gz
 # Process pedigrees and split into populations
 wget -P $WRKDIR/data/1000G/ \
@@ -181,7 +169,7 @@ chmod a+x $WRKDIR/UGER/1000G_LD.sh
 cat << EOF > $WRKDIR/UGER/submit_1000G_LD.batch.sh
 #!/usr/bin/env bash
 #
-#$ -t 1-15
+#$ -t 1-5
 #$ -l h_vmem=4G
 #$ -l h_rt=01:00:00
 #$ -o /broad/VanAllenLab/xchip/cga_home/rcollins/egfr_modifiers/UGER/logs/
