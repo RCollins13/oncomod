@@ -550,6 +550,20 @@ for cancer in PDAC CRAD LUAD SKCM; do
 done
 
 
+### Gather significant hits in any individual cohort or pooled analysis
+for cancer in PDAC CRAD LUAD SKCM; do
+  echo -e "\n\n$cancer:"
+  $CODEDIR/scripts/germline_somatic_assoc/get_sig_hits.py \
+    --sumstats $WRKDIR/results/assoc_stats/merged/pooled.$cancer.sumstats.tsv.gz \
+    --cohort-name Pooled \
+    --sumstats $WRKDIR/results/assoc_stats/merged/PROFILE.$cancer.sumstats.tsv.gz \
+    --cohort-name PROFILE \
+    --sumstats $WRKDIR/results/assoc_stats/merged/TCGA.$cancer.sumstats.tsv.gz \
+    --cohort-name TCGA \
+    --p-cutoff $bonf_sig
+done
+
+
 ### Meta-analyze results across cancers from mega-analysis (pooled)
 any_missing=0
 for cancer in PDAC CRAD LUAD SKCM; do
