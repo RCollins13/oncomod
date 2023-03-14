@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-###############################
-#    RAS Modifiers Project    #
-###############################
+################################
+#    EGFR Modifiers Project    #
+################################
 
-# Copyright (c) 2022-Present Ryan L. Collins and the Van Allen/Gusev/Haigis Laboratories
+# Copyright (c) 2023-Present Ryan L. Collins, Jackie LoPiccolo, and the Gusev/Van Allen Laboratories
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
