@@ -72,22 +72,29 @@ def format_output_res(ss, sig_pairs):
         for gid in gids:
             out_vals = [sid, gid]
             for df in ss.values():
-                in_vals = df[(df.somatic == sid) & (df.germline == gid)].squeeze()
-                cohort_vals = [in_vals.samples, in_vals.somatic_freq, 
-                               in_vals.mutant_germline_CAF,
-                               in_vals.control_germline_CAF]
-                ci_delta = norm.ppf(0.975) * in_vals.beta_SE
-                lo_parts = [in_vals.beta, in_vals.beta - ci_delta, 
-                            in_vals.beta + ci_delta]
-                cohort_vals.append('{} [{}, {}]'.format(*[round(x, 2) for x in lo_parts]))
-                cohort_vals.append(in_vals.p)
+                hit_idx = (df.somatic == sid) & (df.germline == gid)
+                if hit_idx.sum() == 0:
+                    cohort_vals = ['NA'] * len(cohort_fields)
+                else:
+                    in_vals = df[hit_idx].squeeze()
+                    cohort_vals = [in_vals.samples, in_vals.somatic_freq, 
+                                   in_vals.mutant_germline_CAF,
+                                   in_vals.control_germline_CAF]
+                    ci_delta = norm.ppf(0.975) * in_vals.beta_SE
+                    lo_parts = [in_vals.beta, in_vals.beta - ci_delta, 
+                                in_vals.beta + ci_delta]
+                    cohort_vals.append('{} [{}, {}]'.format(*[round(x, 2) for x in lo_parts]))
+                    cohort_vals.append(in_vals.p)
                 out_vals += cohort_vals
             res.loc[len(res)] = out_vals
 
     # Sort by best P-value before returning
-    p_cols = [cname + '_p' for cname in ss.keys()]
-    res['best_p'] = res.loc[:, p_cols].min(axis=1)
-    return res.sort_values('best_p').drop(columns='best_p')
+    if len(res) > 1:
+        p_cols = [cname + '_p' for cname in ss.keys()]
+        res['best_p'] = res.loc[:, p_cols].min(axis=1)
+        res = res.sort_values('best_p').drop(columns='best_p')
+
+    return res
 
 
 def main():

@@ -19,6 +19,7 @@ export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
 export CODEDIR=$WRKDIR/../code/ras_modifiers
 export bonf_sig=0.0000006155892
+export lenient_sig=0.000003658983
 cd $WRKDIR
 
 
@@ -560,7 +561,7 @@ for cancer in PDAC CRAD LUAD SKCM; do
     --cohort-name PROFILE \
     --sumstats $WRKDIR/results/assoc_stats/merged/TCGA.$cancer.sumstats.tsv.gz \
     --cohort-name TCGA \
-    --p-cutoff $bonf_sig
+    --p-cutoff $lenient_sig
 done
 
 
