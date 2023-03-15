@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-###############################
-#    RAS Modifiers Project    #
-###############################
+################################
+#    EGFR Modifiers Project    #
+################################
 
-# Copyright (c) 2022-Present Ryan L. Collins and the Van Allen/Gusev/Haigis Laboratories
+# Copyright (c) 2023-Present Ryan L. Collins, Jackie LoPiccolo, and the Gusev/Van Allen Laboratories
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
@@ -20,8 +20,8 @@
 ### Set local parameters
 export TCGADIR=/data/gusev/USERS/rlc47/TCGA
 export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
-export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
-export CODEDIR=$WRKDIR/../code/ras_modifiers
+export WRKDIR=/data/gusev/USERS/rlc47/EGFR_modifier_analysis
+export CODEDIR=$WRKDIR/../EGFR_modifier_analysis/code/ras_modifiers
 cd $WRKDIR
 
 
@@ -31,6 +31,10 @@ for SUBDIR in data data/variant_sets data/variant_set_freqs; do
     mkdir $WRKDIR/$SUBDIR
   fi
 done
+
+
+### NOTE: EXPECTS FULL RAS MODIFIER DATA CURATION TO BE ALREADY COMPLETE 
+### SEE VERSION OF THIS FILE IN THE MAIN BRANCH
 
 
 ### Generate maps of somatic variants with the same protein consequence
@@ -43,27 +47,20 @@ for cohort in TCGA PROFILE; do
       COHORTDIR=$PROFILEDIR
       ;;
   esac
-  for context in germline somatic; do
-    case $context in
-      germline)
-        subset="RAS_loci"
-        ;;
-      somatic)
-        subset="somatic_variants"
-        ;;
-    esac
-    for suf in err log; do
-      logfile=$WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_$context.$suf
-      if [ -e $logfile ]; then rm $logfile; fi
-    done
-    bsub -q normal -sla miket_sc \
-      -J collapse_coding_csqs_${cohort}_$context \
-      -o $WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_$context.log \
-      -e $WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_$context.err \
-      "$CODEDIR/scripts/data_processing/vep2csqTable.py \
-        $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
-        $WRKDIR/data/variant_sets/$cohort.$context.collapsed_coding_csqs.tsv.gz"
+  for suf in err log; do
+    logfile=$WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_germline.$suf
+    if [ -e $logfile ]; then rm $logfile; fi
   done
+  bsub -q normal -sla miket_sc \
+    -J collapse_coding_csqs_${cohort}_germline \
+    -o $WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_germline.log \
+    -e $WRKDIR/LSF/logs/collapse_coding_csqs_${cohort}_germline.err \
+    "$CODEDIR/scripts/data_processing/vep2csqTable.py \
+      $COHORTDIR/data/$cohort.EGFR_loci.anno.clean.vcf.gz \
+      $WRKDIR/data/variant_sets/$cohort.germline.collapsed_coding_csqs.tsv.gz"
+  ln -s \
+    $WRKDIR/../RAS_modifier_analysis/data/variant_sets/$cohort.somatic.collapsed_coding_csqs.tsv.gz \
+    $WRKDIR/data/variant_sets/$cohort.somatic.collapsed_coding_csqs.tsv.gz
 done
 
 
@@ -77,19 +74,20 @@ for cohort in TCGA PROFILE; do
       COHORTDIR=$PROFILEDIR
       ;;
   esac
-  for context in germline somatic; do
-    for suf in err log; do
-      logfile=$WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_$context.$suf
-      if [ -e $logfile ]; then rm $logfile; fi
-    done
-    bsub -q short -sla miket_sc \
-      -J find_recurrent_codons_${cohort}_$context \
-      -o $WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_$context.log \
-      -e $WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_$context.err \
-      "$CODEDIR/scripts/data_processing/find_recurrently_mutated_codons.py \
-        $WRKDIR/data/variant_sets/$cohort.$context.collapsed_coding_csqs.tsv.gz \
-       | gzip -c > $WRKDIR/data/variant_sets/$cohort.$context.recurrently_mutated_codons.tsv.gz"
+  for suf in err log; do
+    logfile=$WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_germline.$suf
+    if [ -e $logfile ]; then rm $logfile; fi
   done
+  bsub -q short -sla miket_sc \
+    -J find_recurrent_codons_${cohort}_germline \
+    -o $WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_germline.log \
+    -e $WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_germline.err \
+    "$CODEDIR/scripts/data_processing/find_recurrently_mutated_codons.py \
+      $WRKDIR/data/variant_sets/$cohort.germline.collapsed_coding_csqs.tsv.gz \
+     | gzip -c > $WRKDIR/data/variant_sets/$cohort.germline.recurrently_mutated_codons.tsv.gz"
+  ln -s \
+    $WRKDIR/../RAS_modifier_analysis/data/variant_sets/$cohort.somatic.recurrently_mutated_codons.tsv.gz \
+    $WRKDIR/data/variant_sets/$cohort.somatic.recurrently_mutated_codons.tsv.gz
 done
 
 
@@ -103,19 +101,20 @@ for cohort in TCGA PROFILE; do
       COHORTDIR=$PROFILEDIR
       ;;
   esac
-  for context in germline somatic; do
-    for suf in err log; do
-      logfile=$WRKDIR/LSF/logs/find_recurrent_exons_${cohort}_$context.$suf
-      if [ -e $logfile ]; then rm $logfile; fi
-    done
-    bsub -q short \
-      -J find_recurrent_exons_${cohort}_$context \
-      -o $WRKDIR/LSF/logs/find_recurrent_exons_${cohort}_$context.log \
-      -e $WRKDIR/LSF/logs/find_recurrent_exons_${cohort}_$context.err \
-      "$CODEDIR/scripts/data_processing/find_recurrently_mutated_exons.py \
-        $WRKDIR/data/variant_sets/$cohort.$context.collapsed_coding_csqs.tsv.gz \
-       | gzip -c > $WRKDIR/data/variant_sets/$cohort.$context.recurrently_mutated_exons.tsv.gz"
+  for suf in err log; do
+    logfile=$WRKDIR/LSF/logs/find_recurrent_exons_${cohort}_germline.$suf
+    if [ -e $logfile ]; then rm $logfile; fi
   done
+  bsub -q short \
+    -J find_recurrent_exons_${cohort}_germline \
+    -o $WRKDIR/LSF/logs/find_recurrent_exons_${cohort}_germline.log \
+    -e $WRKDIR/LSF/logs/find_recurrent_exons_${cohort}_germline.err \
+    "$CODEDIR/scripts/data_processing/find_recurrently_mutated_exons.py \
+      $WRKDIR/data/variant_sets/$cohort.germline.collapsed_coding_csqs.tsv.gz \
+     | gzip -c > $WRKDIR/data/variant_sets/$cohort.germline.recurrently_mutated_exons.tsv.gz"
+  ln -s \
+    $WRKDIR/../RAS_modifier_analysis/data/variant_sets/$cohort.somatic.recurrently_mutated_exons.tsv.gz \
+    $WRKDIR/data/variant_sets/$cohort.somatic.recurrently_mutated_exons.tsv.gz
 done
 
 
@@ -129,28 +128,21 @@ for cohort in TCGA PROFILE; do
       COHORTDIR=$PROFILEDIR
       ;;
   esac
-  for context in somatic germline; do
-    case $context in
-      germline)
-        subset="RAS_loci"
-        ;;
-      somatic)
-        subset="somatic_variants"
-        ;;
-    esac
-    for suf in err log; do
-      logfile=$WRKDIR/LSF/logs/generate_variant_sets_${cohort}_$context.$suf
-      if [ -e $logfile ]; then rm $logfile; fi
-    done
-    bsub -q normal -sla miket_sc \
-      -J generate_variant_sets_${cohort}_$context \
-      -o $WRKDIR/LSF/logs/generate_variant_sets_${cohort}_$context.log \
-      -e $WRKDIR/LSF/logs/generate_variant_sets_${cohort}_$context.err \
-      "$CODEDIR/scripts/data_processing/populate_variant_sets.py \
-         --vcf $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
-         --sets-json $CODEDIR/refs/variant_set_criteria.$context.json \
-       | gzip -c > $WRKDIR/data/variant_sets/$cohort.$context.burden_sets.tsv.gz"
+  for suf in err log; do
+    logfile=$WRKDIR/LSF/logs/generate_variant_sets_${cohort}_germline.$suf
+    if [ -e $logfile ]; then rm $logfile; fi
   done
+  bsub -q normal -sla miket_sc \
+    -J generate_variant_sets_${cohort}_germline \
+    -o $WRKDIR/LSF/logs/generate_variant_sets_${cohort}_germline.log \
+    -e $WRKDIR/LSF/logs/generate_variant_sets_${cohort}_germline.err \
+    "$CODEDIR/scripts/data_processing/populate_variant_sets.py \
+       --vcf $COHORTDIR/data/$cohort.EGFR_loci.anno.clean.vcf.gz \
+       --sets-json $CODEDIR/refs/variant_set_criteria.germline.json \
+     | gzip -c > $WRKDIR/data/variant_sets/$cohort.germline.burden_sets.tsv.gz"
+  ln -s \
+    $WRKDIR/../RAS_modifier_analysis/data/variant_sets/$cohort.somatic.burden_sets.tsv.gz \
+    $WRKDIR/data/variant_sets/$cohort.somatic.burden_sets.tsv.gz
 done
 
 
@@ -168,7 +160,7 @@ for cohort in TCGA PROFILE; do
   for context in germline somatic; do
     case $context in
       germline)
-        subset="RAS_loci"
+        subset="EGFR_loci"
         max_an=2
         ;;
       somatic)
@@ -206,7 +198,7 @@ for cohort in TCGA PROFILE; do
   for context in germline somatic; do
     case $context in
       germline)
-        subset="RAS_loci"
+        subset="EGFR_loci"
         max_an=2
         ;;
       somatic)
@@ -256,7 +248,7 @@ for cohort in TCGA PROFILE; do
   for context in germline somatic; do
     case $context in
       germline)
-        subset="RAS_loci"
+        subset="EGFR_loci"
         max_an=2
         ;;
       somatic)
@@ -294,7 +286,7 @@ for cohort in TCGA PROFILE; do
   for context in germline somatic; do
     case $context in
       germline)
-        subset="RAS_loci"
+        subset="EGFR_loci"
         max_an=2
         ;;
       somatic)
@@ -332,7 +324,7 @@ for cohort in TCGA PROFILE; do
   for context in germline somatic; do
     case $context in
       germline)
-        subset="RAS_loci"
+        subset="EGFR_loci"
         max_an=2
         ;;
       somatic)
@@ -406,7 +398,7 @@ for cohort in TCGA PROFILE; do
          --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
          --max-an 1 \
          --outfile $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.$gene.freq.tsv.gz"
-  done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
+  done < <( zcat $WRKDIR/../refs/EGFR_genes.bed.gz )
 done
 # Collapse results across genes per cohort once complete
 for cohort in TCGA PROFILE; do

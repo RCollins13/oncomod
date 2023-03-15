@@ -229,7 +229,7 @@ for cohort in TCGA PROFILE; do
       -e $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.err \
       "$WRKDIR/LSF/scripts/annotate_AFs.sh \
          $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
-         $COHORTDIR/data/sample_info/$cohort.LUAD.sample_metadata.tsv.gz \
+         $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
          $sample_field \
          $COHORTDIR/data/$cohort.$subset.anno.clean.wAF.vcf.gz"
   done
