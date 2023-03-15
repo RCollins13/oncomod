@@ -32,8 +32,7 @@ parser$add_argument("--stats", metavar=".tsv", type="character", action="append"
 parser$add_argument("--name", metavar="string", type="character", action="append",
                     help=paste("names for each --stats input, provided",
                                "in the same order as --stats"))
-parser$add_argument("--model", metavar="string", options=c("FE", "REML"),
-                    type="character", default="FE",
+parser$add_argument("--model", metavar="string", type="character", default="FE",
                     help="Specify meta-analysis model [Default: \"FE\"]")
 parser$add_argument("--drop-frequencies", action="store_true", default=FALSE,
                     help="Do not report variant frequencies in --outfile")
