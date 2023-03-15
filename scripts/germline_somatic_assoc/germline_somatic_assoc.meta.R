@@ -16,6 +16,7 @@
 #########
 # Load necessary libraries and constants
 require(RASMod, quietly=TRUE)
+require(metafor, quietly=TRUE)
 require(argparse, quietly=TRUE)
 RASMod::load.constants("names")
 
@@ -31,6 +32,9 @@ parser$add_argument("--stats", metavar=".tsv", type="character", action="append"
 parser$add_argument("--name", metavar="string", type="character", action="append",
                     help=paste("names for each --stats input, provided",
                                "in the same order as --stats"))
+parser$add_argument("--model", metavar="string", options=c("FE", "REML"),
+                    type="character", default="FE",
+                    help="Specify meta-analysis model [Default: \"FE\"]")
 parser$add_argument("--drop-frequencies", action="store_true", default=FALSE,
                     help="Do not report variant frequencies in --outfile")
 parser$add_argument("--outfile", metavar="path", type="character", required=TRUE,
@@ -45,13 +49,14 @@ args <- parser$parse_args()
 #              "outfile"="~/scratch/meta.test.tsv")
 
 # # DEV: PAN-CANCER
-# args <- list("stats"=c("~/scratch/PDAC.meta.sumstats.tsv.gz",
+# args <- list("stats" = c("~/scratch/PDAC.meta.sumstats.tsv.gz",
 #                        "~/scratch/CRAD.meta.sumstats.tsv.gz",
 #                        "~/scratch/LUAD.meta.sumstats.tsv.gz",
 #                        "~/scratch/SKCM.meta.sumstats.tsv.gz"),
-#              "name"=c("PDAC", "CRAD", "LUAD", "SKCM"),
-#              "drop_frequencies"=TRUE,
-#              "outfile"="~/scratch/meta.test.tsv")
+#              "name" = c("PDAC", "CRAD", "LUAD", "SKCM"),
+#              "model" = "REML",
+#              "drop_frequencies" = TRUE,
+#              "outfile" = "~/scratch/meta.test.tsv")
 
 
 # Sanity-check lengths of --stats and --names
@@ -85,8 +90,8 @@ if(args$drop_frequencies){
   stats <- average.meta.freqs(stats)
 }
 
-# Annotate merged stats with weighted frequencies
-stats <- ivw.meta.analysis(stats)
+# Meta-analyze effect sizes
+stats <- germline.somatic.meta.analysis(stats, args$model)
 
 # Add FDR Q-value
 stats$fdr_q <- p.adjust(stats$p, method="fdr")

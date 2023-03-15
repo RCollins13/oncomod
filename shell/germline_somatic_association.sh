@@ -583,6 +583,7 @@ $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.meta.R \
   --name LUAD \
   --stats $WRKDIR/results/assoc_stats/merged/pooled.SKCM.sumstats.tsv.gz \
   --name SKCM \
+  --model REML \
   --drop-frequencies \
   --outfile $WRKDIR/results/assoc_stats/meta/PanCancer.pooled.meta.sumstats.tsv
 gzip -f $WRKDIR/results/assoc_stats/meta/PanCancer.pooled.meta.sumstats.tsv
@@ -608,3 +609,10 @@ if [ -s $stats ]; then
     --outfile $WRKDIR/plots/germline_somatic_assoc/qq/PanCancer.pooled.meta.qq.png \
     --p-threshold $bonf_sig
 fi
+
+
+### Gather significant hits in pan-cancer meta-analysis
+$CODEDIR/scripts/germline_somatic_assoc/get_sig_hits.py \
+  --sumstats $WRKDIR/results/assoc_stats/meta/PanCancer.pooled.meta.sumstats.tsv.gz \
+  --cohort-name Pan-Cancer \
+  --p-cutoff $lenient_sig
