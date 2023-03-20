@@ -1,6 +1,6 @@
 # Germline modifiers of EGFR in lung cancer  
 
-Copyright (c) 2023 Ryan L Collins, Jackie LoPiccolo, and the Gusev/Van Allen Labs @ DFCI  
+Copyright (c) 2023 Ryan L Collins and the Gusev/Van Allen Labs @ DFCI  
 Contact: [Ryan Collins](mailto:Ryan_Collins@dfci.harvard.edu)  
 Code provided under the terms of the GNU GPL v2.0 (see `LICENSE`)
 

@@ -4,7 +4,7 @@
 #    EGFR Modifiers Project    #
 ################################
 
-# Copyright (c) 2023-Present Ryan L. Collins, Jackie LoPiccolo, and the Gusev/Van Allen Laboratories
+# Copyright (c) 2023-Present Ryan L. Collins, and the Gusev/Van Allen Laboratories
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
@@ -179,7 +179,7 @@ for cohort in TCGA PROFILE; do
       "$CODEDIR/scripts/data_processing/calc_variant_set_freqs.py \
          --sets-tsv $WRKDIR/data/variant_sets/$cohort.$context.collapsed_coding_csqs.tsv.gz \
          --dosage-tsv $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz \
-         --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+         --sample-metadata $COHORTDIR/data/sample_info/$cohort.LUAD.sample_metadata.tsv.gz \
          --max-an $max_an \
          --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.coding_variants.freq.tsv.gz"
   done
@@ -229,7 +229,7 @@ for cohort in TCGA PROFILE; do
       "$CODEDIR/scripts/data_processing/calc_variant_set_freqs.py \
          --sets-tsv $WRKDIR/data/variant_sets/$cohort.$context.other_single_variants.tsv.gz \
          --dosage-tsv $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz \
-         --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+         --sample-metadata $COHORTDIR/data/sample_info/$cohort.LUAD.sample_metadata.tsv.gz \
          --max-an $max_an \
          --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.other_variants.freq.tsv.gz"
   done
@@ -267,7 +267,7 @@ for cohort in TCGA PROFILE; do
       "$CODEDIR/scripts/data_processing/calc_variant_set_freqs.py \
          --sets-tsv $WRKDIR/data/variant_sets/$cohort.$context.recurrently_mutated_codons.tsv.gz \
          --dosage-tsv $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz \
-         --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+         --sample-metadata $COHORTDIR/data/sample_info/$cohort.LUAD.sample_metadata.tsv.gz \
          --max-an $max_an \
          --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.recurrently_mutated_codons.freq.tsv.gz"
   done
@@ -305,7 +305,7 @@ for cohort in TCGA PROFILE; do
       "$CODEDIR/scripts/data_processing/calc_variant_set_freqs.py \
          --sets-tsv $WRKDIR/data/variant_sets/$cohort.$context.recurrently_mutated_exons.tsv.gz \
          --dosage-tsv $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz \
-         --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+         --sample-metadata $COHORTDIR/data/sample_info/$cohort.LUAD.sample_metadata.tsv.gz \
          --max-an $max_an \
          --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.recurrently_mutated_exons.freq.tsv.gz"
   done
@@ -343,14 +343,13 @@ for cohort in TCGA PROFILE; do
       "$CODEDIR/scripts/data_processing/calc_variant_set_freqs.py \
          --sets-tsv $WRKDIR/data/variant_sets/$cohort.$context.burden_sets.tsv.gz \
          --dosage-tsv $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz \
-         --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+         --sample-metadata $COHORTDIR/data/sample_info/$cohort.LUAD.sample_metadata.tsv.gz \
          --max-an $max_an \
          --outfile $WRKDIR/data/variant_set_freqs/$cohort.$context.burden_sets.freq.tsv.gz"
   done
 done
 
 # 5. Intra-gene somatic comutation pairs
-# TODO: finish implementing intra-gene restriction here
 for cohort in TCGA PROFILE; do
   case $cohort in
     TCGA)
@@ -370,7 +369,7 @@ for cohort in TCGA PROFILE; do
     tabix \
       -R <( echo -e "$chrom\t$start\t$end" ) \
       $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
-    | cut -f3 > $TMPDIR/ras_vids.$gene.list
+    | cut -f3 > $TMPDIR/egfr_vids.$gene.list
     for subset in coding other; do
       $CODEDIR/scripts/data_processing/filter_freq_table.py \
         --freq-tsv $WRKDIR/data/variant_set_freqs/$cohort.somatic.${subset}_variants.freq.tsv.gz  \
@@ -380,7 +379,7 @@ for cohort in TCGA PROFILE; do
     | fgrep -wf - \
       <( zcat $WRKDIR/data/variant_sets/$cohort.somatic.collapsed_coding_csqs.tsv.gz \
               $WRKDIR/data/variant_sets/$cohort.somatic.other_single_variants.tsv.gz ) \
-    | fgrep -wf $TMPDIR/ras_vids.$gene.list \
+    | fgrep -wf $TMPDIR/egfr_vids.$gene.list \
     | awk -v OFS="\t" '{ print $1, $NF }' | cat <( echo -e "set_id\tvids" ) - \
     > $TMPDIR/$cohort.all_comut_candidates.$gene.tsv
     # Step 2. Compute comutation frequency for all candidates
@@ -395,16 +394,16 @@ for cohort in TCGA PROFILE; do
       "$CODEDIR/scripts/data_processing/calc_comutation_freqs.py \
          --sets-tsv $TMPDIR/$cohort.all_comut_candidates.$gene.tsv \
          --dosage-tsv $COHORTDIR/data/$cohort.somatic_variants.dosage.tsv.gz \
-         --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+         --sample-metadata $COHORTDIR/data/sample_info/$cohort.LUAD.sample_metadata.tsv.gz \
          --max-an 1 \
          --outfile $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.$gene.freq.tsv.gz"
-  done < <( zcat $WRKDIR/../refs/EGFR_genes.bed.gz )
+  done < <( zcat $WRKDIR/../refs/EGFR_gene.bed.gz )
 done
 # Collapse results across genes per cohort once complete
 for cohort in TCGA PROFILE; do
   zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.*.freq.tsv.gz \
   | grep -ve '^set_id' | sort -Vk1,1 \
-  | cat <( zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.NRAS.freq.tsv.gz | head -n1 ) - \
+  | cat <( zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.EGFR.freq.tsv.gz | head -n1 ) - \
   | bgzip -c > $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.freq.tsv.gz
 done
 

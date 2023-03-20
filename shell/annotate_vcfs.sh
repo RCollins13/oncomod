@@ -4,7 +4,7 @@
 #    EGFR Modifiers Project    #
 ################################
 
-# Copyright (c) 2023-Present Ryan L. Collins, Jackie LoPiccolo, and the Gusev/Van Allen Laboratories
+# Copyright (c) 2023-Present Ryan L. Collins and the Gusev/Van Allen Laboratories
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 

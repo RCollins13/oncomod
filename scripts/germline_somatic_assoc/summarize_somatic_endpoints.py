@@ -23,25 +23,22 @@ from general_utils import load_tx_map
 
 
 # Define various variables used throughout the below functions
-cancers = 'PDAC CRAD SKCM LUAD'.split()
-ras_genes = 'NRAS HRAS KRAS'.split()
-ras_chroms = {'1' : 'NRAS', '11' : 'HRAS', '12' : 'KRAS'}
+cancers = ['LUAD']
+egfr_genes = ['EGFR']
+egfr_chroms = {'7' : 'EGFR'}
 category_descriptions = \
-    {'mutations'        : '1. Frequent RAS alterations',
-     'codons'           : '2. Recurrently mutated RAS codons',
-     'exons'            : '3. Recurrently mutated RAS exons',
+    {'mutations'        : '1. Frequent EGFR alterations',
+     'codons'           : '2. Recurrently mutated EGFR codons',
+     'exons'            : '3. Recurrently mutated EGFR exons',
      'burden'           : '4. Collapsed mutation sets',
-     'comutations'      : '5. Frequent co-mutations involving RAS',
-     'ras_nonras_comut' : '6. Frequent RAS + non-RAS comutations'}
-tissue_map = {'PDAC' : 'pancreas',
-              'CRAD' : 'colon',
-              'SKCM' : 'skin',
-              'LUAD' : 'lung'}
+     'comutations'      : '5. Frequent co-mutations involving EGFR',
+     'egfr_nonegfr_comut' : '6. Frequent EGFR + non-EGFR comutations'}
+tissue_map = {'LUAD' : 'lung'}
 
 
 def infer_gene(set_id, tx_map):
     """
-    Use a variety of strategies to infer RAS gene relationship from set ID
+    Use a variety of strategies to infer EGFR gene relationship from set ID
     """
 
     if set_id.startswith('COMUT|'):
@@ -52,7 +49,7 @@ def infer_gene(set_id, tx_map):
     elif set_id.startswith('1_') \
          or set_id.startswith('11_') \
          or set_id.startswith('12_'):
-        return ras_chroms.get(set_id.split('_')[0])
+        return egfr_chroms.get(set_id.split('_')[0])
     elif '_' in set_id:
         return set_id.split('_')[0]
     else:
@@ -129,8 +126,8 @@ def main():
                         help='frequencies corresponding to burden sets')
     parser.add_argument('--comutations', action='append', default=[],
                         help='frequencies corresponding to comutation pairs')
-    parser.add_argument('--ras-nonras-comut', action='append', default=[],
-                        help='frequencies corresponding to RAS + non-RAS ' + 
+    parser.add_argument('--egfr-nonegfr-comut', action='append', default=[],
+                        help='frequencies corresponding to EGFR + non-EGFR ' + 
                         'comutation pairs')
     parser.add_argument('-t', '--transcript-info', required=True, help='.tsv ' + 
                         'mapping ENST:ENSG:symbol:length')
@@ -139,8 +136,8 @@ def main():
                         '(final column). Can be specified multiple times.')
     parser.add_argument('-m', '--min-freq', default=0.01, type=float, help='Minimum ' + 
                         'frequency for a category to be retained per cancer type.')
-    parser.add_argument('--min-ras-nonras-comut', default=0.05, type=float, 
-                        help='Minimum frequency for a RAS-nonRAS comutation pair ' +
+    parser.add_argument('--min-egfr-nonegfr-comut', default=0.05, type=float, 
+                        help='Minimum frequency for a EGFR-nonEGFR comutation pair ' +
                         'to be retained per cancer type.')
     parser.add_argument('-o', '--outfile', help='output .tsv of summary table ' + 
                         '[default: stdout]', default='stdout')
@@ -150,7 +147,7 @@ def main():
     args = parser.parse_args()
 
     # Build dicts for collecting results
-    res = {cat : {cncr : {gene : set() for gene in ras_genes} for cncr in cancers} \
+    res = {cat : {cncr : {gene : set() for gene in egfr_genes} for cncr in cancers} \
            for cat in category_descriptions.keys()}
     member_combos_seen = {cncr : set() for cncr in cancers}
 
@@ -190,15 +187,15 @@ def main():
             update_res(res['comutations'], infile, tx_map, members, 
                        member_combos_seen, args.min_freq)
 
-    # Load RAS + non-RAS comutation pairs
-    for infile in args.ras_nonras_comut:
-        res['ras_nonras_comut'], member_combos_seen = \
-            update_res(res['ras_nonras_comut'], infile, tx_map, members, 
-                       member_combos_seen, args.min_ras_nonras_comut)
+    # Load EGFR + non-EGFR comutation pairs
+    for infile in args.egfr_nonegfr_comut:
+        res['egfr_nonegfr_comut'], member_combos_seen = \
+            update_res(res['egfr_nonegfr_comut'], infile, tx_map, members, 
+                       member_combos_seen, args.min_egfr_nonegfr_comut)
 
     # Output lists of somatic endpoints per gene & cancer type
     for cancer in cancers:
-        for gene in ras_genes:
+        for gene in egfr_genes:
             fout = open('{}{}.{}.somatic_endpoints.tsv'.format(args.out_prefix, cancer, gene), 'w')
             for cat in category_descriptions.keys():
                 for val in res[cat][cancer][gene]:
@@ -213,7 +210,7 @@ def main():
         outfile = open(args.outfile, 'w')
     header_vals = ['Somatic Criteria']
     for cancer in cancers:
-        for gene in ras_genes:
+        for gene in egfr_genes:
             header_vals.append('_'.join([cancer, gene]))
         header_vals.append(cancer + '_Union')
     outfile.write('\t'.join(header_vals + ['Total']) + '\n')
@@ -224,7 +221,7 @@ def main():
         total = 0
         for cancer in cancers:
             sub_union = set()
-            for gene in ras_genes:
+            for gene in egfr_genes:
                 outvals.append(len(vals[cancer][gene]))
                 sub_union.update(vals[cancer][gene])
             outvals.append(len(sub_union))

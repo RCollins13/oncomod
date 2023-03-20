@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2022 Ryan L. Collins and the Van Allen/Gusev/Haigis Laboratories
+# Copyright (c) 2023 Ryan L. Collins and the Gusev/Van Allen Laboratories
 # Distributed under terms of the GPL-2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
@@ -21,12 +21,9 @@ from general_utils import load_tx_map
 
 
 # Define various variables used throughout the below functions
-cancers = 'PDAC CRAD SKCM LUAD'.split()
-ras_genes = 'NRAS HRAS KRAS'.split()
-tissue_map = {'PDAC' : 'pancreas',
-              'CRAD' : 'colon',
-              'SKCM' : 'skin',
-              'LUAD' : 'lung'}
+cancers = ['LUAD']
+index_genes = ['EGFR']
+tissue_map = {'LUAD' : 'lung'}
 
 
 def update_res(res, infile, members, min_ac=10):
@@ -98,7 +95,7 @@ def main():
     args = parser.parse_args()
 
     # Build dict for collecting results
-    res = {cncr : {gene : set() for gene in ras_genes} for cncr in cancers}
+    res = {cncr : {gene : set() for gene in index_genes} for cncr in cancers}
 
     # Load mapping of set ID to constitutent variant IDs
     members = load_members(args.memberships)
@@ -109,7 +106,7 @@ def main():
 
     # Output lists of somatic endpoints per gene & cancer type
     for cancer in cancers:
-        for gene in ras_genes:
+        for gene in index_genes:
             fout = open('{}{}.{}.germline_sets.tsv'.format(args.out_prefix, cancer, gene), 'w')
             for val in res[cancer][gene]:
                 mems = get_members(val, members)
@@ -123,7 +120,7 @@ def main():
         outfile = open(args.outfile, 'w')
     header_vals = []
     for cancer in cancers:
-        for gene in ras_genes:
+        for gene in index_genes:
             header_vals.append('_'.join([cancer, gene]))
         header_vals.append(cancer + '_Union')
     outfile.write('\t'.join(header_vals + ['Total']) + '\n')
@@ -133,7 +130,7 @@ def main():
     outvals = []
     for cancer, vals in res.items():
         sub_union = set()
-        for gene in ras_genes:
+        for gene in index_genes:
             outvals.append(len(vals[gene]))
             sub_union.update(vals[gene])
         outvals.append(len(sub_union))
