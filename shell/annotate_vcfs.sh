@@ -530,4 +530,23 @@ for cohort in TCGA PROFILE; do
     --exclude-samples $COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.missing_somatic.list \
     --outfile $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list
 done
-
+# Summarize as table
+for cancer in PDAC CRAD LUAD SKCM; do
+  echo $cancer
+  for cohort in TCGA PROFILE; do
+    case $cohort in
+      TCGA)
+        COHORTDIR=$TCGADIR
+        sample_field="donors"
+        ;;
+      PROFILE)
+        COHORTDIR=$PROFILEDIR
+        sample_field="samples"
+        ;;
+    esac
+    elig_samps=$COHORTDIR/data/sample_info/$cohort.$cancer.$sample_field.list
+    fgrep -wf $elig_samps \
+      $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list \
+    | wc -l | addcom
+  done | paste -s -
+done | paste - -
