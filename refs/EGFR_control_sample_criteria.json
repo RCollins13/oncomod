@@ -1,0 +1,89 @@
+{
+	"EGFR" : [
+		{
+			"Consequence" : "missense_variant",
+			"Protein_position" : 709,
+			"Amino_acids" : "K"
+		},
+		{
+			"Consequence" : "missense_variant",
+			"Protein_position" : 709,
+			"Amino_acids" : "V"
+		},
+		{
+			"Consequence" : "missense_variant",
+			"Protein_position" : 709,
+			"Amino_acids" : "A"
+		},
+		{
+			"Consequence" : "missense_variant",
+			"Protein_position" : 709,
+			"Amino_acids" : "G"
+		},
+		{
+			"Protein_position" : 709,
+			"variant_type" : "deletion",
+			"Amino_acids" : "D"
+		},
+		{
+			"Protein_position" : 709,
+			"variant_type" : "delins",
+			"Amino_acids" : "D"
+		},
+		{
+			"Consequence" : "missense_variant",
+			"Protein_position" : 719,
+			"Amino_acids" : "A"
+		},
+		{
+			"Consequence" : "missense_variant",
+			"Protein_position" : 719,
+			"Amino_acids" : "C"
+		},
+		{
+			"Consequence" : "missense_variant",
+			"Protein_position" : 719,
+			"Amino_acids" : "S"
+		},
+		{
+			"Consequence" : "missense_variant",
+			"Protein_position" : 719,
+			"Amino_acids" : "D"
+		},
+		{
+			"EXON" : 19,
+			"variant_type" : "insertion"
+		},
+		{
+			"EXON" : 19,
+			"variant_type" : "deletion"
+		},
+		{
+			"EXON" : 19,
+			"variant_type" : "delins"
+		},
+		{
+			"Consequence" : "missense_variant",
+			"Protein_position" : 768,
+			"Amino_acids" : "I"
+		},
+		{
+			"EXON" : 20,
+			"variant_type" : "insertion"
+		},
+		{
+			"EXON" : 20,
+			"variant_type" : "delins"
+		},
+		{
+			"Consequence" : "missense_variant",
+			"Protein_position" : 858,
+			"Amino_acids" : "R"
+		},
+		{
+			"Consequence" : "missense_variant",
+			"Protein_position" : 861,
+			"Amino_acids" : "Q"
+		}
+	]
+}

@@ -284,11 +284,12 @@ for cohort in TCGA PROFILE; do
   esac
   $CODEDIR/scripts/data_processing/define_control_samples.py \
     --vcf $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
-    --criteria $CODEDIR/refs/RAS_control_sample_criteria.json \
-    --regions $CODEDIR/refs/RAS_loci.GRCh37.bed.gz \
-    --eligible-samples $COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.list \
+    --criteria $CODEDIR/refs/EGFR_control_sample_criteria.json \
+    --regions $CODEDIR/refs/EGFR_loci.GRCh37.bed.gz \
+    --eligible-samples $COHORTDIR/data/sample_info/$cohort.LUAD.$sample_field.list \
     --exclude-samples $COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.missing_somatic.list \
-    --outfile $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list
+    --outfile $COHORTDIR/data/sample_info/$cohort.LUAD.eligible_EGFR_controls.list
+
 done
 # Summarize as table
 for cancer in PDAC CRAD LUAD SKCM; do

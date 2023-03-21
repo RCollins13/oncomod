@@ -58,6 +58,9 @@ def check_rules(vdf, rules):
             elif value == 'delins':
                 hit_idxs = (vdf.loc[hit_idxs, 'ref_len'] > 3) & (vdf.loc[hit_idxs, 'alt_len'] > 3)
 
+        elif key == 'EXON':
+            import pdb; pdb.set_trace()
+
         elif key in vdf.columns:
             hit_idxs = vdf.loc[hit_idxs, key].astype(str) == str(value)
 
