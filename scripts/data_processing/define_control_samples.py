@@ -35,14 +35,34 @@ def check_rules(vdf, rules):
     for key, value in rules.items():
 
         if key == 'Amino_acids':
-            hit_idxs = vdf[key].str.split('/').map(lambda x: value in x)
+            hit_idxs = vdf.loc[hit_idxs, key].str.split('/').map(lambda x: value in x)
+
+        elif key == 'EXON':
+            hit_idxs = vdf.loc[hit_idxs, key].str.split('/').map(lambda x: str(value) in x)
+
+        elif key == 'Protein_position' and vdf.Protein_position.map(lambda x: '-' in str(x)).any():
+            vdf.loc[:, 'min_aa'] = vdf['Protein_position'].str.split('-').map(lambda x: int(x[0]))
+            vdf.loc[:, 'max_aa'] = vdf['Protein_position'].str.split('-').map(lambda x: int(x[-1]))
+            hit_idxs = (vdf.loc[hit_idxs, 'min_aa'] <= int(value)) & (vdf.loc[hit_idxs, 'max_aa'] >= int(value))
+
+        elif key == 'variant_type':
+            vdf.loc[:, 'ref_len'] = vdf['Codons'].str.split('/').map(lambda x: len([n for n in x[0] if n != '-']))
+            vdf.loc[:, 'alt_len'] = vdf['Codons'].str.split('/').map(lambda x: len([n for n in x[1] if n != '-']))
+
+            if value == 'insertion':
+                hit_idxs = vdf.loc[hit_idxs, 'ref_len'] < vdf.loc[hit_idxs, 'alt_len']
+
+            elif value == 'deletion':
+                hit_idxs = vdf.loc[hit_idxs, 'ref_len'] > vdf.loc[hit_idxs, 'alt_len']
+
+            elif value == 'delins':
+                hit_idxs = (vdf.loc[hit_idxs, 'ref_len'] > 3) & (vdf.loc[hit_idxs, 'alt_len'] > 3)
 
         elif key in vdf.columns:
             hit_idxs = vdf.loc[hit_idxs, key].astype(str) == str(value)
 
         else:
-            print('\nNot sure how to interpret key {}\n'.format(key))
-            import pdb; pdb.set_trace()
+            exit('\nNot sure how to interpret key {}\n'.format(key))
 
         if not hit_idxs.any():
             break
