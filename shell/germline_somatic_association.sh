@@ -610,9 +610,3 @@ if [ -s $stats ]; then
     --p-threshold $bonf_sig
 fi
 
-
-### Gather significant hits in pan-cancer meta-analysis
-$CODEDIR/scripts/germline_somatic_assoc/get_sig_hits.py \
-  --sumstats $WRKDIR/results/assoc_stats/meta/PanCancer.pooled.meta.sumstats.tsv.gz \
-  --cohort-name Pan-Cancer \
-  --p-cutoff $lenient_sig
