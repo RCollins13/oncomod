@@ -18,8 +18,7 @@ import pybedtools as pbt
 import pysam
 from os import path
 from sys import stdout
-# TODO: UNCOMMENT BEFORE COMMIT:
-# path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
+path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
 from vep_utils import parse_vep_map, vep2df
 
 

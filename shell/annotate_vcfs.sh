@@ -522,9 +522,9 @@ for cohort in TCGA PROFILE; do
       sample_field="samples"
       ;;
   esac
-  $CODEDIR/scripts/data_curation/define_control_samples.py \
+  $CODEDIR/scripts/data_processing/define_control_samples.py \
     --vcf $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
-    --criteria $TMPDIR/RAS_control_sample_criteria.json \
+    --criteria $CODEDIR/refs/RAS_control_sample_criteria.json \
     --regions $CODEDIR/refs/RAS_loci.GRCh37.bed.gz \
     --eligible-samples $COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.list \
     --exclude-samples $COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.missing_somatic.list \
