@@ -13,6 +13,7 @@ their tumor alterations
 
 import argparse
 import json
+import os
 import pandas as pd
 import pybedtools as pbt
 import pysam
