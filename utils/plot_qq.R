@@ -27,22 +27,23 @@ RASMod::load.constants(c("names", "colors"))
 # Parse command line arguments and options
 parser <- ArgumentParser(description=paste("Generate a quantile-quantile (QQ)",
                                            "plot for a set of association statistics"))
-parser$add_argument('--stats', metavar='.tsv', type="character",
-                    help='sample metadata .tsv', required=TRUE)
-parser$add_argument('--outfile', metavar='path', type="character", required=TRUE,
-                    help='output .png file for QQ plot')
-parser$add_argument('--cancer', metavar='string',
+parser$add_argument("--stats", metavar=".tsv", type="character",
+                    help="sample metadata .tsv", required=TRUE)
+parser$add_argument("--outfile", metavar="path", type="character", required=TRUE,
+                    help="output .png file for QQ plot")
+parser$add_argument("--cancer", metavar="string",
                     help=paste("Color based on this cancer type [default: grey]"))
-parser$add_argument('--cohort', metavar='string',
+parser$add_argument("--cohort", metavar="string",
                      help=paste("Color based on this cohort [default: color by cancer]"))
-parser$add_argument('--p-column', metavar='string', default='p',
-                    help=paste("Column name for P-values [default: 'p']"))
+parser$add_argument("--p-column", metavar="string", default="p",
+                    help=paste("Column name for P-values [default: \"p\"]"))
 parser$add_argument("--p-threshold", metavar="numeric", type="double",
                     help=paste("P-value threshold for significance [default: Bonferroni]"))
 parser$add_argument("--pt-cex", type="double", metavar="float", default=0.35,
                     help=paste("Size scalar for points [default: 0.35]"))
 parser$add_argument("--smallest-p", type="double", metavar="float", default=1e-20,
                     help=paste("P-values below this threshold will be rounded [default: 10E-20]"))
+parser$add_argument("--title", matavar="string", type="character", help="Custom plot title")
 args <- parser$parse_args()
 
 # # DEV
@@ -78,6 +79,9 @@ if(!is.null(args$cancer)){
 }else{
   color <- "gray15"
   title <- NULL
+}
+if(!is.null(args$title)){
+  title <- args$title
 }
 
 # Plot QQ
