@@ -443,6 +443,7 @@ for cohort in TCGA PROFILE; do
          --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.LUAD.qq.png \
          --cancer LUAD \
          --cohort $alt_cohort \
+         --title $cohort \
          --p-threshold $bonf_sig"
   fi
 done
