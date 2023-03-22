@@ -67,9 +67,12 @@ def update_res_df(res_df, cohort, set_id, freqs, coords, var_sets, auto_add=Fals
     vids = var_sets[cohort].get(set_id, set())
 
     # Attempt to find matching variant unless auto_add is specified
-    # if auto_add:
+    if auto_add:
+        
+    else:
+        # TODO: implement this
+        import pdb; pdb.set_trace()
 
-    import pdb; pdb.set_trace()
     return res_df
 
 
