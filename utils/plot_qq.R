@@ -43,7 +43,7 @@ parser$add_argument("--pt-cex", type="double", metavar="float", default=0.35,
                     help=paste("Size scalar for points [default: 0.35]"))
 parser$add_argument("--smallest-p", type="double", metavar="float", default=1e-20,
                     help=paste("P-values below this threshold will be rounded [default: 10E-20]"))
-parser$add_argument("--title", matavar="string", type="character", help="Custom plot title")
+parser$add_argument("--title", metavar="string", type="character", help="Custom plot title")
 args <- parser$parse_args()
 
 # # DEV
