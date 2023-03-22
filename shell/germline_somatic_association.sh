@@ -521,6 +521,7 @@ if [ -s $stats ]; then
        --outfile $WRKDIR/plots/germline_somatic_assoc/qq/LUAD.pooled.qq.png \
        --cancer LUAD \
        --cohort \"Pooled Analysis\" \
+       --title \"TCGA + PROFILE\" \
        --p-threshold $bonf_sig"
 fi
 
