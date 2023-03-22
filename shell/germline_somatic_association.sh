@@ -278,8 +278,8 @@ $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
 
 ### Shard germline test sets for improved parallelization
 while read chrom start end gene; do
-  $CODEDIR/../GenomicsToolbox/evenSplitter.R \
-    -L 750 \
+  $WRKDIR/../code/GenomicsToolbox/evenSplitter.R \
+    -L 300 \
     --shuffle \
     $WRKDIR/data/variant_sets/test_sets/LUAD.$gene.germline_sets.tsv \
     $WRKDIR/data/variant_sets/test_sets/shards/LUAD.$gene.germline_sets.shard_
@@ -306,7 +306,7 @@ for cohort in TCGA PROFILE; do
       ;;
   esac
   while read chrom start end gene; do
-    cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sharded.sh
+    cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_LUAD_${gene}.sharded.sh
 #!/usr/bin/env bash
 $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
   --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
@@ -315,23 +315,23 @@ $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
   --germline-ad $COHORTDIR/data/$cohort.EGFR_loci.dosage.tsv.gz \
   --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/LUAD.$gene.somatic_endpoints.tsv \
   --germline-variant-sets $WRKDIR/data/variant_sets/test_sets/shards/LUAD.$gene.germline_sets.shard_\$1 \
-  --eligible-controls $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list \
+  --eligible-controls $COHORTDIR/data/sample_info/$cohort.LUAD.eligible_EGFR_controls.list \
   --outfile $WRKDIR/results/assoc_stats/single/$cohort.LUAD.$gene.sumstats.\$1.tsv
 gzip -f $WRKDIR/results/assoc_stats/single/$cohort.LUAD.$gene.sumstats.\$1.tsv
 EOF
-    chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sharded.sh
+    chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_LUAD_${gene}.sharded.sh
     n_shards=$( find $WRKDIR/data/variant_sets/test_sets/shards/ \
                   -name "LUAD.$gene.germline_sets.shard_*" | wc -l )
     for i in $( seq 1 $n_shards ); do 
       for suf in err log; do
-        logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$i.$suf
+        logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_LUAD_${gene}.$i.$suf
         if [ -e $logfile ]; then rm $logfile; fi
       done
       bsub -q $queue -sla miket_sc -R "rusage[mem=$mem]" \
-        -J germline_somatic_assoc_${cohort}_${cancer}_${gene}_$i \
-        -o $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$i.log \
-        -e $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_${cancer}_${gene}.$i.err \
-        "$WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_${cancer}_${gene}.sharded.sh $i"
+        -J germline_somatic_assoc_${cohort}_LUAD_${gene}_$i \
+        -o $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_LUAD_${gene}.$i.log \
+        -e $WRKDIR/LSF/logs/germline_somatic_assoc_${cohort}_LUAD_${gene}.$i.err \
+        "$WRKDIR/LSF/scripts/germline_somatic_assoc_${cohort}_LUAD_${gene}.sharded.sh $i"
     done
   done < <( zcat $WRKDIR/../refs/EGFR_gene.bed.gz )
 done
@@ -339,7 +339,7 @@ done
 prs_sets=$WRKDIR/data/variant_sets/test_sets/LUAD.germline_PRS.tsv
 if [ $( cat $prs_sets | wc -l ) -gt 0 ]; then
   while read chrom start end gene; do
-    cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.sh
+    cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_PROFILE_LUAD_${gene}.PRS.sh
 $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
   --sample-metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
   --cancer-type LUAD \
@@ -348,20 +348,20 @@ $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
   --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/LUAD.$gene.somatic_endpoints.tsv \
   --germline-variant-sets $prs_sets \
   --normalize-germline-ad \
-  --eligible-controls $PROFILEDIR/data/sample_info/PROFILE.ALL.eligible_controls.list \
+  --eligible-controls $PROFILEDIR/data/sample_info/PROFILE.LUAD.eligible_EGFR_controls.list \
   --outfile $WRKDIR/results/assoc_stats/single/PROFILE.LUAD.$gene.sumstats.PRS.tsv
 gzip -f $WRKDIR/results/assoc_stats/single/PROFILE.LUAD.$gene.sumstats.PRS.tsv
 EOF
-    chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.sh
+    chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_PROFILE_LUAD_${gene}.PRS.sh
     for suf in err log; do
-      logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.$suf
+      logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_PROFILE_LUAD_${gene}.PRS.$suf
       if [ -e $logfile ]; then rm $logfile; fi
     done
     bsub -q big -sla miket_sc -R "rusage[mem=12000]" \
-      -J germline_somatic_assoc_PROFILE_${cancer}_${gene}_PRS \
-      -o $WRKDIR/LSF/logs/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.log \
-      -e $WRKDIR/LSF/logs/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.err \
-      $WRKDIR/LSF/scripts/germline_somatic_assoc_PROFILE_${cancer}_${gene}.PRS.sh
+      -J germline_somatic_assoc_PROFILE_LUAD_${gene}_PRS \
+      -o $WRKDIR/LSF/logs/germline_somatic_assoc_PROFILE_LUAD_${gene}.PRS.log \
+      -e $WRKDIR/LSF/logs/germline_somatic_assoc_PROFILE_LUAD_${gene}.PRS.err \
+      $WRKDIR/LSF/scripts/germline_somatic_assoc_PROFILE_LUAD_${gene}.PRS.sh
   done < <( zcat $WRKDIR/../refs/EGFR_gene.bed.gz )
 fi
 # Find missing/incomplete shards
@@ -398,7 +398,7 @@ for cohort in TCGA PROFILE; do
                   -name "LUAD.*.germline_sets.shard_*" | wc -l )
   if [ $cohort == "PROFILE" ] && \
      [ -s $WRKDIR/data/variant_sets/test_sets/LUAD.germline_PRS.tsv ]; then
-    n_prs_expected=3
+    n_prs_expected=1
   else
     n_prs_expected=0
   fi
@@ -435,9 +435,9 @@ for cohort in TCGA PROFILE; do
   esac
   stats=$WRKDIR/results/assoc_stats/merged/filtered/$cohort.LUAD.sumstats.filtered.tsv.gz
   if [ -s $stats ]; then
-    bsub -q short -sla miket_sc -J plot_qq_single_${cohort}_${cancer} \
-      -o $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}.log \
-      -e $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}.err \
+    bsub -q short -sla miket_sc -J plot_qq_single_${cohort}_LUAD_EGFR \
+      -o $WRKDIR/LSF/logs/plot_qq_single_${cohort}_LUAD.log \
+      -e $WRKDIR/LSF/logs/plot_qq_single_${cohort}_LUAD.err \
       "$CODEDIR/utils/plot_qq.R \
          --stats $stats \
          --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.LUAD.qq.png \
@@ -451,38 +451,38 @@ done
 ### Mega-analysis (pooled) of all cohorts per cancer type
 # One submission per gene & cancer type
 while read chrom start end gene; do
-  cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_pooled_${cancer}_${gene}.sharded.sh
+  cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_pooled_LUAD_${gene}.sharded.sh
 #!/usr/bin/env bash
 $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.pooled.R \
 --sample-metadata $TCGADIR/data/sample_info/TCGA.ALL.sample_metadata.tsv.gz \
 --somatic-ad $TCGADIR/data/TCGA.somatic_variants.dosage.tsv.gz \
 --germline-ad $TCGADIR/data/TCGA.EGFR_loci.dosage.tsv.gz \
 --name TCGA \
---eligible-controls $TCGADIR/data/sample_info/TCGA.ALL.eligible_controls.list \
+--eligible-controls $TCGADIR/data/sample_info/TCGA.LUAD.eligible_EGFR_controls.list \
 --sample-metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
 --somatic-ad $PROFILEDIR/data/PROFILE.somatic_variants.dosage.tsv.gz \
 --germline-ad $PROFILEDIR/data/PROFILE.EGFR_loci.dosage.tsv.gz \
 --name DFCI \
---eligible-controls $PROFILEDIR/data/sample_info/PROFILE.ALL.eligible_controls.list \
+--eligible-controls $PROFILEDIR/data/sample_info/PROFILE.LUAD.eligible_EGFR_controls.list \
 --cancer-type LUAD \
 --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/LUAD.$gene.somatic_endpoints.tsv \
 --germline-variant-sets $WRKDIR/data/variant_sets/test_sets/shards/LUAD.$gene.germline_sets.shard_\$1 \
 --outfile $WRKDIR/results/assoc_stats/single/pooled.LUAD.$gene.sumstats.\$1.tsv
 gzip -f $WRKDIR/results/assoc_stats/single/pooled.LUAD.$gene.sumstats.\$1.tsv
 EOF
-  chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_pooled_${cancer}_${gene}.sharded.sh
+  chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_pooled_LUAD_${gene}.sharded.sh
   n_shards=$( find $WRKDIR/data/variant_sets/test_sets/shards/ \
                 -name "LUAD.$gene.germline_sets.shard_*" | wc -l )
   for i in $( seq 1 $n_shards ); do 
     for suf in err log; do
-      logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_pooled_${cancer}_${gene}.$i.$suf
+      logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_pooled_LUAD_${gene}.$i.$suf
       if [ -e $logfile ]; then rm $logfile; fi
     done
     bsub -q big -sla miket_sc -R "rusage[mem=32000]" \
-      -J germline_somatic_assoc_pooled_${cancer}_${gene}_$i \
-      -o $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_${cancer}_${gene}.$i.log \
-      -e $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_${cancer}_${gene}.$i.err \
-      "$WRKDIR/LSF/scripts/germline_somatic_assoc_pooled_${cancer}_${gene}.sharded.sh $i"
+      -J germline_somatic_assoc_pooled_LUAD_${gene}_$i \
+      -o $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_LUAD_${gene}.$i.log \
+      -e $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_LUAD_${gene}.$i.err \
+      "$WRKDIR/LSF/scripts/germline_somatic_assoc_pooled_LUAD_${gene}.sharded.sh $i"
   done
 done < <( zcat $WRKDIR/../refs/EGFR_gene.bed.gz )
 # Find missing shards

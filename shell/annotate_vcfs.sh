@@ -289,25 +289,23 @@ for cohort in TCGA PROFILE; do
     --eligible-samples $COHORTDIR/data/sample_info/$cohort.LUAD.$sample_field.list \
     --exclude-samples $COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.missing_somatic.list \
     --outfile $COHORTDIR/data/sample_info/$cohort.LUAD.eligible_EGFR_controls.list
-
 done
 # Summarize as table
-for cancer in PDAC CRAD LUAD SKCM; do
-  echo $cancer
-  for cohort in TCGA PROFILE; do
-    case $cohort in
-      TCGA)
-        COHORTDIR=$TCGADIR
-        sample_field="donors"
-        ;;
-      PROFILE)
-        COHORTDIR=$PROFILEDIR
-        sample_field="samples"
-        ;;
-    esac
-    elig_samps=$COHORTDIR/data/sample_info/$cohort.$cancer.$sample_field.list
-    fgrep -wf $elig_samps \
-      $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list \
-    | wc -l | addcom
-  done | paste -s -
-done | paste - -
+for cohort in TCGA PROFILE; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      sample_field="donors"
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      sample_field="samples"
+      ;;
+  esac
+  elig_samps=$COHORTDIR/data/sample_info/$cohort.LUAD.$sample_field.list
+  missing_somatic=$COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.missing_somatic.list
+  n_elig=$( fgrep -wvf $missing_somatic $elig_samps | wc -l )
+  fgrep -wf $elig_samps \
+    $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list | wc -l \
+  | awk -v n_elig=$n_elig -v OFS="\t" '{ print $1, n_elig, $1 / n_elig }'
+done
