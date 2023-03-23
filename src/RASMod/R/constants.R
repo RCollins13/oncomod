@@ -138,7 +138,9 @@ load.constants <- function(subset, envir=.GlobalEnv){
                        "3" = "#FE8002",
                        "4" = "#ED3823"),
     "cohort.color.prefixes" = c("TCGA" = "light1",
-                                "DFCI" = "dark1"))
+                                "DFCI" = "dark1"),
+    "exon.color" = "#027831",
+    "gene.color" = "#235020")
 
   # Define scales
   logscale.major <- 10^(-10:10)

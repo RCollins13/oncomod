@@ -259,3 +259,40 @@ load.ad.matrix <- function(file, sort.samples=TRUE, sample.subset=NULL,
   return(ad)
 }
 
+
+#' Load GTF
+#'
+#' Load features from a GTF file
+#'
+#' @param gtf.in Path to input GTF file
+#' @param regions Optional vector specifying regions to query. See details.
+#' @param clean Should GTF be restricted to protein-coding exons and genes only?
+#' \[default: FALSE]
+#'
+#' @details By default, all entries in `gtf.in` will be loaded. If `regions`
+#' is specified, [bedr::tabix] will be used to extract query regions of interest.
+#' Note that this requires local executibles for `bedtools` and `tabix`. See
+#' the `bedr` package documentation for more details.
+#'
+#' @returns GenomicRanges::GRanges object
+#'
+#' @export load.gtf
+#' @export
+load.gtf <- function(gtf.in, regions=NULL, clean=FALSE){
+  require(rtracklayer, quietly=TRUE)
+  if(is.null(regions)){
+    gtf_path <- gtf.in
+  }else{
+    require(bedr, quietly=TRUE)
+    gtf_path <- tempfile()
+    write.table(bedr::tabix(regions, gtf.in, check.chr=F), gtf_path,
+                sep="\t", col.names=F, row.names=F, quote=F)
+  }
+  gtf <- rtracklayer::import(gtf_path, format="GTF")
+  if(clean){
+    gtf[gtf$gene_type == "protein_coding" &
+        gtf$type %in% c("exon", "gene")]
+  }else{
+    gtf
+  }
+}
