@@ -137,13 +137,14 @@ germline.somatic.meta.analysis <- function(df, model="FE"){
   meta.stats <- as.data.frame(t(apply(df, 1, function(rvals){
     betas <- as.numeric(rvals[grep("^beta\\.", names(rvals))])
     ses <- as.numeric(rvals[grep("^beta_SE\\.", names(rvals))])
-    meta <- tryCatch(meta.helper(betas, ses, model),
-                     error=function(e){
-                       tryCatch(meta.helper(betas, ses, model, max.iter=1000),
-                                error=function(e){
-                                  meta.helper(betas, ses, model, max.iter=10000)
-                                })
-                     })
+    meta <- tryCatch(tryCatch(meta.helper(betas, ses, model),
+                              error=function(e){
+                                tryCatch(meta.helper(betas, ses, model, max.iter=1000),
+                                         error=function(e){
+                                           meta.helper(betas, ses, model, max.iter=10000)
+                                         })
+                              }),
+                     error=function(e){c(NA, NA, NA, NA)})
     c(meta$beta, meta$se, meta$zval, meta$pval)
   })))
   colnames(meta.stats) <- c("beta", "beta_SE", "z", "p")
