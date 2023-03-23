@@ -144,7 +144,7 @@ germline.somatic.meta.analysis <- function(df, model="FE"){
                                            meta.helper(betas, ses, model, max.iter=10000)
                                          })
                               }),
-                     error=function(e){c(NA, NA, NA, NA)})
+                     error=function(e){list("beta" = NA, "se" = NA, "zval" = NA, "pval" = NA)})
     c(meta$beta, meta$se, meta$zval, meta$pval)
   })))
   colnames(meta.stats) <- c("beta", "beta_SE", "z", "p")

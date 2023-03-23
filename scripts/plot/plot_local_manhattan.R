@@ -11,32 +11,22 @@
 # Generate a local Manhattan plot of germline association statistics
 
 
-#########
-# Setup #
-#########
-# Load necessary libraries and constants
-require(RASMod, quietly=TRUE)
-require(argparse, quietly=TRUE)
-require(bedr, quietly=TRUE)
-require(GenomicRanges, quietly=TRUE)
-RASMod::load.constants("all")
-
-
 ###########
 # RScript #
 ###########
 # Parse command line arguments and options
+require(argparse, quietly=TRUE)
 parser <- ArgumentParser(description=paste("Plot germline association statistics",
                                            "for a locus of interest"))
 parser$add_argument("--stats", metavar=".tsv", type="character",
                     help="association stats", required=TRUE)
 parser$add_argument("--somatic-set-id", metavar="string", type="character",
                     help="somatic set identifier", required=TRUE)
-parser$add_argument("--gtf", metavar=".gft", type="character",
+parser$add_argument("--gtf", metavar=".gtf", type="character",
                     help="GTF file for gene annotations")
-parser$add_argument("--gw-sig", metavar="float", type="numeric", default=10e-8,
+parser$add_argument("--gw-sig", metavar="float", type="double", default=10e-8,
                     help="Specify strictest P-value threshold to annotate [default: 10e-8]")
-parser$add_argument("--lenient-sig", metavar="float", type="numeric",
+parser$add_argument("--lenient-sig", metavar="float", type="double",
                     help=paste("If desired, specify a secondary, more lenient",
                                "P-value threshold to annotate in addition to",
                                "--gw-sig"))
@@ -45,9 +35,17 @@ parser$add_argument("--cancer-type", metavar="character",
 parser$add_argument("--highlight-gene", metavar="string", type="character",
                     help="Specify gene symbol to be highlighted, if optioned.")
 parser$add_argument("--title", help="Custom plot title [default: --somatic-set-id]")
+parser$add_argument("--y-max", metavar="float", type="double",
+                    help="Largest -log10(P) to display")
 parser$add_argument("--outfile", metavar="path", type="character", required=TRUE,
                     help="output .png file for plot")
 args <- parser$parse_args()
+
+# Load necessary libraries and constants
+require(RASMod, quietly=TRUE)
+require(bedr, quietly=TRUE)
+require(GenomicRanges, quietly=TRUE)
+RASMod::load.constants("all")
 
 # # DEV:
 # args <- list("stats" = "~/scratch/pooled.CRAD.sumstats.tsv.gz",
@@ -74,7 +72,13 @@ stats$log.p <- -log10(stats$p)
 
 # Infer plot parameters
 xlims <- range(stats$pos, na.rm=T)
-ylims <- c(0, 1.05 * max(stats$log.p, na.rm=T))
+if(is.null(args$y_max)){
+  ylims <- c(0, 1.05 * max(stats$log.p, na.rm=T))
+}else{
+  ylims <- c(0, args$y_max)
+  stats$log.p[which(stats$log.p > args$y_max)] <- args$y_max
+}
+
 chrom <- names(sort(table(sapply(stats[1:20, "germline"],
                                         infer.germline.position.from.id,
                                         extract="chromosome")),
@@ -122,7 +126,7 @@ png(args$outfile, height=3*350, width=5*350, res=350)
 # Prep plot area
 prep.plot.area(xlims, ylims, c(2.5, 2.5, 1, 0.1))
 if(!is.null(h.label)){
-  rect(xleft=h.coords[1], xright=h.coords[2],
+  rect(xleft=min(h.g.df[, 1]), xright=max(h.g.df[, 2]),
        ybottom=par("usr")[3], ytop=par("usr")[4],
        bty="n", border=NA, col=adjustcolor(exon.color, alpha=0.2))
 }
