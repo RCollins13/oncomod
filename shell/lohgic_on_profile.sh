@@ -42,7 +42,6 @@ cd $WRKDIR
 # See https://github.com/KhiabanianLab/All-FIT
 # Step 1: unify mutation and copy number data for each biopsy to extract
 # information required by All-FIT
-if [ -e $WRKDIR]
 $CODEDIR/ras_modifiers/scripts/lohgic/get_allfit_inputs.py \
   --mutations $BASEDIR/CLINICAL/OncDRS/ALL_2022_11/GENOMIC_MUTATION_RESULTS.csv \
   --cnas $BASEDIR/CLINICAL/OncDRS/ALL_2022_11/GENOMIC_CNV_RESULTS.csv \

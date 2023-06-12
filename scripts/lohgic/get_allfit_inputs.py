@@ -56,11 +56,17 @@ def main():
     # Write one All-FIT input file per accession number
     out_cols = 'ID Allele_Freq Depth Ploidy'.split()
     sids = out_df.SAMPLE_ACCESSION_NBR.unique().tolist()
+    print('Identified at least one variant for {:,} samples'.format(len(sids)))
+    log_fmt = 'Processed {:,} of {:,} samples ({:.1f}%)'
+    k = 0
     for sid in sids:
+        k += 1
         out_path = args.outdir + '/' + sid + '.AllFIT_input.tsv'
         keepers = out_df.SAMPLE_ACCESSION_NBR == sid
         if len(keepers) > 0:
             out_df.loc[keepers, out_cols].to_csv(out_path, index=False, sep='\t')
+        if k % 100 == 0:
+            print(log_fmt.format(k, len(sids), 100 * k / len(sids)))
 
 
 if __name__ == '__main__':
