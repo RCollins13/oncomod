@@ -130,20 +130,26 @@ average.meta.freqs <- function(df){
 germline.somatic.meta.analysis <- function(df, model="FE"){
   require(metafor, quietly=TRUE)
   # Meta-analyze effect sizes
-  meta.helper <- function(betas, ses, model, max.iter=100){
+  meta.helper <- function(betas, ses, model, max.iter=100, stepadj=1){
     metafor::rma.uni(yi=betas, sei=ses, method=model, digits=8,
-                     control=list(maxiter=max.iter))
+                     control=list(maxiter=max.iter, stepadj=stepadj))
+  }
+  nested.meta.helper <- function(betas, ses, model){
+    tryCatch(meta.helper(betas, ses, model),
+             error=function(e){
+               tryCatch(meta.helper(betas, ses, model, max.iter=1000),
+                        error=function(e){
+                          tryCatch(meta.helper(betas, ses, model, max.iter=1000, stepadj=0.5),
+                                   error=function(e){
+                                     meta.helper(betas, ses, model, max.iter=10000, stepadj=0.25)
+                                   })
+                        })
+             })
   }
   meta.stats <- as.data.frame(t(apply(df, 1, function(rvals){
     betas <- as.numeric(rvals[grep("^beta\\.", names(rvals))])
     ses <- as.numeric(rvals[grep("^beta_SE\\.", names(rvals))])
-    meta <- tryCatch(tryCatch(meta.helper(betas, ses, model),
-                              error=function(e){
-                                tryCatch(meta.helper(betas, ses, model, max.iter=1000),
-                                         error=function(e){
-                                           meta.helper(betas, ses, model, max.iter=10000)
-                                         })
-                              }),
+    meta <- tryCatch(nested.meta.helper,
                      error=function(e){list("beta" = NA, "se" = NA, "zval" = NA, "pval" = NA)})
     c(meta$beta, meta$se, meta$zval, meta$pval)
   })))

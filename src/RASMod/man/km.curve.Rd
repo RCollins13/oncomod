@@ -11,6 +11,7 @@ km.curve(
   ci.alpha = 0.15,
   legend = TRUE,
   legend.names = NULL,
+  xlims = NULL,
   parmar = c(2, 3, 0.25, 4)
 )
 }
@@ -26,6 +27,8 @@ km.curve(
 \item{legend}{Should a legend be plotted?}
 
 \item{legend.names}{(Optional) mapping of \code{values} to labels for legend}
+
+\item{xlims}{(Optional) two-element vector of start and stop values for X-axis, in days}
 
 \item{parmar}{Margin values passed to par()}
 }

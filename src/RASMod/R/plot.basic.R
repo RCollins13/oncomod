@@ -225,6 +225,7 @@ scaled.swarm <- function(values, colors, group.names=NULL, sep.wex=0.05,
 #' @param ci.alpha Transparency value `alpha` for confidence interval shading \[default: 0.15\]
 #' @param legend Should a legend be plotted?
 #' @param legend.names (Optional) mapping of `values` to labels for legend
+#' @param xlims (Optional) two-element vector of start and stop values for X-axis, in days
 #' @param parmar Margin values passed to par()
 #'
 #' @seealso [`survival::Surv`], [`survival::survfit`], [`survival::summary.survfit`]
@@ -232,7 +233,8 @@ scaled.swarm <- function(values, colors, group.names=NULL, sep.wex=0.05,
 #' @export km.curve
 #' @export
 km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
-                     legend=TRUE, legend.names=NULL, parmar=c(2, 3, 0.25, 4)){
+                     legend=TRUE, legend.names=NULL, xlims=NULL,
+                     parmar=c(2, 3, 0.25, 4)){
   # Ensure survival library and RASMod scale constants are loaded within function scope
   require(survival, quietly=TRUE)
   RASMod::load.constants("scales", envir=environment())
@@ -245,15 +247,14 @@ km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
   if(is.null(legend.names)){
     legend.names <- names(surv.models)
   }
-  xlims <- c(0, max(sapply(surv.models, function(ss){max(ss$time, na.rm=T)})))
+  if(is.null(xlims)){
+    xlims <- c(0, max(sapply(surv.models, function(ss){max(ss$time, na.rm=T)})))
+  }
 
   # Prep plot area
   prep.plot.area(xlims, c(0,1), parmar)
   x.ax.step <- max(c(floor(xlims[2] / (365*6)), 1))
   x.ax.years <- seq(0, xlims[2]/365, by=x.ax.step)
-  clean.axis(1, at=x.ax.years*365, labels=x.ax.years, infinite=TRUE,
-             title="Years", label.line=-0.75, title.line=0)
-  clean.axis(2, title="Survival Probability", infinite=FALSE)
 
   # Add confidence intervals
   # Loop over this twice: first to lay white backgrounds, then add colors
@@ -269,20 +270,34 @@ km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
     })
   }
 
-
   # Add K-M curves
   sapply(1:n.groups, function(i){
     n.times <- length(surv.models[[i]]$time)
     x <- c(0, RASMod::stretch.vector(surv.models[[i]]$time, 2)[-2*n.times])
     y <- c(1, 1, RASMod::stretch.vector(surv.models[[i]]$surv, 2)[-c(2*n.times-c(0, 1))])
-    points(x, y, type="l", col=colors[[i]], lwd=2, xpd=T)
+    points(x, y, type="l", col=colors[[i]], lwd=2)
   })
+
+  # Add axes
+  clean.axis(1, at=x.ax.years*365, labels=x.ax.years, infinite=TRUE,
+             title="Years", label.line=-0.75, title.line=0, tck=-0.0175)
+  clean.axis(2, title="Survival Probability", infinite=FALSE, tck=-0.0175)
 
   # Add legend
   if(legend){
-    final.y <- sapply(surv.models, function(ss){tail(ss$surv, 2)[1]})
-    yaxis.legend(legend.names, x=xlims[2] + (0.05*diff(xlims)), y.positions=final.y,
-                 sep.wex=0.05*diff(xlims), colors=colors)
+    final.y <- sapply(surv.models, function(ss){
+      dist.to.rb <- ss$time - xlims[2]
+      if(any(dist.to.rb > 0)){
+        closest <- which(dist.to.rb == min(dist.to.rb[which(dist.to.rb >= 0)], na.rm=T) & dist.to.rb >= 0)
+      }else{
+        closest <- which(dist.to.rb == max(dist.to.rb, na.rm=T))
+      }
+      closest <- max(c(1, closest-1))
+      ss$surv[closest]
+    })
+    yaxis.legend(legend.names[order(final.y)], x=xlims[2] + (0.05*diff(xlims)),
+                 y.positions=final.y[order(final.y)],
+                 sep.wex=0.05*diff(xlims), colors=colors[order(final.y)])
   }
 }
 
