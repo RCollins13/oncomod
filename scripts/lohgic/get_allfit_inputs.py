@@ -53,11 +53,13 @@ def main():
     # Fill missing copy number information with naive diploid prior
     # Round negative estimated copy numbers to zero
     out_df = mut.merge(cna, on='SAMPLE_ACCESSION_NBR GENE'.split(), how='left')
-    out_df.COPY_COUNT = out_df.COPY_COUNT.fillna(value=2).astype('int')
+    out_df.COPY_COUNT = out_df.COPY_COUNT.fillna(value=2)
     out_df.loc[out_df.COPY_COUNT < 0, 'COPY_COUNT'] = 0
 
     # Clean data by excluding samples missing AF or depth info
     out_df = out_df.loc[(~out_df.COPY_COUNT.isna()) & (~out_df.COVERAGE.isna()), :]
+    import pdb; pdb.set_trace()
+    out_df = out_df.astype({'COVERAGE' : int, 'COPY_COUNT' : int})
     out_df.rename(columns={'VARIANT_CALL_ID' : 'ID', 'ALLELE_FRACTION' : 'Allele_Freq',
                            'COVERAGE' : 'Depth', 'COPY_COUNT' : 'Ploidy'},
                   inplace=True)

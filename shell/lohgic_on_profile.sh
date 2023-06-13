@@ -21,7 +21,8 @@ cd $WRKDIR
 
 
 ### Prepare directory tree
-for dir in $WRKDIR/LOHGIC $WRKDIR/LOHGIC/AllFIT $WRKDIR/LOHGIC/AllFIT/inputs; do
+for dir in $WRKDIR/LOHGIC $WRKDIR/LOHGIC/AllFIT $WRKDIR/LOHGIC/AllFIT/inputs \
+           $WRKDIR/LOHGIC/AllFIT/outputs; do
   if ! [ -e $dir ]; then mkdir $dir; fi
 done
 
@@ -30,6 +31,7 @@ done
 cd $CODEDIR && \
 git clone https://github.com/KhiabanianLab/All-FIT.git && \
 cd All-FIT && \
+chmod a+x All-FIT.py && \
 ln -s `pwd`/All-FIT.py $CODEDIR/bin/All-FIT.py && \
 cd $WRKDIR
 
@@ -49,35 +51,50 @@ $CODEDIR/ras_modifiers/scripts/lohgic/get_allfit_inputs.py \
   --outdir $WRKDIR/LOHGIC/AllFIT/inputs
 
 # Step 2: run All-FIT from the outputs of step 1
-# cat << EOF > $WRKDIR/LSF/scripts/AllFIT.sh
-# #!/usr/bin/env bash
-# . /PHShome/rlc47/.bashrc
-# cd $WRKDIR
+cat << EOF > $WRKDIR/LSF/scripts/AllFIT.sh
+#!/usr/bin/env bash
 
-# EOF
-# while read infile; do
-#   sid=$( basename $infile | sed 's/\.AllFIT_input\.tsv//g' )
-#   echo $sid
-#   cat << EOF > $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
-# #!/usr/bin/env bash
-# . /PHShome/rlc47/.bashrc
-# cd $WRKDIR
-# bcftools view \
-#   -O z -o $WRKDIR/data/PROFILE.$gene.vcf.gz \
-#   --min-ac 1 \
-#   --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
-#   --regions "$contig:${start}-$end" \
-#   $GTDIR/PROFILE_COMB.$contig.HQ.vcf.gz
-# tabix -p vcf -f $WRKDIR/data/PROFILE.$gene.vcf.gz
-# EOF
-#   chmod a+x $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
-#   rm $WRKDIR/LSF/logs/extract_${gene}_variants.*
-#   bsub \
-#     -q normal -R 'rusage[mem=6000]' -n 2 -J PROFILE_extract_${gene}_variants \
-#     -o $WRKDIR/LSF/logs/extract_${gene}_variants.log \
-#     -e $WRKDIR/LSF/logs/extract_${gene}_variants.err \
-#     $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
-# done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
+. /PHShome/rlc47/.bashrc
+cd $WRKDIR
+
+ID=\$1
+OUTDIR=$WRKDIR/LOHGIC/AllFIT/outputs/\$ID
+
+if [ -e \$OUTDIR ]; then
+  rm -rf \$OUTDIR
+fi
+$CODEDIR/All-FIT/All-FIT.py \
+  -i $WRKDIR/LOHGIC/AllFIT/inputs/\$ID.AllFIT_input.tsv \
+  -d \$OUTDIR \
+  -o \$ID \
+  -t all
+EOF
+chmod a+x $WRKDIR/LSF/scripts/AllFIT.sh
+
+
+while read infile; do
+  sid=$( basename $infile | sed 's/\.AllFIT_input\.tsv//g' )
+  echo $sid
+  cat << EOF > $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
+#!/usr/bin/env bash
+. /PHShome/rlc47/.bashrc
+cd $WRKDIR
+bcftools view \
+  -O z -o $WRKDIR/data/PROFILE.$gene.vcf.gz \
+  --min-ac 1 \
+  --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
+  --regions "$contig:${start}-$end" \
+  $GTDIR/PROFILE_COMB.$contig.HQ.vcf.gz
+tabix -p vcf -f $WRKDIR/data/PROFILE.$gene.vcf.gz
+EOF
+  chmod a+x $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
+  rm $WRKDIR/LSF/logs/extract_${gene}_variants.*
+  bsub \
+    -q normal -R 'rusage[mem=6000]' -n 2 -J PROFILE_extract_${gene}_variants \
+    -o $WRKDIR/LSF/logs/extract_${gene}_variants.log \
+    -e $WRKDIR/LSF/logs/extract_${gene}_variants.err \
+    $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
+done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
 
 
 
