@@ -58,7 +58,6 @@ def main():
 
     # Clean data by excluding samples missing AF or depth info
     out_df = out_df.loc[(~out_df.COPY_COUNT.isna()) & (~out_df.COVERAGE.isna()), :]
-    import pdb; pdb.set_trace()
     out_df = out_df.astype({'COVERAGE' : int, 'COPY_COUNT' : int})
     out_df.rename(columns={'VARIANT_CALL_ID' : 'ID', 'ALLELE_FRACTION' : 'Allele_Freq',
                            'COVERAGE' : 'Depth', 'COPY_COUNT' : 'Ploidy'},
