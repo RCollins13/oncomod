@@ -1,16 +1,11 @@
-function [ww, wf, pred_outs] = LOHGIC_List (file_in, file_out, header_lines, df_ci, dp_ci)
+function [ww, wf, pred_outs] = LOHGIC_List (file_in, file_out, header_lines)
 
 ddf = 0.005;
 ddp = 0.01;
 
 
-if (nargin < 3) 
-    error ('Ploidy, VAF, total depth columns must be entered in input file. Optional: VAF CI, purity CI.');
-elseif (nargin < 4)
-    df_ci = 0.01; %Confidence Interval for VAF
-    dp_ci = 0.05; %Confidence Interval for purity
-elseif (nargin < 5)
-    dp_ci = 0.05;
+if (nargin < 6) 
+    error ('Required columns: ploidy, VAF, total depth, purity, VAF_CI, purity_CI.');
 end    
 
 
@@ -24,6 +19,8 @@ for k=1:size(data, 1)
     freq = data (k, 2); %VAF
     d = data (k, 3); %Total depth
     p0 = data (k, 4); %Purity of sample
+    df_ci = data (k, 5); %VAF confidence interval
+    dp_ci = data (k, 6)
 
     types = {};
     types{1} = 'Somatic, LOH CN_{mut}=1';

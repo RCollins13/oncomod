@@ -22,7 +22,8 @@ cd $WRKDIR
 
 ### Prepare directory tree
 for dir in $WRKDIR/LOHGIC $WRKDIR/LOHGIC/AllFIT $WRKDIR/LOHGIC/AllFIT/inputs \
-           $WRKDIR/LOHGIC/AllFIT/outputs; do
+           $WRKDIR/LOHGIC/AllFIT/outputs $WRKDIR/LOHGIC/LOHGIC \
+           $WRKDIR/LOHGIC/LOHGIC/inputs $WRKDIR/LOHGIC/LOHGIC/outputs; do
   if ! [ -e $dir ]; then mkdir $dir; fi
 done
 
@@ -109,6 +110,12 @@ find $WRKDIR/LOHGIC/AllFIT/outputs/ -name "*.txt" \
 # Step 4: prepare data for LOHGIC
 # LOHGIC requires .tsv as input with at least ploidy, VAF, total depth, and sample purity
 # Optionally, VAF CI and purity CI can be provided as columns 5 & 6
+# DEV SAMPLE
+ID="BL-20-T00644"
+pur=$( fgrep -w $ID $WRKDIR/LOHGIC/AllFIT/PROFILE.AllFIT_purity_estimates.tsv | cut -f2 )
+pur_ci=$( fgrep -w $ID $WRKDIR/LOHGIC/AllFIT/PROFILE.AllFIT_purity_estimates.tsv \
+          | awk -v FS="\t" '{ print $4-$3 }' )
+# Step 5: run LOHGIC
 cat << EOF > $WRKDIR/LSF/scripts/LOHGIC.sh
 #!/usr/bin/env bash
 
@@ -116,6 +123,15 @@ cat << EOF > $WRKDIR/LSF/scripts/LOHGIC.sh
 cd $WRKDIR
 
 module load matlab/default
+
+ID=\$1
+
+$CODEDIR/ras_modifiers/scripts/lohgic/LOHGIC_List.m \
+  $WRKDIR/LOHGIC/LOHGIC/inputs/\$ID.LOHGIC_input.tsv \
+  $WRKDIR/LOHGIC/LOHGIC/outputs/\$ID.LOHGIC_output.tsv \
+  0
+EOF
+chmod a+x $WRKDIR/LSF/scripts/LOHGIC.sh
 
 
 
