@@ -15,6 +15,12 @@ import argparse
 import pandas as pd
 
 
+autosomes = []
+for i in range(22):
+    autosomes.append(str(i+1))
+    autosomes.append('chr{}'.format(i+1))
+
+
 def main():
     """
     Main block
@@ -31,9 +37,12 @@ def main():
     args = parser.parse_args()
 
     # Load mutations and retain relevant columns
+    # Note that All-FIT only works on autosomes, so a chromosome filter is applied
     mut_cols = 'SAMPLE_ACCESSION_NBR VARIANT_CALL_ID CANONICAL_GENE' + \
-               ' COVERAGE ALLELE_FRACTION'
+               ' COVERAGE ALLELE_FRACTION CHROMOSOME'
     mut = pd.read_csv(args.mutations, sep=',', usecols=mut_cols.split())
+    mut = mut[mut.CHROMOSOME.astype(str).str.rstrip().isin(autosomes)]
+    mut.drop(columns='CHROMOSOME', inplace=True)
     mut.rename(columns = {'CANONICAL_GENE' : 'GENE'}, inplace=True)
 
     # Load CNAs and retain the relevant columns
