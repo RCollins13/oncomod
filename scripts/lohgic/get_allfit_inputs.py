@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# The Genomic Architecture of Human Cancers
-# Copyright (c) 2023-Present, Ryan L. Collins and the Dana-Farber Cancer Institute
-# Contact: Ryan Collins <Ryan_Collins@dfci.harvard.edu>
-# Distributed under the terms of the GNU GPL v2.0
+# Copyright (c) 2023 Ryan L. Collins and the Van Allen/Gusev/Haigis Laboratories
+# Distributed under terms of the GPL-2.0 License (see LICENSE)
+# Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
 """
 Merge OncoPanel mutation and CNA data to generate input for All-FIT

@@ -50,7 +50,7 @@ $CODEDIR/ras_modifiers/scripts/lohgic/get_allfit_inputs.py \
   --cnas $BASEDIR/CLINICAL/OncDRS/ALL_2022_11/GENOMIC_CNV_RESULTS.csv \
   --outdir $WRKDIR/LOHGIC/AllFIT/inputs
 
-# Step 2: run All-FIT from the outputs of step 1
+# Step 2.1: run All-FIT from the outputs of step 1
 cat << EOF > $WRKDIR/LSF/scripts/AllFIT.sh
 #!/usr/bin/env bash
 
@@ -70,31 +70,53 @@ $CODEDIR/All-FIT/All-FIT.py \
   -t all
 EOF
 chmod a+x $WRKDIR/LSF/scripts/AllFIT.sh
-
-
 while read infile; do
-  sid=$( basename $infile | sed 's/\.AllFIT_input\.tsv//g' )
-  echo $sid
-  cat << EOF > $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
+  ID=$( basename $infile | sed 's/\.AllFIT_input\.tsv//g' )
+  bsub \
+    -q vshort -sla miket_sc -J AllFIT_$ID \
+    -o $WRKDIR/LSF/logs/AllFIT_$ID.log \
+    -e $WRKDIR/LSF/logs/AllFIT_$ID.err \
+    "$WRKDIR/LSF/scripts/AllFIT.sh $ID"
+done < <( find $WRKDIR/LOHGIC/AllFIT/inputs/ -name "*.AllFIT_input.tsv" )
+
+# Step 2.2: get list of samples included in AllFIT run and compile purity from 
+# OncoPanel report for comparison
+find $WRKDIR/LOHGIC/AllFIT/inputs/ \
+  -name "*.AllFIT_input.tsv" \
+| xargs -I {} basename {} \
+| sed 's/\.AllFIT_input\.tsv//g' \
+> $WRKDIR/LOHGIC/AllFIT/samples.list
+cat << EOF > $TMPDIR/parse_oncdrs.R
+#!/usr/bin/env Rscript
+options(stringsAsFactors=F)
+x <- read.table("$BASEDIR/CLINICAL/OncDRS/ALL_2022_11/GENOMIC_SPECIMEN.csv",
+                header=T, sep=",")[, c(5, 2, 14, 12)]
+s <- read.table("$WRKDIR/LOHGIC/AllFIT/samples.list", header=F)[, 1]
+write.table(x[which(x\$SAMPLE_ACCESSION_NBR %in% s), ],
+            "$WRKDIR/LOHGIC/AllFIT/sample_metadata.tsv",
+            sep="\t", col.names=T, row.names=F, quote=F)
+EOF
+Rscript $TMPDIR/parse_oncdrs.R
+
+# Step 3: collect All-FIT purity estimates for each sample
+find $WRKDIR/LOHGIC/AllFIT/outputs/ -name "*.txt" \
+| xargs -I {} tail -n1 {} \
+| sed 's/,/\t/g' \
+| awk -v FS="\t" -v OFS="\t" '{ print $1, $2, $3, $NF }' \
+| cat <( echo -e "SAMPLE_ACCESSION_NBR\tPURITY\tCI95_LOWER\tCI95_UPPER" ) - \
+>  $WRKDIR/LOHGIC/AllFIT/PROFILE.AllFIT_purity_estimates.tsv
+
+# Step 4: prepare data for LOHGIC
+# LOHGIC requires .tsv as input with at least ploidy, VAF, total depth, and sample purity
+# Optionally, VAF CI and purity CI can be provided as columns 5 & 6
+cat << EOF > $WRKDIR/LSF/scripts/LOHGIC.sh
 #!/usr/bin/env bash
+
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
-bcftools view \
-  -O z -o $WRKDIR/data/PROFILE.$gene.vcf.gz \
-  --min-ac 1 \
-  --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
-  --regions "$contig:${start}-$end" \
-  $GTDIR/PROFILE_COMB.$contig.HQ.vcf.gz
-tabix -p vcf -f $WRKDIR/data/PROFILE.$gene.vcf.gz
-EOF
-  chmod a+x $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
-  rm $WRKDIR/LSF/logs/extract_${gene}_variants.*
-  bsub \
-    -q normal -R 'rusage[mem=6000]' -n 2 -J PROFILE_extract_${gene}_variants \
-    -o $WRKDIR/LSF/logs/extract_${gene}_variants.log \
-    -e $WRKDIR/LSF/logs/extract_${gene}_variants.err \
-    $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
-done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
+
+module load matlab/default
+
 
 
 
