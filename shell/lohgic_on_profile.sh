@@ -115,6 +115,11 @@ ID="BL-20-T00644"
 pur=$( fgrep -w $ID $WRKDIR/LOHGIC/AllFIT/PROFILE.AllFIT_purity_estimates.tsv | cut -f2 )
 pur_ci=$( fgrep -w $ID $WRKDIR/LOHGIC/AllFIT/PROFILE.AllFIT_purity_estimates.tsv \
           | awk -v FS="\t" '{ print $4-$3 }' )
+sed '1d' $WRKDIR/LOHGIC/AllFIT/inputs/$ID.AllFIT_input.tsv \
+| awk -v OFS="\t" -v pur="$pur" -v pur_ci="$pur_ci" \
+  '{ print $4, $2, $3, pur, "0.01", pur_ci }' \
+> $WRKDIR/LOHGIC/LOHGIC/inputs/$ID.LOHGIC_input.tsv
+  
 # Step 5: run LOHGIC
 cat << EOF > $WRKDIR/LSF/scripts/LOHGIC.sh
 #!/usr/bin/env bash
@@ -122,16 +127,27 @@ cat << EOF > $WRKDIR/LSF/scripts/LOHGIC.sh
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
 
-module load matlab/default
+module load matlab/2019b
 
 ID=\$1
 
-$CODEDIR/ras_modifiers/scripts/lohgic/LOHGIC_List.m \
+which matlab
+
+matlab -nodisplay -nosplash -nodesktop -r \
+  $CODEDIR/ras_modifiers/scripts/lohgic/LOHGIC_List.m \
   $WRKDIR/LOHGIC/LOHGIC/inputs/\$ID.LOHGIC_input.tsv \
   $WRKDIR/LOHGIC/LOHGIC/outputs/\$ID.LOHGIC_output.tsv \
   0
 EOF
 chmod a+x $WRKDIR/LSF/scripts/LOHGIC.sh
+for suf in log err; do
+  if [ -e $WRKDIR/LSF/logs/LOHGIC_$ID.$suf ]; then rm $WRKDIR/LSF/logs/LOHGIC_$ID.$suf; fi
+done
+bsub \
+  -q matlab -sla miket_sc -J LOHGIC_$ID \
+  -o $WRKDIR/LSF/logs/LOHGIC_$ID.log \
+  -e $WRKDIR/LSF/logs/LOHGIC_$ID.err \
+  "$WRKDIR/LSF/scripts/LOHGIC.sh $ID"
 
 
 

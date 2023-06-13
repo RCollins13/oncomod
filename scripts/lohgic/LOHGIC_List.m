@@ -20,7 +20,7 @@ for k=1:size(data, 1)
     d = data (k, 3); %Total depth
     p0 = data (k, 4); %Purity of sample
     df_ci = data (k, 5); %VAF confidence interval
-    dp_ci = data (k, 6)
+    dp_ci = data (k, 6);
 
     types = {};
     types{1} = 'Somatic, LOH CN_{mut}=1';
