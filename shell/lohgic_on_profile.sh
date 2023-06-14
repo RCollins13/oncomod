@@ -141,10 +141,11 @@ done
 # Step 5: run LOHGIC
 for i in $( seq 1 120 ); do
   # Write .m script for this shard
-  echo -e "% This is a matlab script" > $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
-  echo -e "file_in = '$WRKDIR/LOHGIC/LOHGIC/inputs/LOHGIC.input.$i.tsv';" >> $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
-  echo -e "file_out = '$WRKDIR/LOHGIC/LOHGIC/outputs/LOHGIC.output.$i.tsv';" >> $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
-  cat $CODEDIR/ras_modifiers/scripts/lohgic/LOHGIC_List.m >> $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
+  echo -e "file_in = '$WRKDIR/LOHGIC/LOHGIC/inputs/LOHGIC.input.$i.tsv';" > $WRKDIR/LSF/scripts/LOHGIC_shard_$i.m
+  echo -e "file_out = '$WRKDIR/LOHGIC/LOHGIC/outputs/LOHGIC.output.$i.tsv';" >> $WRKDIR/LSF/scripts/LOHGIC_shard_$i.m
+  echo "" >> $WRKDIR/LSF/scripts/LOHGIC_shard_$i.m
+  cat $CODEDIR/ras_modifiers/scripts/lohgic/LOHGIC_List.m >> $WRKDIR/LSF/scripts/LOHGIC_shard_$i.m
+  chmod ag+wrx $WRKDIR/LSF/scripts/LOHGIC_shard_$i.m
 
   # Write LSF script for this shard
   cat << EOF > $WRKDIR/LSF/scripts/LOHGIC.shard_$i.sh
@@ -155,7 +156,7 @@ cd $WRKDIR
 
 module load matlab/2019b
 
-matlab -nodisplay -nosplash -nodesktop -r "run('$WRKDIR/LSF/scripts/LOHGIC.shard_$i.m');exit;"
+matlab -nodisplay -nosplash -nodesktop -r "run('$WRKDIR/LSF/scripts/LOHGIC_shard_$i.m');exit;"
 EOF
   chmod a+x $WRKDIR/LSF/scripts/LOHGIC.sh
 
