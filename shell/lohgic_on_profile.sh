@@ -141,7 +141,8 @@ done
 # Step 5: run LOHGIC
 for i in $( seq 1 120 ); do
   # Write .m script for this shard
-  echo -e "file_in = '$WRKDIR/LOHGIC/LOHGIC/inputs/LOHGIC.input.$i.tsv';" > $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
+  echo -e "% This is a matlab script" > $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
+  echo -e "file_in = '$WRKDIR/LOHGIC/LOHGIC/inputs/LOHGIC.input.$i.tsv';" >> $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
   echo -e "file_out = '$WRKDIR/LOHGIC/LOHGIC/outputs/LOHGIC.output.$i.tsv';" >> $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
   cat $CODEDIR/ras_modifiers/scripts/lohgic/LOHGIC_List.m >> $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
 

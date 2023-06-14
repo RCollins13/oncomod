@@ -1,7 +1,3 @@
-% Note: this script will not run unless file_in and file_out are defined
-% Example:
-% file_in = '/data/gusev/USERS/rlc47/PROFILE/LOHGIC/LOHGIC/inputs/LOHGIC.input.1.tsv';
-% file_out = '/data/gusev/USERS/rlc47/PROFILE/LOHGIC/LOHGIC/outputs/LOHGIC.output.1.tsv';
 
 ddf = 0.005;
 ddp = 0.01;
