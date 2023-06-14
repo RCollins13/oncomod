@@ -1,7 +1,3 @@
-% Note: this script will not run unless file_in and file_out are defined
-% Example:
-% file_in = '/path/to/LOHGIC_input.tsv';
-% file_out = '/path/to/LOHGIC_output.tsv';
 
 ddf = 0.005;
 ddp = 0.01;
@@ -116,6 +112,6 @@ for k=1:size(data, 1)
     fprintf (fid, '%i\t%2.2f\t%i\t%2.2f\t%2.2e\t%2.2e\t', ploidy, freq, d, p0, sum(sum_ww(somatic_idx)), sum(sum_ww(germline_idx)));
     fprintf (fid, '%s\t%2.2e\t%s\t%2.2e\n', types{i(1)}, sum_ww(i(1)), types{i(2)}, sum_ww(i(2)));
 
-    clear aic w;
+    clear aic w somatic_idx germline_idx;
 end
 fclose (fid);

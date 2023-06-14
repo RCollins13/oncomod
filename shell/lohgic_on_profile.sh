@@ -145,6 +145,7 @@ for i in $( seq 1 120 ); do
 file_in = '$WRKDIR/LOHGIC/LOHGIC/inputs/LOHGIC.input.$i.tsv';
 file_out = '$WRKDIR/LOHGIC/LOHGIC/outputs/LOHGIC.output.$i.tsv';
 EOF
+  chmod a+x $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
 
   # Write LSF script for this shard
   cat << EOF > $WRKDIR/LSF/scripts/LOHGIC.shard_$i.sh
@@ -155,7 +156,7 @@ cd $WRKDIR
 
 module load matlab/2019b
 
-matlab -nodisplay -nosplash -nodesktop -r "run('`pwd`/LOHGIC_List.m');exit;"
+matlab -nodisplay -nosplash -nodesktop -r "run('$WRKDIR/LSF/scripts/LOHGIC.shard_$i.m');exit;"
 EOF
   chmod a+x $WRKDIR/LSF/scripts/LOHGIC.sh
 
