@@ -1,22 +1,14 @@
-function [ww, wf, pred_outs] = LOHGIC_List (file_in, file_out, header_lines, df_ci, dp_ci)
+% Note: this script will not run unless file_in and file_out are defined
+% Example:
+% file_in = '/path/to/LOHGIC_input.tsv';
+% file_out = '/path/to/LOHGIC_output.tsv';
 
 ddf = 0.005;
 ddp = 0.01;
 
-
-if (nargin < 3) 
-    error ('Ploidy, VAF, total depth columns must be entered in input file. Optional: VAF CI, purity CI.');
-elseif (nargin < 4)
-    df_ci = 0.01; %Confidence Interval for VAF
-    dp_ci = 0.05; %Confidence Interval for purity
-elseif (nargin < 5)
-    dp_ci = 0.05;
-end    
-
-
-data = dlmread (file_in, '\t', header_lines, 0);
+data = dlmread (file_in, '\t', 0, 0);
 fid = fopen (file_out, 'wt');
-fprintf (fid, 'ploidy\tvaf\tdepth\tpurity\tlohgic somaic weight\tlohgic germline weight\tlohgic model 1\tlohgic weight 1\tlohgic model 2\tlohgic weight 2\n');
+fprintf (fid, 'ploidy\tvaf\tdepth\tpurity\tlohgic somatic weight\tlohgic germline weight\tlohgic model 1\tlohgic weight 1\tlohgic model 2\tlohgic weight 2\n');
 
 for k=1:size(data, 1)
 
@@ -24,6 +16,8 @@ for k=1:size(data, 1)
     freq = data (k, 2); %VAF
     d = data (k, 3); %Total depth
     p0 = data (k, 4); %Purity of sample
+    df_ci = data (k, 5); %VAF confidence interval
+    dp_ci = data (k, 6); %purity confidence interval
 
     types = {};
     types{1} = 'Somatic, LOH CN_{mut}=1';
@@ -70,7 +64,7 @@ for k=1:size(data, 1)
                 end
             end
             l = length(aic);
-            aic(l+1) = 2 - 2 * log (binopdf (round(d*f), d, (1-p+p)/(2*(1-p)+1*p))); %germline LOH high CN;        
+            aic(l+1) = 2 - 2 * log (binopdf (round(d*f), d, (1-p+p)/(2*(1-p)+1*p))); %germline LOH high CN;
             if (ploidy > 1)
                 l = length(aic);
                 for i=1:ploidy

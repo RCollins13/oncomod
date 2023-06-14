@@ -110,18 +110,44 @@ find $WRKDIR/LOHGIC/AllFIT/outputs/ -name "*.txt" \
 # Step 4: prepare data for LOHGIC
 # LOHGIC requires .tsv as input with at least ploidy, VAF, total depth, and sample purity
 # Optionally, VAF CI and purity CI can be provided as columns 5 & 6
-# DEV SAMPLE
-ID="BL-20-T00644"
-pur=$( fgrep -w $ID $WRKDIR/LOHGIC/AllFIT/PROFILE.AllFIT_purity_estimates.tsv | cut -f2 )
-pur_ci=$( fgrep -w $ID $WRKDIR/LOHGIC/AllFIT/PROFILE.AllFIT_purity_estimates.tsv \
-          | awk -v FS="\t" '{ print $4-$3 }' )
-sed '1d' $WRKDIR/LOHGIC/AllFIT/inputs/$ID.AllFIT_input.tsv \
-| awk -v OFS="\t" -v pur="$pur" -v pur_ci="$pur_ci" \
-  '{ print $4, $2, $3, pur, "0.01", pur_ci }' \
-> $WRKDIR/LOHGIC/LOHGIC/inputs/$ID.LOHGIC_input.tsv
-  
+# There are 120 matlab nodes on ERISOne, so we will combine data from all samples
+# into 120 shards and submit each in parallel
+echo -e "SAMPLE_ACCESSION_NBR\tVARIANT_ID\tPLOIDY\tVAF\tDEPTH\tPURITY\tVAF_CI\tPURITY_CI" \
+> $WRKDIR/LOHGIC/LOHGIC/PROFILE.all.LOHGIC_key.tsv
+while read infile; do
+  ID=$( basename $infile | sed 's/\.AllFIT_input\.tsv//g' )
+  pur=$( fgrep -w $ID $WRKDIR/LOHGIC/AllFIT/PROFILE.AllFIT_purity_estimates.tsv | cut -f2 )
+  if ! [ -z $pur ]; then
+    pur_ci=$( fgrep -w $ID $WRKDIR/LOHGIC/AllFIT/PROFILE.AllFIT_purity_estimates.tsv \
+              | awk -v FS="\t" '{ print $4-$3 }' )
+    sed '1d' $WRKDIR/LOHGIC/AllFIT/inputs/$ID.AllFIT_input.tsv \
+    | awk -v ID=$ID -v OFS="\t" -v pur="$pur" -v pur_ci="$pur_ci" \
+      '{ print ID, $1, $4, $2/100, $3, pur, "0.01", pur_ci+0.01 }'
+  fi
+done < <( find $WRKDIR/LOHGIC/AllFIT/inputs/ -name "*.AllFIT_input.tsv" ) \
+>> $WRKDIR/LOHGIC/LOHGIC/PROFILE.all.LOHGIC_key.tsv
+sed '1d' $WRKDIR/LOHGIC/LOHGIC/PROFILE.all.LOHGIC_key.tsv \
+> $TMPDIR/PROFILE.all.LOHGIC_key.no_header.tsv
+$CODEDIR/GenomicsToolbox/evenSplitter.R \
+  --shuffle \
+  -S 120 \
+  $TMPDIR/PROFILE.all.LOHGIC_key.no_header.tsv \
+  $WRKDIR/LOHGIC/LOHGIC/inputs/LOHGIC.input.key.
+for i in $( seq 1 120 ); do
+  cut -f3- $WRKDIR/LOHGIC/LOHGIC/inputs/LOHGIC.input.key.$i \
+  > $WRKDIR/LOHGIC/LOHGIC/inputs/LOHGIC.input.$i.tsv
+done
+
 # Step 5: run LOHGIC
-cat << EOF > $WRKDIR/LSF/scripts/LOHGIC.sh
+for i in $( seq 1 120 ); do
+  # Write .m script for this shard
+  cat << EOF | cat - $CODEDIR/ras_modifiers/scripts/lohgic/LOHGIC_List.m > $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
+file_in = '$WRKDIR/LOHGIC/LOHGIC/inputs/LOHGIC.input.$i.tsv';
+file_out = '$WRKDIR/LOHGIC/LOHGIC/outputs/LOHGIC.output.$i.tsv';
+EOF
+
+  # Write LSF script for this shard
+  cat << EOF > $WRKDIR/LSF/scripts/LOHGIC.shard_$i.sh
 #!/usr/bin/env bash
 
 . /PHShome/rlc47/.bashrc
@@ -129,26 +155,18 @@ cd $WRKDIR
 
 module load matlab/2019b
 
-ID=\$1
-
-which matlab
-
-matlab -nodisplay -nosplash -nodesktop -r \
-  $CODEDIR/ras_modifiers/scripts/lohgic/LOHGIC_List.m \
-  $WRKDIR/LOHGIC/LOHGIC/inputs/\$ID.LOHGIC_input.tsv \
-  $WRKDIR/LOHGIC/LOHGIC/outputs/\$ID.LOHGIC_output.tsv \
-  0
+matlab -nodisplay -nosplash -nodesktop -r "run('`pwd`/LOHGIC_List.m');exit;"
 EOF
-chmod a+x $WRKDIR/LSF/scripts/LOHGIC.sh
-for suf in log err; do
-  if [ -e $WRKDIR/LSF/logs/LOHGIC_$ID.$suf ]; then rm $WRKDIR/LSF/logs/LOHGIC_$ID.$suf; fi
+  chmod a+x $WRKDIR/LSF/scripts/LOHGIC.sh
+
+  # Submit job
+  for suf in log err; do
+    if [ -e $WRKDIR/LSF/logs/LOHGIC.shard_$i.$suf ]; then rm $WRKDIR/LSF/logs/LOHGIC.shard_$i.$suf; fi
+  done
+  bsub \
+    -q matlab -sla miket_sc -J LOHGIC.shard_$i \
+    -o $WRKDIR/LSF/logs/LOHGIC.shard_$i.log \
+    -e $WRKDIR/LSF/logs/LOHGIC.shard_$i.err \
+    "$WRKDIR/LSF/scripts/LOHGIC.shard_$i.sh"
 done
-bsub \
-  -q matlab -sla miket_sc -J LOHGIC_$ID \
-  -o $WRKDIR/LSF/logs/LOHGIC_$ID.log \
-  -e $WRKDIR/LSF/logs/LOHGIC_$ID.err \
-  "$WRKDIR/LSF/scripts/LOHGIC.sh $ID"
-
-
-
 
