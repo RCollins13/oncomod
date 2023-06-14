@@ -141,11 +141,9 @@ done
 # Step 5: run LOHGIC
 for i in $( seq 1 120 ); do
   # Write .m script for this shard
-  cat << EOF | cat - $CODEDIR/ras_modifiers/scripts/lohgic/LOHGIC_List.m > $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
-file_in = '$WRKDIR/LOHGIC/LOHGIC/inputs/LOHGIC.input.$i.tsv';
-file_out = '$WRKDIR/LOHGIC/LOHGIC/outputs/LOHGIC.output.$i.tsv';
-EOF
-  chmod a+x $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
+  echo -e "file_in = '$WRKDIR/LOHGIC/LOHGIC/inputs/LOHGIC.input.$i.tsv';" > $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
+  echo -e "file_out = '$WRKDIR/LOHGIC/LOHGIC/outputs/LOHGIC.output.$i.tsv';" >> $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
+  cat $CODEDIR/ras_modifiers/scripts/lohgic/LOHGIC_List.m >> $WRKDIR/LSF/scripts/LOHGIC.shard_$i.m
 
   # Write LSF script for this shard
   cat << EOF > $WRKDIR/LSF/scripts/LOHGIC.shard_$i.sh
