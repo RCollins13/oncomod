@@ -107,8 +107,10 @@ for k=1:size(data, 1)
         for k=1:length(fs)
             aic_f = aics_p(k,:);
             not_nan = ~isnan(aic_f);
-            D = sum(exp(-0.5*(aic_f(not_nan)-min(aic_f(not_nan)))));
-            wf(k, j, 1:size(types, 2)) = exp(-0.5*(aic_f-min(aic_f(not_nan)))) / D;
+            if any(not_nan)
+                D = sum(exp(-0.5*(aic_f(not_nan)-min(aic_f(not_nan)))));
+                wf(k, j, 1:size(types, 2)) = exp(-0.5*(aic_f-min(aic_f(not_nan)))) / D;
+            end
         end
     end
         

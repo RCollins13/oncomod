@@ -151,6 +151,8 @@ for i in $( seq 1 120 ); do
   cat << EOF > $WRKDIR/LSF/scripts/LOHGIC.shard_$i.sh
 #!/usr/bin/env bash
 
+set -eu -o pipefail
+
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
 
@@ -158,7 +160,7 @@ module load matlab/2019b
 
 matlab -nodisplay -nosplash -nodesktop -r "run('$WRKDIR/LSF/scripts/LOHGIC_shard_$i.m');exit;"
 EOF
-  chmod a+x $WRKDIR/LSF/scripts/LOHGIC.sh
+  chmod a+x $WRKDIR/LSF/scripts/LOHGIC.shard_$i.sh
 
   # Submit job
   for suf in log err; do
