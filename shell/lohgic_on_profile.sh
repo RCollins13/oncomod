@@ -151,9 +151,8 @@ for i in $( seq 1 120 ); do
   cat << EOF > $WRKDIR/LSF/scripts/LOHGIC.shard_$i.sh
 #!/usr/bin/env bash
 
-set -eu -o pipefail
+set -e
 
-. /PHShome/rlc47/.bashrc
 cd $WRKDIR
 
 module load matlab/2019b
@@ -172,4 +171,16 @@ EOF
     -e $WRKDIR/LSF/logs/LOHGIC.shard_$i.err \
     "$WRKDIR/LSF/scripts/LOHGIC.shard_$i.sh"
 done
+
+# Step 6. combine LOHGIC outputs across shards
+paste \
+  <( head -n1 $WRKDIR/LOHGIC/LOHGIC/PROFILE.all.LOHGIC_key.tsv ) \
+  <( head -n1 $WRKDIR/LOHGIC/LOHGIC/outputs/LOHGIC.output.1.tsv ) \
+| sed 's/\ /_/g' > $TMPDIR/LOHGIC.header
+for i in $( seq 1 120 ); do
+  sed '1d' $WRKDIR/LOHGIC/LOHGIC/outputs/LOHGIC.output.$i.tsv \
+  | paste $WRKDIR/LOHGIC/LOHGIC/inputs/LOHGIC.input.key.$i -
+done \
+| sort -Vk1,1 -k2,2n | cat $TMPDIR/LOHGIC.header - | cut -f1-6,8,13-18 | gzip -c \
+> $WRKDIR/LOHGIC/LOHGIC/PROFILE.LOHGIC.tsv.gz
 
