@@ -184,3 +184,9 @@ done \
 | sort -Vk1,1 -k2,2n | cat $TMPDIR/LOHGIC.header - | cut -f1-6,8,13-18 | gzip -c \
 > $WRKDIR/LOHGIC/LOHGIC/PROFILE.LOHGIC.tsv.gz
 
+# Step 7. Merge LOHGIC info back into profile annotation
+$TMPDIR/annotate_LOHGIC_results.py \
+  --lohgic-tsv $WRKDIR/LOHGIC/LOHGIC/PROFILE.LOHGIC.tsv.gz \
+  --oncdrs-csv $BASEDIR/CLINICAL/OncDRS/ALL_2022_11/GENOMIC_MUTATION_RESULTS.csv \
+  --outfile $TMPDIR/test.tsv
+

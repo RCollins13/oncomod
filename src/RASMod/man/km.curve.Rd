@@ -11,6 +11,7 @@ km.curve(
   ci.alpha = 0.15,
   legend = TRUE,
   legend.names = NULL,
+  legend.label.spacing = 0.075,
   xlims = NULL,
   parmar = c(2, 3, 0.25, 4)
 )
@@ -27,6 +28,8 @@ km.curve(
 \item{legend}{Should a legend be plotted?}
 
 \item{legend.names}{(Optional) mapping of \code{values} to labels for legend}
+
+\item{legend.label.spacing}{Minimum vertical spacing between legend labels [default: 0.075]}
 
 \item{xlims}{(Optional) two-element vector of start and stop values for X-axis, in days}
 

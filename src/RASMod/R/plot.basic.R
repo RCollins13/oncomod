@@ -225,6 +225,7 @@ scaled.swarm <- function(values, colors, group.names=NULL, sep.wex=0.05,
 #' @param ci.alpha Transparency value `alpha` for confidence interval shading \[default: 0.15\]
 #' @param legend Should a legend be plotted?
 #' @param legend.names (Optional) mapping of `values` to labels for legend
+#' @param legend.label.spacing Minimum vertical spacing between legend labels \[default: 0.075\]
 #' @param xlims (Optional) two-element vector of start and stop values for X-axis, in days
 #' @param parmar Margin values passed to par()
 #'
@@ -233,8 +234,8 @@ scaled.swarm <- function(values, colors, group.names=NULL, sep.wex=0.05,
 #' @export km.curve
 #' @export
 km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
-                     legend=TRUE, legend.names=NULL, xlims=NULL,
-                     parmar=c(2, 3, 0.25, 4)){
+                     legend=TRUE, legend.names=NULL, legend.label.spacing=0.075,
+                     xlims=NULL, parmar=c(2, 3, 0.25, 4)){
   # Ensure survival library and RASMod scale constants are loaded within function scope
   require(survival, quietly=TRUE)
   RASMod::load.constants("scales", envir=environment())
@@ -252,7 +253,7 @@ km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
   }
 
   # Prep plot area
-  prep.plot.area(xlims, c(0,1), parmar)
+  prep.plot.area(xlims, c(0, 1.025), parmar)
   x.ax.step <- max(c(floor(xlims[2] / (365*6)), 1))
   x.ax.years <- seq(0, xlims[2]/365, by=x.ax.step)
 
@@ -261,21 +262,33 @@ km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
   for(layer in c("white", "colors")){
     sapply(1:n.groups, function(i){
       n.times <- length(surv.models[[i]]$time)
-      x.bottom <- c(0, RASMod::stretch.vector(surv.models[[i]]$time, 2)[-2*n.times])
-      x.top <- rev(x.bottom)
-      y.bottom <- c(1, 1, RASMod::stretch.vector(surv.models[[i]]$lower, 2)[-c(2*n.times-c(0, 1))])
-      y.top <- rev(c(1, 1, RASMod::stretch.vector(surv.models[[i]]$upper, 2)[-c(2*n.times-c(0, 1))]))
-      polygon(x=c(x.bottom, x.top), y=c(y.bottom, y.top), border=NA, bty="n",
-              col=if(layer == "white"){"white"}else{adjustcolor(colors[[i]], alpha=ci.alpha)})
+      if(n.times > 1){
+        x.bottom <- c(0, RASMod::stretch.vector(surv.models[[i]]$time, 2)[-2*n.times])
+        x.top <- rev(x.bottom)
+        y.bottom <- c(1, 1, RASMod::stretch.vector(surv.models[[i]]$lower, 2)[-c(2*n.times-c(0, 1))])
+        y.top <- rev(c(1, 1, RASMod::stretch.vector(surv.models[[i]]$upper, 2)[-c(2*n.times-c(0, 1))]))
+        polygon(x=c(x.bottom, x.top), y=c(y.bottom, y.top), border=NA, bty="n",
+                col=if(layer == "white"){"white"}else{adjustcolor(colors[[i]], alpha=ci.alpha)})
+      }
     })
   }
 
   # Add K-M curves
   sapply(1:n.groups, function(i){
     n.times <- length(surv.models[[i]]$time)
-    x <- c(0, RASMod::stretch.vector(surv.models[[i]]$time, 2)[-2*n.times])
-    y <- c(1, 1, RASMod::stretch.vector(surv.models[[i]]$surv, 2)[-c(2*n.times-c(0, 1))])
-    points(x, y, type="l", col=colors[[i]], lwd=2)
+    # If summary.survfit returns no data, this is either because
+    # there are no patients in this group or nobody died.
+    # If the latter, we can plot as a flat line at Y=1 until rmean.endtime (I think?)
+    if(surv.models[[i]]$n > 0){
+      if(n.times == 0){
+        x <- c(0, surv.models[[i]]$rmean.endtime)
+        y <- c(1, 1)
+      }else{
+        x <- c(0, RASMod::stretch.vector(surv.models[[i]]$time, 2))
+        y <- c(1, 1, RASMod::stretch.vector(surv.models[[i]]$surv, 2))[1:length(x)]
+      }
+      points(x, y, type="l", col=colors[[i]], lwd=3)
+    }
   })
 
   # Add axes
@@ -286,17 +299,23 @@ km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
   # Add legend
   if(legend){
     final.y <- sapply(surv.models, function(ss){
-      dist.to.rb <- ss$time - xlims[2]
-      if(any(dist.to.rb > 0)){
-        closest <- which(dist.to.rb == min(dist.to.rb[which(dist.to.rb >= 0)], na.rm=T) & dist.to.rb >= 0)
-      }else{
-        closest <- which(dist.to.rb == max(dist.to.rb, na.rm=T))
+      # In the case of no events, ss will have zero rows
+      # We can default to Y=1 in this case
+      if(length(ss$time) == 0){1}else{
+        dist.to.rb <- ss$time - xlims[2]
+        if(any(dist.to.rb > 0)){
+          closest <- which(dist.to.rb == min(dist.to.rb[which(dist.to.rb >= 0)], na.rm=T) & dist.to.rb >= 0)
+          closest <- max(c(1, closest-1))
+        }else{
+          closest <- which(dist.to.rb == max(dist.to.rb, na.rm=T))
+          closest <- max(c(1, closest))
+        }
+        ss$surv[closest]
       }
-      closest <- max(c(1, closest-1))
-      ss$surv[closest]
     })
     yaxis.legend(legend.names[order(final.y)], x=xlims[2] + (0.05*diff(xlims)),
                  y.positions=final.y[order(final.y)],
+                 min.label.spacing=legend.label.spacing,
                  sep.wex=0.05*diff(xlims), colors=colors[order(final.y)])
   }
 }
