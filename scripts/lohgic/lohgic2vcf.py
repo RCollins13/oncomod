@@ -14,12 +14,36 @@ import argparse
 import pandas as pd
 import pybedtools as pbt
 import pysam
+from datetime import datetime
 from math import ceil, log10
 from numpy import nanmedian
 from sys import stdout
 
 
 missing_flag_base = 'NOT_CAPTURED_IN_ONCOPANEL_v{}'
+
+
+def report_progress(n, k, step, then, begin):
+    """
+    Report progress
+    """
+
+    now = datetime.now()
+    tdelta = (now - then).seconds
+    ttotal = (now - begin).seconds
+    spv = ttotal / k
+    then = now
+    tremain = ceil((spv * (n - k)) / 60)
+    msg = 'lohgic2vcf.py: Processed {:,} records in ~{:,} seconds'
+    print(msg.format(step, tdelta))
+    msg = '               * Rolling average: {:.2f} seconds / record'
+    print(msg.format(spv))
+    msg = '               * Currently {:.2f}% complete ({:,} records finished of {:,} total)'
+    print(msg.format(100 * k / n, k, n))
+    msg = '               * Approximately {} minutes remaining\n'
+    print(msg.format(tremain))
+
+    return then
 
 
 def main():
@@ -113,7 +137,7 @@ def main():
     else:
         ref_gq = {}
 
-    # Iterate over mdf grouped by chrom, pos, ref, alt
+    # Prepare for progress logging, if optioned
     gb = mdf.groupby(by='CHROMOSOME POSITION REF_ALLELE ALT_ALLELE'.split())
     if args.report_progress:
         n = len(gb)
@@ -122,9 +146,10 @@ def main():
         msg = 'lohgic2vcf.py: Beginning to convert {:,} unique variants ' + \
               'in input .tsv to VCF. Please be patient...\n'
         print(msg.format(n))
-        from datetime import datetime
         begin = datetime.now()
         then = begin
+
+    # Iterate over mdf grouped by chrom, pos, ref, alt
     for gbi, subdf in gb:
 
         # Set basic record info
@@ -150,6 +175,12 @@ def main():
         # Get list of non-reference PBPs and their GQs
         subdf.index = subdf.PBP
         nonref_gq = subdf.GQ.to_dict()
+        if len(nonref_gq) == 0:
+            if args.report_progress:
+                k += 1
+                if k % step == 0:
+                    then = report_progress(n, k, step, then, begin)
+            continue
 
         # Set QUAL as the median non-ref GQ
         record.qual = round(nanmedian(list(nonref_gq.values())), 2)
@@ -193,26 +224,14 @@ def main():
         record.info['AF'] = AF
 
         # Write record to output VCF
-        out_vcf.write(record)
+        if AC > 0:
+            out_vcf.write(record)
 
         # Report progress, if optioned
         if args.report_progress:
             k += 1
             if k % step == 0:
-                now = datetime.now()
-                tdelta = (now - then).seconds
-                ttotal = (now - begin).seconds
-                spv = ttotal / k
-                then = now
-                tremain = ceil((spv * (n - k)) / 60)
-                msg = 'lohgic2vcf.py: Processed {:,} records in ~{:,} seconds'
-                print(msg.format(step, tdelta))
-                msg = '               * Rolling average: {:.2f} seconds / record'
-                print(msg.format(spv))
-                msg = '               * Currently {:.2f}% complete ({:,} records finished of {:,} total)'
-                print(msg.format(100 * k / n, k, n))
-                msg = '               * Approximately {} minutes remaining\n'
-                print(msg.format(tremain))
+                then = report_progress(n, k, step, then, begin)
 
 
     # Close connection to output VCF to clear buffer

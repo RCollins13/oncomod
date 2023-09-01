@@ -22,6 +22,8 @@
 ##contig=<ID=20,length=63025520>
 ##contig=<ID=21,length=48129895>
 ##contig=<ID=22,length=51304566>
+##contig=<ID=X,length=155270560>
+##contig=<ID=Y,length=59373566>
 ##FORMAT=<ID=GT,Type=String,Number=1,Description="Genotype">
 ##FORMAT=<ID=GQ,Type=Float,Number=1,Description="Phred-scaled probability that the variant is a false positive germline call">
 ##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes">
