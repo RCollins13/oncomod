@@ -185,8 +185,8 @@ done \
 > $WRKDIR/LOHGIC/LOHGIC/PROFILE.LOHGIC.tsv.gz
 
 # Step 7. Merge LOHGIC info back into profile annotation
-$TMPDIR/annotate_LOHGIC_results.py \
+$CODEDIR/ras_modifiers/scripts/lohgic/annotate_LOHGIC_results.py \
   --lohgic-tsv $WRKDIR/LOHGIC/LOHGIC/PROFILE.LOHGIC.tsv.gz \
   --oncdrs-csv $BASEDIR/CLINICAL/OncDRS/ALL_2022_11/GENOMIC_MUTATION_RESULTS.csv \
-  --outfile $TMPDIR/test.tsv
+  --outfile $WRKDIR/LOHGIC/LOHGIC/PROFILE.LOHGIC.annotated.tsv.gz
 
