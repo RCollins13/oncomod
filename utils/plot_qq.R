@@ -16,9 +16,9 @@
 #########
 # Load necessary libraries and constants
 require(rCNV2, quietly=TRUE)
-require(RASMod, quietly=TRUE)
+require(OncoModR, quietly=TRUE)
 require(argparse, quietly=TRUE)
-RASMod::load.constants(c("names", "colors"))
+OncoModR::load.constants(c("names", "colors"))
 
 
 ###########

@@ -75,7 +75,7 @@ load.patient.metadata <- function(file, fill.missing=NA, fill.columns=NULL,
 #' @export impute.missing.values
 #' @export
 impute.missing.values <- function(df, fill.missing="mean", fill.columns=NULL){
-  categorical.action <- RASMod::mode
+  categorical.action <- OncoModR::mode
   if(fill.missing == "mean"){
     numeric.action <- mean
   }else if(fill.missing == "median"){

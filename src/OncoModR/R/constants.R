@@ -225,7 +225,7 @@ load.constants <- function(subset, envir=.GlobalEnv){
 #' load.constants("colors")
 #' get.cohort.palette(PDAC.colors, c("DFCI", "TCGA"))
 #'
-#' @seealso [RASMod::load.constants]
+#' @seealso [OncoModR::load.constants]
 #'
 #' @export get.cohort.palette
 #' @export

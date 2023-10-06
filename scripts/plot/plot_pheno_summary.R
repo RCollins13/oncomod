@@ -15,9 +15,9 @@
 # Setup #
 #########
 # Load necessary libraries and constants
-require(RASMod, quietly=TRUE)
+require(OncoModR, quietly=TRUE)
 require(argparse, quietly=TRUE)
-RASMod::load.constants("all")
+OncoModR::load.constants("all")
 
 
 ##################
@@ -59,15 +59,15 @@ pc.scatter.w.bar <- function(df, colors, pt.cex=0.25, bar.wex=0.15,
   pop.pct.scaled <- (pop.pct.cumul * diff(ylims)) + ylims[1]
 
   # Prep plot area
-  RASMod::prep.plot.area(xlims, ylims, parmar, xaxs="i", yaxs="i")
+  OncoModR::prep.plot.area(xlims, ylims, parmar, xaxs="i", yaxs="i")
 
   # Add points
   points(x, y, cex=pt.cex, col=pw.colors, pch=19, xpd=T)
 
   # Add axes
   axis(1, at=c(-10e10, pc.xlims[2]), tck=0, labels=NA)
-  RASMod::clean.axis(1, at=axTicks(1)[which(axTicks(1) < pc.xlims[2])], title="PC1")
-  RASMod::clean.axis(2, infinite=TRUE, title="PC2", title.line=1.15)
+  OncoModR::clean.axis(1, at=axTicks(1)[which(axTicks(1) < pc.xlims[2])], title="PC1")
+  OncoModR::clean.axis(2, infinite=TRUE, title="PC2", title.line=1.15)
 
   # Add legend
   legend.y.at <- (c(ylims[1], pop.pct.scaled[-length(pop.order)]) + pop.pct.scaled) / 2
