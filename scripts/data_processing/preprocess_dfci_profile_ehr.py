@@ -293,10 +293,10 @@ def main():
     if args.verbose:
         _status_report(main_df, stage="annotating ancestry information")
 
-    # Add relevant health history
-    main_df = add_health_history(main_df, args.hx_csv)
-    if args.verbose:
-        _status_report(main_df, stage="adding health history")
+    # # Add relevant health history
+    # main_df = add_health_history(main_df, args.hx_csv)
+    # if args.verbose:
+    #     _status_report(main_df, stage="adding health history")
 
     # Add survival information
     main_df = add_survival_info(main_df, args.survival_csv)
