@@ -60,19 +60,27 @@ def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None):
     # Load genomic information
     genomic_cols_to_keep = 'DFCI_MRN SAMPLE_ACCESSION_NBR PRIMARY_CANCER_DIAGNOSIS ' + \
                            'BIOPSY_SITE BIOPSY_SITE_TYPE PANEL_VERSION CANCER_TYPE ' + \
-                           'TUMOR_PURITY'
+                           'TUMOR_PURITY HOMOPOLYMER_PER_MEGABASE ' + \
+                           'MISMATCH_REPAIR_STATUS'
     genomic_df = pd.read_csv(genomic_csv, sep=',', low_memory=False, 
                              usecols=genomic_cols_to_keep.split())
     genomic_df.rename(columns={'SAMPLE_ACCESSION_NBR' : 'BL_ID'}, inplace=True)
     genomic_df.loc[genomic_df.TUMOR_PURITY < 0, 'TUMOR_PURITY'] = pd.NA
     genomic_df.TUMOR_PURITY = genomic_df.TUMOR_PURITY / 100
 
+    # Drop MSI tumors
+    msi_idx = (genomic_df.HOMOPOLYMER_PER_MEGABASE > 2) | \
+              (genomic_df.MISMATCH_REPAIR_STATUS == 'Deficient (MMR-D / MSI-H)')
+    genomic_df = genomic_df.loc[~msi_idx, :]
+    genomic_df.drop(columns='HOMOPOLYMER_PER_MEGABASE MISMATCH_REPAIR_STATUS'.split(), 
+                    inplace=True)
+
     # Load all ID mappings
     id_cols_to_keep = 'DFCI_MRN SAMPLE_ACCESSION_NBR PBP'
     id_df = pd.read_csv(id_map_tsv, sep='\t', low_memory=False, 
                         usecols=id_cols_to_keep.split())
     id_df.rename(columns={'SAMPLE_ACCESSION_NBR' : 'BL_ID'}, inplace=True)
-    
+
     # Subset genomic information to tumors of interest
     # According to Sasha, imputation quality differs among panels as follows:
     # panel 2 > panel 1 > panel 3.1 > panel 3
@@ -92,9 +100,7 @@ def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None):
                & (genomic_df.PRIMARY_CANCER_DIAGNOSIS.str.lower().str.contains('adenocarcinoma'))
     lung_hits = (genomic_df.CANCER_TYPE.str.contains('Lung Cancer')) \
                  & (genomic_df.PRIMARY_CANCER_DIAGNOSIS.str.lower().str.contains('adenocarcinoma'))
-    mel_hits = (genomic_df.CANCER_TYPE == 'Melanoma') \
-               & (genomic_df.PRIMARY_CANCER_DIAGNOSIS.isin('Melanoma|Cutaneous Melanoma'.split('|')))
-    genomic_df = genomic_df[(panc_hits | crc_hits | lung_hits | mel_hits)]
+    genomic_df = genomic_df[(panc_hits | crc_hits | lung_hits)]
     genomic_df.drop_duplicates('DFCI_MRN', keep='first', inplace=True)
 
     # Subset ID linker table to BL IDs present in genomic df
@@ -139,8 +145,7 @@ def add_dx_info(main_df, dx_csv):
     crc_hits = ((dx_df.SITE_DESCR.str.contains('COLON')) | \
                 (dx_df.SITE_DESCR.str.contains('RECTUM')))
     lung_hits = dx_df.SITE_DESCR.str.contains('LUNG')
-    mel_hits = dx_df.SITE_DESCR.str.contains('SKIN')
-    dx_df = dx_df[panc_hits | crc_hits | lung_hits | mel_hits]
+    dx_df = dx_df[panc_hits | crc_hits | lung_hits]
     
     # For the subset of patients with multiple diagnoses, take the dx info for
     # the earliest diagnosed tumor
@@ -179,30 +184,20 @@ def add_ancestry_info(main_df, ancestry_csv):
     return main_df.merge(ancestry_df, on='PBP', how='left')
 
 
-def add_health_history(main_df, hx_csv):
-    """
-    Extract BMI for patients with available info
-    """
+# def add_health_history(main_df, hx_csv):
+#     """
+#     Extract BMI for patients with available info
+#     """
 
-    cols_to_read = 'DFCI_MRN D_START_DT HEALTH_HISTORY_TYPE RESULTS'.split()
-    phenos_to_keep = ['BMI']
+#     cols_to_read = 'DFCI_MRN D_START_DT HEALTH_HISTORY_TYPE RESULTS'.split()
+#     phenos_to_keep = ['BMI']
 
-    # Clean history dataframe
-    hx_df = pd.read_csv(hx_csv, sep=',', usecols=cols_to_read)
-    hx_df = hx_df[hx_df.HEALTH_HISTORY_TYPE.isin(phenos_to_keep)]
-    hx_df = hx_df.sort_values('D_START_DT').drop_duplicates('DFCI_MRN', keep='first')
-    
-    # Extract BMI values
-    # Assume any BMIs > 100 were miscoded by a single decimal
-    # In practice, we only found two instances where this was the case
-    # (BMIs reported as 156 and 137, when 15.6 and 13.7 are more reasonable values)
-    bad_bmi = hx_df[hx_df.HEALTH_HISTORY_TYPE == 'BMI'].RESULTS.astype(float) > 100
-    hx_df.loc[bad_bmi, 'RESULTS'] = hx_df.loc[bad_bmi, 'RESULTS'].astype(float) / 10
-    bmi_map = hx_df[hx_df.HEALTH_HISTORY_TYPE == 'BMI'].set_index('DFCI_MRN').RESULTS.to_dict()
-    bmi_map = {k : float(v) for k, v in bmi_map.items()}
-    main_df['BMI'] = main_df.DFCI_MRN.map(bmi_map)
+#     # Clean history dataframe
+#     hx_df = pd.read_csv(hx_csv, sep=',', usecols=cols_to_read)
+#     hx_df = hx_df[hx_df.HEALTH_HISTORY_TYPE.isin(phenos_to_keep)]
+#     hx_df = hx_df.sort_values('D_START_DT').drop_duplicates('DFCI_MRN', keep='first')
 
-    return main_df
+#     return main_df
 
 
 def add_survival_info(main_df, survival_csv):
@@ -248,11 +243,10 @@ def clean_output_df(main_df):
     # Simplify cancer types into codes
     cancer_codes = {'Pancreatic Cancer' : 'PDAC',
                     'Colorectal Cancer' : 'CRAD',
-                    'Non-Small Cell Lung Cancer' : 'LUAD',
-                    'Melanoma' : 'SKCM'}
+                    'Non-Small Cell Lung Cancer' : 'LUAD'}
     main_df.CANCER_TYPE = main_df.CANCER_TYPE.map(cancer_codes)
 
-    col_order = 'PBP SEX BMI POPULATION CANCER_TYPE PRIMARY_CANCER_DIAGNOSIS ' + \
+    col_order = 'PBP SEX POPULATION CANCER_TYPE PRIMARY_CANCER_DIAGNOSIS ' + \
                 'AJCC_STAGE APPROX_STAGE DIAGNOSIS_DATE AGE_AT_DIAGNOSIS ' + \
                 'DIAGNOSIS_YEAR IS_ALIVE LAST_ALIVE_DATE DAYS_SURVIVED ' + \
                 'CAUSE_OF_DEATH PC1 PC2 PC3 PC4 PC5 PC6 PC7 PC8 PC9 PC10 ' + \
@@ -313,7 +307,7 @@ def main():
     main_df = clean_output_df(main_df)
 
     # Write out PBP IDs per cancer type
-    for cancer in 'PDAC CRAD LUAD SKCM'.split():
+    for cancer in 'PDAC CRAD LUAD'.split():
         with open(args.out_prefix + cancer + '.samples.list', 'w') as fout:
             ids = set(main_df.PBP.astype(str)[main_df.CANCER_TYPE == cancer].to_list())
             for sample in ids:

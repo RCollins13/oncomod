@@ -34,6 +34,8 @@ module load plink/1.90b3
 plink \
   --bfile $GTDIR/TCGA.NORMAL \
   --recode vcf bgz \
+  --memory 16000 \
+  --threads 4 \
   --out $WRKDIR/data/TCGA.array_typed
 tabix -p vcf -f $WRKDIR/data/TCGA.array_typed.vcf.gz
 
@@ -102,40 +104,59 @@ $CODEDIR/scripts/data_processing/preprocess_tcga_phenotypes.py \
 
 
 ### Subset VCFs to patients of interest and RAS loci
-# Extract samples & loci of interest from genotyped and imputed arrays
-while read contig start end gene; do
-  for tech in array_typed array_imputed; do
-    bcftools_options="--min-ac 1"
-    case $tech in
-      array_typed)
-        VCF=$WRKDIR/data/TCGA.array_typed.vcf.gz
-        ;;
-      array_imputed)
-        VCF=$GTDIR/IMPUTED/$contig.vcf.gz
-        bcftools_options="$bcftools_options --exclude 'INFO/INFO < 0.8'"
-        ;;
-    esac
-    cat << EOF > $WRKDIR/LSF/scripts/extract_${gene}_variants_${tech}.sh
+# Extract samples & loci of interest from genotyped arrays
+export tech=array_typed
+cat << EOF > $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.sh
 #!/usr/bin/env bash
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
 bcftools view \
-  -O z -o $WRKDIR/data/TCGA.$gene.$tech.vcf.gz \
-  $bcftools_options \
+  -O z -o $WRKDIR/data/TCGA.RAS_loci.$tech.vcf.gz \
+  --min-ac 1  \
   --samples-file $WRKDIR/data/sample_info/TCGA.ALL.$tech.samples.list \
-  --regions "$contig:${start}-$end" \
-  $VCF
-tabix -p vcf -f $WRKDIR/data/TCGA.$gene.$tech.vcf.gz
+  --regions-file <( zcat $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz | fgrep -v "#" ) \
+  $WRKDIR/data/TCGA.array_typed.vcf.gz
+tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.$tech.vcf.gz
 EOF
-    chmod a+x $WRKDIR/LSF/scripts/extract_${gene}_variants_${tech}.sh
-    rm $WRKDIR/LSF/logs/extract_${gene}_variants_${tech}.*
-    bsub \
-      -q short -R 'rusage[mem=6000]' -n 2 -J TCGA_extract_${gene}_variants_${tech} \
-      -o $WRKDIR/LSF/logs/extract_${gene}_variants_${tech}.log \
-      -e $WRKDIR/LSF/logs/extract_${gene}_variants_${tech}.err \
-      $WRKDIR/LSF/scripts/extract_${gene}_variants_${tech}.sh
-  done
-done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
+chmod a+x $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.sh
+rm $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.*
+bsub \
+  -q short -R 'rusage[mem=6000]' -n 2 -J TCGA_extract_RAS_loci_variants_${tech} \
+  -o $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.log \
+  -e $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.err \
+  $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.sh
+# Extract samples & loci of interest from imputed arrays
+export tech=array_imputed
+while read contig; do
+  cat << EOF > $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.${contig}.sh
+#!/usr/bin/env bash
+. /PHShome/rlc47/.bashrc
+cd $WRKDIR
+bcftools view \
+  -O z -o $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.vcf.gz \
+  --min-ac 1 --exclude 'INFO/INFO < 0.8' \
+  --samples-file $WRKDIR/data/sample_info/TCGA.ALL.$tech.samples.list \
+  --regions-file <( zcat $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz | fgrep -v "#" ) \
+  $GTDIR/IMPUTED/$contig.vcf.gz
+tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.vcf.gz
+EOF
+  chmod a+x $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.${contig}.sh
+  rm $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.${contig}.*
+  bsub \
+    -q short -R 'rusage[mem=6000]' -n 2 -J TCGA_extract_RAS_loci_variants_${tech}_${contig} \
+    -o $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.${contig}.log \
+    -e $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.${contig}.err \
+    $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.${contig}.sh
+done < <( zcat $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz \
+          | fgrep -v "#" | cut -f1 | sort -V | uniq )
+# Merge imputed array variants across all chromosomes
+for contig in $( seq 1 22 ); do
+  echo $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.vcf.gz
+done > $TMPDIR/$tech.contig_vcfs.list
+bcftools concat \
+  --file-list $TMPDIR/$tech.contig_vcfs.list \
+  -O z -o $WRKDIR/data/TCGA.RAS_loci.$tech.vcf.gz
+tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.$tech.vcf.gz
 # Define well-covered exome intervals within RAS loci of interest
 $CODEDIR/scripts/data_processing/define_well_covered_targets.py \
   --coverage-matrix $WRKDIR/data/101122_TCGA_10960_interval_process.tsv.gz \
@@ -167,29 +188,28 @@ bcftools view \
   gs://terra-workspace-archive-lifecycle/fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz
 tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.exome.vcf.gz
 # Merge VCFs for exomes and arrays for each gene
-cat << EOF > $WRKDIR/LSF/scripts/merge_arrays_exomes.sh
+cat << EOF > $WRKDIR/LSF/scripts/merge_arrays_exomes_RAS_loci.sh
 #!/usr/bin/env bash
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
 $CODEDIR/scripts/data_processing/merge_tcga_arrays_exomes.py \
   --sample-id-map /data/gusev/USERS/rlc47/TCGA/data/sample_info/TCGA.ALL.id_map.tsv.gz \
-  --exome-vcf $WRKDIR/data/TCGA.$gene.exome.vcf.gz \
-  --array-typed-vcf $WRKDIR/data/TCGA.$gene.array_typed.vcf.gz \
-  --array-imputed-vcf $WRKDIR/data/TCGA.$gene.array_imputed.vcf.gz \
+  --exome-vcf $WRKDIR/data/TCGA.RAS_loci.exome.vcf.gz \
+  --array-typed-vcf $WRKDIR/data/TCGA.RAS_loci.array_typed.vcf.gz \
+  --array-imputed-vcf $WRKDIR/data/TCGA.RAS_loci.array_imputed.vcf.gz \
   --ref-fasta $WRKDIR/refs/GRCh37.fa \
   --header $WRKDIR/refs/simple_hg19_header.vcf.gz \
   --outfile $WRKDIR/data/TCGA.RAS_loci.vcf.gz \
   --verbose
 tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.vcf.gz
 EOF
-chmod a+x $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.sh
-rm $WRKDIR/LSF/logs/merge_arrays_exomes_${gene}.*
+chmod a+x $WRKDIR/LSF/scripts/merge_arrays_exomes_RAS_loci.sh
+rm $WRKDIR/LSF/logs/merge_arrays_exomes_RAS_loci.*
 bsub \
-  -q normal -R 'rusage[mem=6000]' -J TCGA_merge_arrays_exomes_${gene} \
-  -o $WRKDIR/LSF/logs/merge_arrays_exomes_${gene}.log \
-  -e $WRKDIR/LSF/logs/merge_arrays_exomes_${gene}.err \
-  $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.sh
-tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.vcf.gz
+  -q normal -R 'rusage[mem=6000]' -J TCGA_merge_arrays_exomes_RAS_loci \
+  -o $WRKDIR/LSF/logs/merge_arrays_exomes_RAS_loci.log \
+  -e $WRKDIR/LSF/logs/merge_arrays_exomes_RAS_loci.err \
+  $WRKDIR/LSF/scripts/merge_arrays_exomes_RAS_loci.sh
 
 
 ### Curate somatic data for patients of interest
@@ -240,7 +260,7 @@ tabix -p vcf -f $WRKDIR/data/TCGA.somatic_variants.vcf.gz
 
 
 # Summarize somatic variant status by gene & cancer type
-for cancer in PDAC CRAD LUAD SKCM; do
+for cancer in PDAC CRAD LUAD; do
   n_samp=$( fgrep -wvf \
               $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.list \
               ${WRKDIR}/data/sample_info/TCGA.$cancer.donors.list | wc -l )
