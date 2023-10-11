@@ -294,8 +294,8 @@ done
 
 
 ## Submit germline-somatic association jobs
-# Ensure most recent version of RASMod R package is installed from source
-Rscript -e "install.packages('$CODEDIR/src/RASMod_0.1.tar.gz', \
+# Ensure most recent version of OncoMod R package is installed from source
+Rscript -e "install.packages('$CODEDIR/src/OncoModR_0.2.tar.gz', \
                              lib='~/R/x86_64-pc-linux-gnu-library/3.6', \
                              type='source', repos=NULL)"
 # One submission per (gene, cancer type, cohort)

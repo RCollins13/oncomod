@@ -31,8 +31,8 @@ for SUBDIR in plots plots/overview plots/overview/germline_variants \
 done
 
 
-### Ensure most recent version of RASMod & rCNV2 R packages are installed from source
-Rscript -e "install.packages('$CODEDIR/src/RASMod_0.1.tar.gz', \
+### Ensure most recent version of OncoMod & rCNV2 R packages are installed from source
+Rscript -e "install.packages('$CODEDIR/src/OncoModR_0.2.tar.gz', \
                              lib='~/R/x86_64-pc-linux-gnu-library/3.6', \
                              type='source', repos=NULL)"
 cd $WRKDIR/../code/rCNV2 && \
