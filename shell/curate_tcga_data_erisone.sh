@@ -80,6 +80,7 @@ $CODEDIR/scripts/data_processing/harmonize_tcga_samples.py \
   --exome-id-map $WRKDIR/refs/VanAllen.TCGA.WES_DeepVariant.sample_manifest.tsv.gz \
   --array-typed-ids $WRKDIR/data/sample_info/TCGA.vcf.array_typed.samples.gusev_IDs.list \
   --array-imputed-ids $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.samples.gusev_IDs.list \
+  --msi-tsv $WRKDIR/data/TCGA.MSI_mantis.Bonneville_2017.tsv.gz \
   --tcga-tss-table $CODEDIR/refs/TCGA_TSS_codes.tsv.gz \
   --tcga-study-table $CODEDIR/refs/TCGA_study_codes.tsv.gz \
   --out-prefix $WRKDIR/data/sample_info/TCGA
@@ -94,7 +95,6 @@ $CODEDIR/scripts/data_processing/preprocess_tcga_phenotypes.py \
   --id-map-tsv $WRKDIR/data/sample_info/TCGA.ALL.id_map.tsv.gz \
   --cdr-csv $BASEDIR/TCGA_CDR.csv \
   --tcga-study-table $CODEDIR/refs/TCGA_study_codes.tsv.gz \
-  --bmi-tsv $WRKDIR/data/sample_info/TCGA_BMI/TCGA.BMI.tsv.gz \
   --ancestry-tsv $WRKDIR/data/TCGA.ancestry.tsv.gz \
   --pcs-txt $GTDIR/TCGA.COMBINED.QC.NORMAL.eigenvec \
   --purity-tsv $WRKDIR/data/TCGA.tumor_purity.Aran_2015.tsv.gz \
