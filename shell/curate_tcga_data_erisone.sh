@@ -145,13 +145,13 @@ $CODEDIR/scripts/data_processing/define_well_covered_targets.py \
 | sort -Vk1,1 -k2,2n -k3,3n | bgzip -c \
 > $WRKDIR/refs/TCGA_WES.covered_intervals.bed.gz
 tabix -p bed -f $WRKDIR/refs/TCGA_WES.covered_intervals.bed.gz
-while read contig start end gene; do
-  bedtools intersect -u \
-    -a $WRKDIR/refs/TCGA_WES.covered_intervals.bed.gz \
-    -b <( echo -e "$contig\t$start\t$end" ) \
-  | bgzip -c > $WRKDIR/refs/TCGA_WES.covered_intervals.$gene.bed.gz
-  tabix -p bed -f $WRKDIR/refs/TCGA_WES.covered_intervals.$gene.bed.gz
-done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
+bedtools intersect -u \
+  -a $WRKDIR/refs/TCGA_WES.covered_intervals.bed.gz \
+  -b <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz \
+             $CODEDIR/refs/NCI_RAS_pathway.genes.GRCh37.bed.gz \
+        | fgrep -v "#" ) \
+| bgzip -c > $WRKDIR/refs/TCGA_WES.covered_intervals.RAS_loci_plus_pathway.bed.gz
+tabix -p bed -f $WRKDIR/refs/TCGA_WES.covered_intervals.RAS_loci_plus_pathway.bed.gz
 # Use bcftools to stream WES data from gs:// bucket for samples & loci of interest
 gsutil -m cp \
   gs://terra-workspace-archive-lifecycle/fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz.tbi \
@@ -159,18 +159,15 @@ gsutil -m cp \
 gcloud auth application-default login
 export GCS_OAUTH_TOKEN=`gcloud auth application-default print-access-token`
 cd $WRKDIR/data
-while read contig start end gene; do
-  bcftools view \
-    -O z -o $WRKDIR/data/TCGA.$gene.exome.vcf.gz \
-    --min-ac 1 \
-    --samples-file $WRKDIR/data/sample_info/TCGA.ALL.exome.samples.list \
-    --regions-file $WRKDIR/refs/TCGA_WES.covered_intervals.$gene.bed.gz \
-    gs://terra-workspace-archive-lifecycle/fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz
-  tabix -p vcf -f $WRKDIR/data/TCGA.$gene.exome.vcf.gz
-done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
+bcftools view \
+  -O z -o $WRKDIR/data/TCGA.RAS_loci.exome.vcf.gz \
+  --min-ac 1 \
+  --samples-file $WRKDIR/data/sample_info/TCGA.ALL.exome.samples.list \
+  --regions-file $WRKDIR/refs/TCGA_WES.covered_intervals.RAS_loci_plus_pathway.bed.gz \
+  gs://terra-workspace-archive-lifecycle/fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz
+tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.exome.vcf.gz
 # Merge VCFs for exomes and arrays for each gene
-while read gene; do
-    cat << EOF > $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.sh
+cat << EOF > $WRKDIR/LSF/scripts/merge_arrays_exomes.sh
 #!/usr/bin/env bash
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
@@ -181,25 +178,17 @@ $CODEDIR/scripts/data_processing/merge_tcga_arrays_exomes.py \
   --array-imputed-vcf $WRKDIR/data/TCGA.$gene.array_imputed.vcf.gz \
   --ref-fasta $WRKDIR/refs/GRCh37.fa \
   --header $WRKDIR/refs/simple_hg19_header.vcf.gz \
-  --outfile $WRKDIR/data/TCGA.$gene.merged.vcf.gz \
+  --outfile $WRKDIR/data/TCGA.RAS_loci.vcf.gz \
   --verbose
-tabix -p vcf -f $WRKDIR/data/TCGA.$gene.merged.vcf.gz
+tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.vcf.gz
 EOF
-    chmod a+x $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.sh
-    rm $WRKDIR/LSF/logs/merge_arrays_exomes_${gene}.*
-    bsub \
-      -q normal -R 'rusage[mem=6000]' -J TCGA_merge_arrays_exomes_${gene} \
-      -o $WRKDIR/LSF/logs/merge_arrays_exomes_${gene}.log \
-      -e $WRKDIR/LSF/logs/merge_arrays_exomes_${gene}.err \
-      $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.sh
-done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 )
-# Merge VCFs for eacn gene into a single VCF and index the merged VCF
-zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 \
-| xargs -I {} echo "$WRKDIR/data/TCGA.{}.merged.vcf.gz" \
-> $WRKDIR/data/TCGA.single_gene_vcfs.list
-bcftools concat \
-  --file-list $WRKDIR/data/TCGA.single_gene_vcfs.list \
-  -O z -o $WRKDIR/data/TCGA.RAS_loci.vcf.gz
+chmod a+x $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.sh
+rm $WRKDIR/LSF/logs/merge_arrays_exomes_${gene}.*
+bsub \
+  -q normal -R 'rusage[mem=6000]' -J TCGA_merge_arrays_exomes_${gene} \
+  -o $WRKDIR/LSF/logs/merge_arrays_exomes_${gene}.log \
+  -e $WRKDIR/LSF/logs/merge_arrays_exomes_${gene}.err \
+  $WRKDIR/LSF/scripts/merge_arrays_exomes_${gene}.sh
 tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.vcf.gz
 
 
