@@ -17,12 +17,12 @@
 export BASEDIR=/data/gusev/TCGA
 export GTDIR=/data/gusev/TCGA/GENOTYPES
 export WRKDIR=/data/gusev/USERS/rlc47/TCGA
-export CODEDIR=$WRKDIR/../code/ras_modifiers
+export CODEDIR=$WRKDIR/../code/oncomod
 cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in data data/sample_info data/sample_info/TCGA_BMI LSF LSF/scripts LSF/logs refs misc; do
+for SUBDIR in data data/sample_info LSF LSF/scripts LSF/logs refs misc; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -86,24 +86,6 @@ $CODEDIR/scripts/data_processing/harmonize_tcga_samples.py \
 
 
 ### Curate clinical information for patients of interest
-# Download & extract TCGA BMI
-if [ -e $WRKDIR/data/sample_info/TCGA.BMI.tsv ]; then
-  rm $WRKDIR/data/sample_info/TCGA.BMI.tsv
-fi
-for prefix in PAAD COAD READ LUAD SKCM; do
-  wget \
-    -P $WRKDIR/data/sample_info/TCGA_BMI/ \
-    https://hgdownload.soe.ucsc.edu/gbdb/hg38/gdcCancer/$prefix.bb
-  /data/talkowski/tools/bin/bigBedToBed \
-    $WRKDIR/data/sample_info/TCGA_BMI/$prefix.bb \
-    /dev/stdout \
-  | awk -v FS="\t" -v OFS="\t" '{ if ($29!="--") print $35, $29 }' \
-  | $CODEDIR/scripts/data_processing/parse_ucsc_tcga_bmi.py \
-  | sort -Vk1,1 | uniq \
-  >> $WRKDIR/data/sample_info/TCGA_BMI/TCGA.BMI.tsv
-  rm $WRKDIR/data/sample_info/TCGA_BMI/$prefix.bb
-done
-gzip -f $WRKDIR/data/sample_info/TCGA_BMI/TCGA.BMI.tsv
 # Note: TCGA ancestry label assignments came from Carrot-Zhang et al., Cancer Cell, 2020
 # https://gdc.cancer.gov/about-data/publications/CCG-AIM-2020
 # Filename: Broad_ancestry_PCA.txt

@@ -17,7 +17,7 @@
 export TCGADIR=/data/gusev/USERS/rlc47/TCGA
 export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
-export CODEDIR=$WRKDIR/../code/ras_modifiers
+export CODEDIR=$WRKDIR/../code/oncomod
 cd $WRKDIR
 
 

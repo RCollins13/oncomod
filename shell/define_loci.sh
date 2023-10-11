@@ -15,8 +15,8 @@
 
 ### Set local parameters
 export BASEDIR=/broad/VanAllenLab/xchip/cga_home/rcollins
-export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers
-export CODEDIR=$WRKDIR/code/ras_modifiers
+export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/oncomod
+export CODEDIR=$WRKDIR/code/oncomod
 cd $WRKDIR
 
 
@@ -143,8 +143,8 @@ contig=\$2
 echo -e "Running contig \$contig for population \$pop"
 
 export BASEDIR=/broad/VanAllenLab/xchip/cga_home/rcollins
-export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers
-export CODEDIR=$WRKDIR/code/ras_modifiers
+export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/oncomod
+export CODEDIR=$WRKDIR/code/oncomod
 
 source /broad/software/scripts/useuse
 source /home/unix/rcollins/.bashrc
@@ -180,10 +180,10 @@ cat << EOF > $WRKDIR/UGER/submit_1000G_LD.batch.sh
 #$ -t 1-15
 #$ -l h_vmem=4G
 #$ -l h_rt=01:00:00
-#$ -o /broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers/UGER/logs/
-#$ -e /broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers/UGER/logs/
+#$ -o /broad/VanAllenLab/xchip/cga_home/rcollins/oncomod/UGER/logs/
+#$ -e /broad/VanAllenLab/xchip/cga_home/rcollins/oncomod/UGER/logs/
 
-export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers
+export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/oncomod
 
 pop=\$( sed -n "\${SGE_TASK_ID}p" $WRKDIR/UGER/1000G_LD.inputs.tsv | cut -f1 )
 contig=\$( sed -n "\${SGE_TASK_ID}p" $WRKDIR/UGER/1000G_LD.inputs.tsv | cut -f2 )

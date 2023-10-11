@@ -18,7 +18,7 @@ export BASEDIR=/data/gusev/PROFILE
 export GTDIR=$BASEDIR/2020_2022_combined/IMPUTE_HQ
 export CLINDIR=$BASEDIR/CLINICAL
 export WRKDIR=/data/gusev/USERS/rlc47/PROFILE
-export CODEDIR=$WRKDIR/../code/ras_modifiers
+export CODEDIR=$WRKDIR/../code/oncomod
 cd $WRKDIR
 
 
