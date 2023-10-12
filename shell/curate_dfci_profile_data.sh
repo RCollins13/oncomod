@@ -31,9 +31,17 @@ done
 
 
 ### Curate clinical information for patients of interest
-# Get list of all IDs present in VCF
+# Get list of all IDs present in either imputed SNP and/or LOHGIC coding VCFs
 tabix -H $GTDIR/PROFILE_COMB.22.HQ.vcf.gz \
 | fgrep -v "##" | cut -f10- | sed 's/\t/\n/g' \
+> $WRKDIR/data/sample_info/PROFILE.imputed_snp.vcf.samples.list
+tabix -H $WRKDIR/LOHGIC/data/PROFILE.LOHGIC.predicted_germline_coding_variants.vcf.gz \
+| fgrep -v "##" | cut -f10- | sed 's/\t/\n/g' \
+> $WRKDIR/data/sample_info/PROFILE.oncopanel_lohgic.vcf.samples.list
+cat \
+  $WRKDIR/data/sample_info/PROFILE.imputed_snp.vcf.samples.list \
+  $WRKDIR/data/sample_info/PROFILE.oncopanel_lohgic.vcf.samples.list \
+| sort -V | uniq \
 > $WRKDIR/data/sample_info/PROFILE.vcf.samples.list
 # Curate EHR and get list of patients from cancer types of interest
 $CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
@@ -41,10 +49,10 @@ $CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
   --genomic-csv $CLINDIR/OncDRS/ALL_2021_11/GENOMIC_SPECIMEN.csv.gz \
   --dx-csv $CLINDIR/OncDRS/ALL_2021_11/CANCER_DIAGNOSIS_CAREG.csv.gz \
   --ancestry-csv $CLINDIR/PROFILE_2022_ANCESTRY.csv.gz \
-  --hx-csv $CLINDIR/OncDRS/ALL_2021_11/HEALTH_HISTORY.csv.gz \
   --survival-csv $CLINDIR/OncDRS/ALL_2021_11/PT_INFO_STATUS_REGISTRATION.csv.gz \
   --out-prefix $WRKDIR/data/sample_info/PROFILE. \
-  --vcf-ids $WRKDIR/data/sample_info/PROFILE.vcf.samples.list
+  --vcf-ids $WRKDIR/data/sample_info/PROFILE.vcf.samples.list \
+  --priority-ids $WRKDIR/data/sample_info/PROFILE.oncopanel_lohgic.vcf.samples.list
 
 
 ### Subset VCFs to patients of interest and RAS loci
@@ -56,39 +64,47 @@ $CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
 #      zcat PROFILE_COMB.$contig.HQ.vcf.gz | bgzip -c > PROFILE_COMB.$contig.HQ.vcf.bgz; \
 #      bcftools index PROFILE_COMB.$contig.HQ.vcf.bgz"
 # done
-# Extract samples & loci of interest
+# Extract imputed SNPs for samples & loci of interest
 for contig in $( seq 1 22 ); do
-  cat << EOF > $WRKDIR/LSF/scripts/extract_${contig}_variants.sh
+  cat << EOF > $WRKDIR/LSF/scripts/extract_${contig}_imputed_snps.sh
 #!/usr/bin/env bash
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
 bcftools view \
-  -O z -o $WRKDIR/data/PROFILE.$contig.vcf.gz \
+  -O z -o $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz \
   --min-ac 1 \
   --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
-  --regions $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz \
+  --regions-file $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz \
   $GTDIR/PROFILE_COMB.$contig.HQ.vcf.gz
-tabix -p vcf -f $WRKDIR/data/PROFILE.$contig.vcf.gz
+tabix -p vcf -f $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz
 EOF
-  chmod a+x $WRKDIR/LSF/scripts/extract_${contig}_variants.sh
-  rm $WRKDIR/LSF/logs/extract_${contig}_variants.*
+  chmod a+x $WRKDIR/LSF/scripts/extract_${contig}_imputed_snps.sh
+  rm $WRKDIR/LSF/logs/extract_${contig}_imputed_snps.*
   bsub \
-    -q normal -R 'rusage[mem=6000]' -n 2 -J PROFILE_extract_${contig}_variants \
-    -o $WRKDIR/LSF/logs/extract_${contig}_variants.log \
-    -e $WRKDIR/LSF/logs/extract_${contig}_variants.err \
-    $WRKDIR/LSF/scripts/extract_${contig}_variants.sh
+    -q normal -R 'rusage[mem=6000]' -n 2 -J PROFILE_extract_${contig}_imputed_snps \
+    -o $WRKDIR/LSF/logs/extract_${contig}_imputed_snps.log \
+    -e $WRKDIR/LSF/logs/extract_${contig}_imputed_snps.err \
+    $WRKDIR/LSF/scripts/extract_${contig}_imputed_snps.sh
 done
-# Merge VCFs for each gene into a single VCF and index the merged VCF
-zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 \
-| xargs -I {} echo "$WRKDIR/data/PROFILE.{}.vcf.gz" \
-> $WRKDIR/data/PROFILE.single_gene_vcfs.list
+# Merge imputed SNP VCFs for each chromosome into a single VCF and index the merged VCF
+for contig in $( seq 1 22 ); do
+  echo $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz
+done > $WRKDIR/data/PROFILE.snp_vcf_shards.list
 bcftools concat \
-  --file-list $WRKDIR/data/PROFILE.single_gene_vcfs.list \
+  --file-list $WRKDIR/data/PROFILE.snp_vcf_shards.list \
 | bcftools annotate \
   --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
   --header-lines <( zcat $WRKDIR/refs/simple_hg19_header.vcf.gz | fgrep -w SVTYPE ) \
-  -O z -o $WRKDIR/data/PROFILE.RAS_loci.vcf.gz
-tabix -p vcf -f $WRKDIR/data/PROFILE.RAS_loci.vcf.gz
+  -O z -o $WRKDIR/data/PROFILE.imputed_snps.vcf.gz
+tabix -p vcf -f $WRKDIR/data/PROFILE.imputed_snps.vcf.gz
+# Extract inferred coding variants for samples & loci of interest
+bcftools view \
+  -O z -o $WRKDIR/data/PROFILE.oncopanel_lohgic.vcf.gz \
+  --min-ac 1 \
+  --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
+  --force-samples \
+  --regions-file $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz \
+  $WRKDIR/LOHGIC/data/PROFILE.LOHGIC.predicted_germline_coding_variants.vcf.gz
 
 
 ### Curate somatic data for patients of interest

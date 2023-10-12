@@ -49,7 +49,7 @@ def _status_report(main_df, stage=None):
         print('{}: {:,}'.format(cancer, int(count)))
 
 
-def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None):
+def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None, priority_ids=None):
     """
     Load basic information for samples to be included in study
     Subset to cancer types of interest
@@ -85,7 +85,17 @@ def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None):
     # According to Sasha, imputation quality differs among panels as follows:
     # panel 2 > panel 1 > panel 3.1 > panel 3
     # If the same patient was run on multiple panels, keep the one with highest priority
-    # After that, arbitrarily choose just one of the tumor biopsies to keep
+    # where priority is defined first by --priority-ids (if provided) 
+    # and second by panel version. After that, arbitrarily choose just one 
+    # of the tumor biopsies to keep per patient
+    if priority_ids is not None:
+        with open(priority_ids) as fin:
+            pids_list = set([l.rstrip() for l in fin.readlines()])
+        genomic_df.loc[:, 'LOW_PRIORITY'] = \
+            ~genomic_df.BL_ID.map(id_df.set_index('BL_ID').to_dict()['PBP']).\
+                              isin(pids_list)
+    else:
+        genomic_df.loc[:, 'LOW_PRIORITY'] = True
     panel_priority = [2.0, 1.0, 3.1, 3.0]
     genomic_df.PANEL_VERSION = pd.Categorical(genomic_df.PANEL_VERSION, panel_priority)
     biopsy_priority = 'PRIMARY,LOCAL RECURRENCE,DIAGNOSIS PENDING,' + \
@@ -93,7 +103,8 @@ def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None):
                       'METASTATIC RECURRENCE,NOT APPLICABLE'
     genomic_df.BIOPSY_SITE_TYPE = pd.Categorical(genomic_df.BIOPSY_SITE_TYPE.astype(str), 
                                                  biopsy_priority.split(','))
-    genomic_df.sort_values('PANEL_VERSION BIOPSY_SITE_TYPE'.split(), inplace=True)
+    genomic_df.sort_values('LOW_PRIORITY PANEL_VERSION BIOPSY_SITE_TYPE'.split(), 
+                           inplace=True)
     panc_hits = (genomic_df.CANCER_TYPE == 'Pancreatic Cancer') \
                 & (genomic_df.PRIMARY_CANCER_DIAGNOSIS.str.lower().str.contains('adenocarcinoma'))
     crc_hits = (genomic_df.CANCER_TYPE == 'Colorectal Cancer') \
@@ -102,6 +113,7 @@ def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None):
                  & (genomic_df.PRIMARY_CANCER_DIAGNOSIS.str.lower().str.contains('adenocarcinoma'))
     genomic_df = genomic_df[(panc_hits | crc_hits | lung_hits)]
     genomic_df.drop_duplicates('DFCI_MRN', keep='first', inplace=True)
+    genomic_df.drop(columns='LOW_PRIORITY', inplace=True)
 
     # Subset ID linker table to BL IDs present in genomic df
     id_df = id_df[id_df.BL_ID.isin(genomic_df.BL_ID)]
@@ -267,19 +279,23 @@ def main():
     parser.add_argument('--genomic-csv', help='Tumor genomic .csv', required=True)
     parser.add_argument('--dx-csv', help='Patient diagnosis .csv', required=True)
     parser.add_argument('--ancestry-csv', help='Ancestry .csv', required=True)
-    parser.add_argument('--hx-csv', help='Health history .csv', required=True)
+    # parser.add_argument('--hx-csv', help='Health history .csv')
     parser.add_argument('--survival-csv', help='Survival info .csv', required=True)
     parser.add_argument('--out-prefix', help='Prefix for output files', required=True)
     parser.add_argument('--vcf-ids', dest='vcf_ids_in', help='Flat one-column ' +
                         'file with PBP IDs present in SNP VCF. If provided, ' +
                         'will subset all outputs to only these samples.')
+    parser.add_argument('--priority-ids', help='List of higher-priority PBP IDs. ' +
+                        'These will always be retained over other samples from ' +
+                        'the same patient wherever possible.')
     parser.add_argument('-v', '--verbose', action='store_true', help='Report ' +
                         'sample counts per cancer type at each step ' + 
                         '[default: no reporting]')
     args = parser.parse_args()
 
     # Load primary data for all samples
-    main_df = load_primary_data(args.genomic_csv, args.id_map_tsv, args.vcf_ids_in)
+    main_df = load_primary_data(args.genomic_csv, args.id_map_tsv, 
+                                args.vcf_ids_in, args.priority_ids)
     if args.verbose:
         _status_report(main_df, stage="loading primary data")
 
