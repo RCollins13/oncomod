@@ -57,27 +57,27 @@ $CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
 #      bcftools index PROFILE_COMB.$contig.HQ.vcf.bgz"
 # done
 # Extract samples & loci of interest
-while read contig start end gene; do
-  cat << EOF > $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
+for contig in $( seq 1 22 ); do
+  cat << EOF > $WRKDIR/LSF/scripts/extract_${contig}_variants.sh
 #!/usr/bin/env bash
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
 bcftools view \
-  -O z -o $WRKDIR/data/PROFILE.$gene.vcf.gz \
+  -O z -o $WRKDIR/data/PROFILE.$contig.vcf.gz \
   --min-ac 1 \
   --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
-  --regions "$contig:${start}-$end" \
+  --regions $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz \
   $GTDIR/PROFILE_COMB.$contig.HQ.vcf.gz
-tabix -p vcf -f $WRKDIR/data/PROFILE.$gene.vcf.gz
+tabix -p vcf -f $WRKDIR/data/PROFILE.$contig.vcf.gz
 EOF
-  chmod a+x $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
-  rm $WRKDIR/LSF/logs/extract_${gene}_variants.*
+  chmod a+x $WRKDIR/LSF/scripts/extract_${contig}_variants.sh
+  rm $WRKDIR/LSF/logs/extract_${contig}_variants.*
   bsub \
-    -q normal -R 'rusage[mem=6000]' -n 2 -J PROFILE_extract_${gene}_variants \
-    -o $WRKDIR/LSF/logs/extract_${gene}_variants.log \
-    -e $WRKDIR/LSF/logs/extract_${gene}_variants.err \
-    $WRKDIR/LSF/scripts/extract_${gene}_variants.sh
-done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" )
+    -q normal -R 'rusage[mem=6000]' -n 2 -J PROFILE_extract_${contig}_variants \
+    -o $WRKDIR/LSF/logs/extract_${contig}_variants.log \
+    -e $WRKDIR/LSF/logs/extract_${contig}_variants.err \
+    $WRKDIR/LSF/scripts/extract_${contig}_variants.sh
+done
 # Merge VCFs for each gene into a single VCF and index the merged VCF
 zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 \
 | xargs -I {} echo "$WRKDIR/data/PROFILE.{}.vcf.gz" \
