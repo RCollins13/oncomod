@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2022 Ryan L. Collins and the Van Allen/Gusev/Haigis Laboratories
+# Copyright (c) 2023 Ryan L. Collins and the Van Allen/Gusev/Haigis Laboratories
 # Distributed under terms of the GPL-2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
 """
-Merge genotyped SNPs, imputed SNPs, and exome variants for TCGA
+Merge imputed SNPs and predicted coding variants for DFCI-PROFILE cohort
 """
 
 
@@ -15,19 +15,6 @@ import numpy as np
 import pandas as pd
 import pysam
 from sys import stdout, stderr
-
-
-def load_id_map(id_map_in):
-    """
-    Load mappings between exome, array, and donor IDs
-    """
-
-    id_df = pd.read_csv(id_map_in, sep='\t').rename(columns={'#DONOR_ID' : 'DONOR_ID'})
-
-    return {'exome_to_array' : id_df.set_index(id_df.WES_BAM_ID).ARRAY_TYPED_ID.to_dict(),
-            'array_to_exome' : id_df.set_index(id_df.ARRAY_TYPED_ID).WES_BAM_ID.to_dict(),
-            'exome_to_donor' : id_df.set_index(id_df.WES_BAM_ID).DONOR_ID.to_dict(),
-            'array_to_donor' : id_df.set_index(id_df.ARRAY_TYPED_ID).DONOR_ID.to_dict()}
 
 
 def next_record(vcf):
@@ -44,13 +31,13 @@ def next_record(vcf):
     return rec, vid
 
 
-def determine_next_record(ex_rec, gt_rec, imp_rec):
+def determine_next_record(imp_rec, ex_rec):
     """
     Determine which record(s) to process & write to file next
     """
 
     cur_pos = {}
-    for i, rec in enumerate([ex_rec, gt_rec, imp_rec]):
+    for i, rec in enumerate([imp_rec, ex_rec]):
         if rec is None:
             cur_pos[i] = np.nan
         else:
@@ -59,7 +46,7 @@ def determine_next_record(ex_rec, gt_rec, imp_rec):
 
     next_idxs = np.where(cur_pos == np.nanmin(cur_pos))[0].tolist()
 
-    return [k for i, k in enumerate('exome array-typed array-imputed'.split()) if i in next_idxs]
+    return [k for i, k in enumerate('imputed lohgic'.split()) if i in next_idxs]
 
 
 def correct_strand(record, fasta, verbose=False):
@@ -126,69 +113,7 @@ def invert_genotypes(record, gt_cor, verbose=False):
     return record, vid
 
 
-def resolve_array_discrepancies(current_records, current_ids, in_vcfs, next_techs, 
-                                ref_fa, verbose=False):
-    """
-    Main wrapper for handling discrepancies between typed and imputed array records
-    """
-
-    # First, assess GT correlation between typed and imputed samples
-    if current_ids['array-typed'] != current_ids['array-imputed']:
-        gt_cor = calc_gt_correlation(current_records['array-typed'],
-                                     current_records['array-imputed'])
-
-        # If genotypes are inversely correlated between typed & imputed,
-        # assume that array probe incorrectly targeted ref. allele as "alt.".
-        # In this case, can use typed GTs but need to reverse ref/alt
-        # and GTs for all samples accordingly
-        if gt_cor <= -0.5:
-            current_records['array-typed'], current_ids['array-typed'] = \
-                invert_genotypes(current_records['array-typed'], gt_cor, verbose)
-
-    # Next, check for strand flips in the array typed record
-    # To be conservative, this must require imputed ref allele to match
-    # reference fasta allele
-    if current_ids['array-typed'] != current_ids['array-imputed']:
-        ref_allele = ref_fa.fetch(current_records['array-imputed'].chrom, 
-                                  current_records['array-imputed'].pos,
-                                  current_records['array-imputed'].pos+1)
-        if current_records['array-imputed'].alleles[0] == ref_allele:
-            current_records['array-typed'], current_ids['array-typed'] = \
-                correct_strand(current_records['array-typed'], ref_fa, verbose)
-
-
-    # If neither GT inversion or strand flip corrects discrepancies, keep the
-    # record that matches the canonical ref allele
-    if current_ids['array-typed'] != current_ids['array-imputed']:
-        ref_allele = ref_fa.fetch(current_records['array-imputed'].chrom, 
-                                  current_records['array-imputed'].pos,
-                                  current_records['array-imputed'].pos+1)
-        skip_techs = []
-        if current_records['array-typed'].alleles[0] != ref_allele:
-            skip_techs.append('array-typed')
-        if current_records['array-imputed'].alleles[0] != ref_allele:
-            skip_techs.append('array-imputed')
-        if verbose:
-            if len(skip_techs) == 1:
-                keep_tech = list(set('array-typed array-imputed'.split()).difference(set(skip_techs)))[0]
-                fmt = '  ** Could not resolve discrepancies between typed and imputed ' + \
-                      ' array records at {:,}. Keeping {} as it matches the reference\n'
-                stderr.write(fmt.format(current_records[keep_tech].pos, keep_tech))
-            else:
-                fmt = '  ** Could not resolve discrepancies between typed and imputed ' + \
-                      ' array records at {:,}. Skipping both as neither match the reference\n'
-                stderr.write(fmt.format(current_records['array-typed'].pos))
-                dbg = True
-        for skip_tech in skip_techs:
-            next_techs = [t for t in next_techs if t != skip_tech]
-            new_rec, new_id = next_record(in_vcfs[skip_tech])
-            current_records[skip_tech] = new_rec
-            current_ids[skip_tech] = new_id
-
-    return current_records, current_ids, in_vcfs, next_techs
-
-
-def map_genotypes(old_rec, new_rec, id_mappings, rec_fmt):
+def map_genotypes(old_rec, new_rec, rec_fmt):
     """
     Extracts GTs in old_rec and maps them onto samples in new_rec
     Assumes id_mappings is dict keyed on samples in old_rec
@@ -197,24 +122,20 @@ def map_genotypes(old_rec, new_rec, id_mappings, rec_fmt):
 
     AN, AC, AF = [0] * 3
 
-    for sample in old_rec.samples:
+    old_samples = old_rec.samples.keys()
+
+    for sample in new_rec.samples.keys():
 
         # Get old genotype
-        # Note: DeepVariant (used on exomes) does not call ref GTs
-        # We have already pre-filtered for well-captured exome intervals,
-        # so any no-call GT from exomes should be treated as 0/0
-        GT = old_rec.samples[sample]['GT']
-        if GT == (None, None):
-            if rec_fmt == 'exome':
-                GT = (0, 0)
-        else:
-            if None in GT:
-                GT = (None, [g for g in GT if g is not None][0])
-            else:
+        if sample in old_samples:
+            GT = old_rec.samples[sample]['GT']
+            if GT != (None, None, ):
                 GT = tuple(sorted(GT))
+        else:
+            GT = (None, None, )
 
         # Assign genotype to new record
-        new_rec.samples[id_mappings[sample]]['GT'] = GT
+        new_rec.samples[sample]['GT'] = GT
 
         # Update AC/AN
         AC += len([a for a in GT if a is not None and a > 0])
@@ -229,7 +150,7 @@ def map_genotypes(old_rec, new_rec, id_mappings, rec_fmt):
     return new_rec
 
 
-def format_record(old_rec, id_map, out_vcf, rec_fmt):
+def format_record(old_rec, out_vcf, rec_fmt):
     """
     Reformat an existing variant record and write to out_vcf
     """
@@ -245,11 +166,8 @@ def format_record(old_rec, id_map, out_vcf, rec_fmt):
     new_rec.info['SOURCE'] = rec_fmt.replace('-', '_')
     new_rec.info.pop('END')
 
-    # Map genotypes
-    if rec_fmt == 'exome':
-        new_rec = map_genotypes(old_rec, new_rec, id_map['exome_to_donor'], rec_fmt)
-    else:
-        new_rec = map_genotypes(old_rec, new_rec, id_map['array_to_donor'], rec_fmt)
+    # Populate genotypes
+    new_rec = map_genotypes(old_rec, new_rec, rec_fmt)
 
     out_vcf.write(new_rec)
 
@@ -259,7 +177,7 @@ def report_current_coords(current_records):
     Print position of current records
     """
 
-    fmt = 'Current positions (EX|GT|IMP): {}\n'
+    fmt = 'Current positions (IMPUTED|LOHGIC): {}\n'
     positions = []
     for rec in current_records.values():
         if rec is None:
@@ -286,11 +204,8 @@ def main():
     parser = argparse.ArgumentParser(
              description=__doc__,
              formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--sample-id-map', help='.tsv mapping between various IDs', required=True)
-    parser.add_argument('--exome-vcf', help='Exome .vcf', required=True)
-    parser.add_argument('--array-typed-vcf', help='Array genotyped .vcf', required=True)
-    parser.add_argument('--array-imputed-vcf', help='Array imputed .vcf', required=True)
-    parser.add_argument('--ref-fasta', help='Reference .fasta', required=True)
+    parser.add_argument('--lohgic-vcf', help='LOHGIC germline .vcf', required=True)
+    parser.add_argument('--imputed-vcf', help='Imputed .vcf', required=True)
     parser.add_argument('--header', help='Header to use for output .vcf', required=True)
     parser.add_argument('-o', '--outfile', default='stdout', help='path to merged ' +
                         '.vcf [default: stdout]')
@@ -298,21 +213,19 @@ def main():
                         'verbose logging [default: no logging]')
     args = parser.parse_args()
 
-    # Load sample ID map
-    id_map = load_id_map(args.sample_id_map)
+    # Open connections to all three input VCFs
+    in_vcfs = {'imputed' : pysam.VariantFile(args.imputed_vcf),
+               'lohgic' : pysam.VariantFile(args.lohgic_vcf)}
 
-    # Open connection to reference fa
-    ref_fa = pysam.FastaFile(args.ref_fasta)
+    # Gather list of all samples present in either VCF
+    all_samples = set()
+    for f in in_vcfs.values():
+        all_samples.update(set([s for s in f.header.samples]))
 
     # Load header and add all donor IDs
     header = pysam.VariantFile(args.header).header
-    for sample in id_map['exome_to_donor'].values():
+    for sample in all_samples:
         header.add_sample(sample)
-
-    # Open connections to all three input VCFs
-    in_vcfs = {'exome' : pysam.VariantFile(args.exome_vcf),
-               'array-typed' : pysam.VariantFile(args.array_typed_vcf),
-               'array-imputed' : pysam.VariantFile(args.array_imputed_vcf)}
 
     # Open connection to output VCF
     fout = args.outfile
@@ -320,13 +233,12 @@ def main():
         fout = stdout
     out_vcf = pysam.VariantFile(args.outfile, 'w', header=header)
 
-    # Walk through all three VCFs based on lowest coordinate
+    # Walk through both VCFs based on lowest coordinate
     variants_seen = set()
-    ex_rec, ex_id = next_record(in_vcfs['exome'])
-    gt_rec, gt_id = next_record(in_vcfs['array-typed'])
-    imp_rec, imp_id = next_record(in_vcfs['array-imputed'])
-    current_records = {'exome' : ex_rec, 'array-typed' : gt_rec, 'array-imputed' : imp_rec}
-    current_ids = {'exome' : ex_id, 'array-typed' : gt_id, 'array-imputed' : imp_id}
+    imp_rec, imp_id = next_record(in_vcfs['imputed'])
+    ex_rec, ex_id = next_record(in_vcfs['lohgic'])
+    current_records = {'imputed' : imp_rec, 'lohgic' : ex_rec}
+    current_ids = {'imputed' : imp_id, 'lohgic' : ex_id}
 
     # Keep processing records until all VCFs are exhausted
     while not all(r is None for r in current_records.values()):
@@ -337,21 +249,13 @@ def main():
         # Determine which record(s) to process next
         next_techs = determine_next_record(*current_records.values())
 
-        # Resolve discrepancies between genotyped & imputed data
-        if 'array-typed' in next_techs \
-        and 'array-imputed' in next_techs \
-        and current_ids['array-typed'] != current_ids['array-imputed']:
-            current_records, current_ids, in_vcfs, next_techs = \
-                resolve_array_discrepancies(current_records, current_ids, in_vcfs, 
-                                            next_techs, ref_fa, args.verbose)
-
         # Process current file pointer(s) that have the left-most position
         for tech in next_techs:
 
             # Write record to VCF if it hasn't already been written by a 
             # higher-priority technology
             if current_ids[tech] not in variants_seen:
-                format_record(current_records[tech], id_map, out_vcf, tech)
+                format_record(current_records[tech], out_vcf, tech)
                 variants_seen.add(current_ids[tech])
                 if args.verbose:
                     report_variant_processed(current_records, tech, 'written')

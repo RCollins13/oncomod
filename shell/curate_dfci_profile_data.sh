@@ -105,6 +105,14 @@ bcftools view \
   --force-samples \
   --regions-file $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz \
   $WRKDIR/LOHGIC/data/PROFILE.LOHGIC.predicted_germline_coding_variants.vcf.gz
+tabix -p vcf -f $WRKDIR/data/PROFILE.oncopanel_lohgic.vcf.gz
+# Merge imputed SNPs and inferred coding variants
+$CODEDIR/scripts/data_processing/merge_profile_snps_lohgic.py \
+  --lohgic-vcf $WRKDIR/data/PROFILE.oncopanel_lohgic.vcf.gz \
+  --imputed-vcf $WRKDIR/data/PROFILE.imputed_snps.vcf.gz \
+  --header $WRKDIR/refs/simple_hg19_header.vcf.gz \
+  --outfile $WRKDIR/data/PROFILE.RAS_loci.vcf.gz
+tabix -p vcf -f $WRKDIR/data/PROFILE.RAS_loci.vcf.gz
 
 
 ### Curate somatic data for patients of interest
