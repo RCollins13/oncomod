@@ -86,32 +86,46 @@ EOF
     -e $WRKDIR/LSF/logs/extract_${contig}_imputed_snps.err \
     $WRKDIR/LSF/scripts/extract_${contig}_imputed_snps.sh
 done
-# Merge imputed SNP VCFs for each chromosome into a single VCF and index the merged VCF
-for contig in $( seq 1 22 ); do
-  echo $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz
-done > $WRKDIR/data/PROFILE.snp_vcf_shards.list
-bcftools concat \
-  --file-list $WRKDIR/data/PROFILE.snp_vcf_shards.list \
-| bcftools annotate \
-  --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
-  --header-lines <( zcat $WRKDIR/refs/simple_hg19_header.vcf.gz | fgrep -w SVTYPE ) \
-  -O z -o $WRKDIR/data/PROFILE.imputed_snps.vcf.gz
-tabix -p vcf -f $WRKDIR/data/PROFILE.imputed_snps.vcf.gz
 # Extract inferred coding variants for samples & loci of interest
-bcftools view \
-  -O z -o $WRKDIR/data/PROFILE.oncopanel_lohgic.vcf.gz \
-  --min-ac 1 \
-  --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
-  --force-samples \
-  --regions-file $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz \
-  $WRKDIR/LOHGIC/data/PROFILE.LOHGIC.predicted_germline_coding_variants.vcf.gz
-tabix -p vcf -f $WRKDIR/data/PROFILE.oncopanel_lohgic.vcf.gz
+for contig in $( seq 1 22 ); do
+  bcftools view \
+    -O z -o $WRKDIR/data/PROFILE.oncopanel_lohgic.$contig.vcf.gz \
+    --min-ac 1 \
+    --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
+    --force-samples \
+    --regions-file <( zcat $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz \
+                      | awk -v contig=$contig '{ if ($1==contig) print }' ) \
+    $WRKDIR/LOHGIC/data/PROFILE.LOHGIC.predicted_germline_coding_variants.vcf.gz
+  tabix -p vcf -f $WRKDIR/data/PROFILE.oncopanel_lohgic.$contig.vcf.gz
+done
 # Merge imputed SNPs and inferred coding variants
+for contig in $( seq 1 22 ); do
+  cat << EOF > $WRKDIR/LSF/scripts/merge_imputed_lohgic_RAS_loci.$contig.sh
+#!/usr/bin/env bash
+. /PHShome/rlc47/.bashrc
+cd $WRKDIR
 $CODEDIR/scripts/data_processing/merge_profile_snps_lohgic.py \
-  --lohgic-vcf $WRKDIR/data/PROFILE.oncopanel_lohgic.vcf.gz \
-  --imputed-vcf $WRKDIR/data/PROFILE.imputed_snps.vcf.gz \
+  --lohgic-vcf $WRKDIR/data/PROFILE.oncopanel_lohgic.$contig.vcf.gz \
+  --imputed-vcf $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz \
   --header $WRKDIR/refs/simple_hg19_header.vcf.gz \
-  --outfile $WRKDIR/data/PROFILE.RAS_loci.vcf.gz
+  --outfile $WRKDIR/data/PROFILE.RAS_loci.$contig.vcf.gz
+tabix -p vcf -f $WRKDIR/data/PROFILE.RAS_loci.$contig.vcf.gz
+EOF
+  chmod a+x $WRKDIR/LSF/scripts/merge_imputed_lohgic_RAS_loci.$contig.sh
+  rm $WRKDIR/LSF/logs/merge_imputed_lohgic_RAS_loci.$contig.*
+  bsub \
+    -q normal -R 'rusage[mem=6000]' -J TCGA_merge_imputed_lohgic_RAS_loci_$contig \
+    -o $WRKDIR/LSF/logs/merge_imputed_lohgic_RAS_loci.$contig.log \
+    -e $WRKDIR/LSF/logs/merge_imputed_lohgic_RAS_loci.$contig.err \
+    $WRKDIR/LSF/scripts/merge_imputed_lohgic_RAS_loci.$contig.sh
+done
+# # Merge combined VCFs for each chromosome into a single VCF and index the merged VCF
+for contig in $( seq 1 22 ); do
+  echo $WRKDIR/data/PROFILE.RAS_loci.$contig.vcf.gz
+done > $WRKDIR/data/PROFILE.combined_vcf_shards.list
+bcftools concat \
+  --file-list $WRKDIR/data/PROFILE.combined_vcf_shards.list \
+  -O z -o $WRKDIR/data/PROFILE.RAS_loci.vcf.gz
 tabix -p vcf -f $WRKDIR/data/PROFILE.RAS_loci.vcf.gz
 
 

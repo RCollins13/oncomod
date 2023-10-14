@@ -221,6 +221,7 @@ def main():
     all_samples = set()
     for f in in_vcfs.values():
         all_samples.update(set([s for s in f.header.samples]))
+    all_samples = sorted(list(all_samples))
 
     # Load header and add all donor IDs
     header = pysam.VariantFile(args.header).header
