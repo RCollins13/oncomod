@@ -68,7 +68,7 @@ gsutil -m cp \
   gs://hmf-dr-355-us-central1/manifest.json \
   $WRKDIR/data/sample_info/
 # 2. Curate metadata for patients with relevant cancer types and MSS tumors
-$TMPDIR/preprocess_hmf_phenotypes.py \
+$CODEDIR/scripts/data_processing/preprocess_hmf_phenotypes.py \
   --metadata $WRKDIR/data/sample_info/metadata.tsv \
   --purple-qc $WRKDIR/data/all_somatic/HMF.all.purple.somatic_qc.tsv.gz \
   --germline-vcfs-list $WRKDIR/data/HMF.sample_vcfs.list \

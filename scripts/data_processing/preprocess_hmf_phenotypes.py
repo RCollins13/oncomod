@@ -204,8 +204,6 @@ def main():
     # Clean up columns for final outputs
     meta = clean_output_df(meta)
 
-    import pdb; pdb.set_trace()
-
     # Write out sample IDs per cancer type
     for cancer in 'PDAC CRAD LUAD'.split():
         with open(args.out_prefix + cancer + '.samples.list', 'w') as fout:
