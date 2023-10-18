@@ -207,17 +207,17 @@ def main():
     # Write out sample IDs per cancer type
     for cancer in 'PDAC CRAD LUAD'.split():
         with open(args.out_prefix + cancer + '.samples.list', 'w') as fout:
-            ids = set(meta.DONOR_ID.astype(str)[meta.CANCER_TYPE == cancer].to_list())
+            ids = set(meta.SAMPLE_ID.astype(str)[meta.CANCER_TYPE == cancer].to_list())
             for sample in ids:
                 fout.write(sample + '\n')
     all_cancers_out = args.out_prefix + 'ALL' + '.samples.with_cancer_labels.tsv'
-    meta.loc[:, 'DONOR_ID CANCER_TYPE'.split()].\
+    meta.loc[:, 'SAMPLE_ID CANCER_TYPE'.split()].\
             to_csv(all_cancers_out, sep='\t', index=False, header=False)
     all_samples_out = args.out_prefix + 'ALL' + '.samples.list'
-    meta.DONOR_ID.to_csv(all_samples_out, sep='\t', index=False, header=False)
+    meta.SAMPLE_ID.to_csv(all_samples_out, sep='\t', index=False, header=False)
 
     # Write out full table of patient metadata for all cancer types
-    meta.rename(columns = {'DONOR_ID' : '#DONOR_ID'}, inplace=True)
+    meta.rename(columns = {'SAMPLE_ID' : '#SAMPLE_ID'}, inplace=True)
     meta.to_csv(args.out_prefix + 'ALL.sample_metadata.tsv.gz', 
                    index=False, sep='\t', na_rep='.')
 
