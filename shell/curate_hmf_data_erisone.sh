@@ -21,7 +21,7 @@ cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in data data/sample_vcfs data/sample_info LSF LSF/scripts LSF/logs ../refs refs; do
+for SUBDIR in data data/sample_vcfs data/sample_info data/all_somatic LSF LSF/scripts LSF/logs ../refs refs; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -69,6 +69,7 @@ EOF
     -e $WRKDIR/LSF/logs/merge_sample_vcfs.$contig.err \
     $WRKDIR/LSF/scripts/merge_sample_vcfs.$contig.sh
 done
+# 4. Merge cohort-wide VCFs across all chromosomes
 for contig in $( seq 1 22 ) X Y; do
   echo $WRKDIR/data/HMF.RAS_loci.$contig.vcf.gz
 done > $WRKDIR/data/HMF.combined_vcf_shards.list
@@ -76,4 +77,16 @@ bcftools concat \
   --file-list $WRKDIR/data/HMF.combined_vcf_shards.list \
   -O z -o $WRKDIR/data/HMF.RAS_loci.vcf.gz
 tabix -p vcf -f $WRKDIR/data/HMF.RAS_loci.vcf.gz
+
+
+### Curate somatic variants in regions of interest
+# 1. Download & extract HMF somatic data
+gsutil -m cp \
+  gs://hmf-dr-355-us-central1/somatic.tar.gz \
+  $WRKDIR/data/all_somatic/
+tar -xzvf $WRKDIR/data/all_somatic/somatic.tar.gz
+
+
+
+
 
