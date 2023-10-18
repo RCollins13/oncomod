@@ -116,30 +116,21 @@ def polish_metadata(meta, purple_in):
     return meta
 
 
-def select_patients(meta, vcf_paths=None, json_in=None):
+def select_patients(meta, vcf_ids_list=None, json_in=None):
     """
     Subset to unique patients with matching germline data (if optioned)
     """
 
-    if vcf_paths is not None and json_in is not None:
+    if vcf_ids_list is not None and json_in is not None:
 
         # Infer sample IDs based on file paths
-        with open(vcf_paths) as fin:
-            vcfs = [basename(l.rstrip()) for l in fin.readlines()]
-        sids = [v.split('.')[0] for v in vcfs]
-
-        # Get mapping of tumor IDs to germline VCF prefixes from json
-        vcf_prefix_map = {}
-        with open(json_in) as fin:
-            mfst = json.load(fin)
-            for sdict in mfst['data']:
-                sid = sdict['sampleId']
-                vcf = sdict['germline']['variants']['url']
-                vcf_prefix = basename(vcf).split('.')[0]
-                vcf_prefix_map[sid] = vcf_prefix
+        with open(vcf_ids_list) as fin:
+            sids = [l.rstrip() for l in fin.readlines()]
+            normals = [s for s in sids if s.endswith('R')]
+            norm_tsuf = [sub('R$', 'T', s) for s in normals]
 
         # Only keep rows with matching germline VCFs
-        keepers = meta.sampleId.map(vcf_prefix_map).isin(sids)
+        keepers = meta.sampleId.isin(norm_tsuf)
         meta = meta[keepers]
 
     # Deduplicate based on unique patient IDs
@@ -183,7 +174,9 @@ def main():
              formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--metadata', help='HMF metadata.tsv', required=True)
     parser.add_argument('--purple-qc', help='.tsv of Purple somatic QC')
-    parser.add_argument('--germline-vcfs-list', help='List of germline VCFs')
+    parser.add_argument('--vcf-ids', help='Flat one-column file with all sample ' + 
+                        'IDs present in germline VCF. If provided, will subset ' + 
+                        'all outputs to only these samples.')
     parser.add_argument('--hmf-json', help='HMF manifest.json')
     parser.add_argument('--out-prefix', help='Prefix for output files', required=True)
     args = parser.parse_args()
@@ -196,7 +189,7 @@ def main():
         meta = polish_metadata(meta, args.purple_qc)
 
     # Restrict to tumors from patients with germline data available
-    meta = select_patients(meta, args.germline_vcfs_list, args.hmf_json)
+    meta = select_patients(meta, args.vcf_ids, args.hmf_json)
 
     # Add ancestry information
     # TODO: need to implement this once we have PCs

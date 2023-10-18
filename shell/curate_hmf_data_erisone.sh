@@ -57,8 +57,13 @@ col_idxs=$( head -n1 $WRKDIR/data/sample_info/HMF.hg19_terra_workspace.sample_in
 sed '1d' $WRKDIR/data/sample_info/HMF.hg19_terra_workspace.sample_info.tsv \
 | cut -f$col_idxs | sed 's/\t/\n/g' \
 | gsutil -m cp -I $WRKDIR/data/sample_vcfs/
-# Get consensus header from all samples
+# Get list of all VCFs
 find $WRKDIR/data/sample_vcfs/ -name "*vcf.gz" > $WRKDIR/data/HMF.sample_vcfs.list
+# Get list of samples from all VCFs
+while read vcf; do
+  bcftools query -l $vcf
+done < $WRKDIR/data/HMF.sample_vcfs.list | sort -V | uniq \
+> $WRKDIR/data/HMF.ss_germline_vcfs.all_samples.list
 
 
 ### Curate clinical information for patients of interest
@@ -68,10 +73,11 @@ gsutil -m cp \
   gs://hmf-dr-355-us-central1/manifest.json \
   $WRKDIR/data/sample_info/
 # 2. Curate metadata for patients with relevant cancer types and MSS tumors
-$CODEDIR/scripts/data_processing/preprocess_hmf_phenotypes.py \
+# $CODEDIR/scripts/data_processing/preprocess_hmf_phenotypes.py \
+$TMPDIR/preprocess_hmf_phenotypes.py \
   --metadata $WRKDIR/data/sample_info/metadata.tsv \
   --purple-qc $WRKDIR/data/all_somatic/HMF.all.purple.somatic_qc.tsv.gz \
-  --germline-vcfs-list $WRKDIR/data/HMF.sample_vcfs.list \
+  --vcf-ids $WRKDIR/data/HMF.ss_germline_vcfs.all_samples.list \
   --hmf-json $WRKDIR/data/sample_info/manifest.json \
   --out-prefix $WRKDIR/data/sample_info/HMF.
 
@@ -95,6 +101,8 @@ bcftools merge \
   --no-version \
   --missing-to-ref \
   --threads 4 \
+| bcftools view \
+  --samples-file $WRKDIR/data/sample_info/HMF.ALL.samples.list \
 | bcftools +fill-tags - -- -t AN,AC,AF,HWE \
 | bcftools view \
   -Oz -o $WRKDIR/data/HMF.RAS_loci.$contig.vcf.gz \
