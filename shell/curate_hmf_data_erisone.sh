@@ -28,21 +28,62 @@ for SUBDIR in data data/sample_vcfs data/sample_info data/all_somatic LSF LSF/sc
 done
 
 
-### Curate germline variants in regions of interest
-# 1. Copy single-sample VCFs from GCP to ERISOne
-#    This requires sample metadata manually downloaded from Terra
+### Collect Purple somatic QC (including sex inference & MSI status)
+# Note that this has to be performed prior to any downstream data curation
+# 1. Download & extract HMF somatic data
+gsutil -m cp \
+  gs://hmf-dr-355-us-central1/somatic.tar.gz \
+  $WRKDIR/data/all_somatic/
+tar -xzvf $WRKDIR/data/all_somatic/somatic.tar.gz
+rm $WRKDIR/data/all_somatic/somatic.tar.gz
+# 2. Interate over all samples and combine PURPLE somatic QC
+find $WRKDIR/data/all_somatic/ -name "*.purple.purity.tsv" \
+| head -n1 | xargs -I {} cat {} | head -n1 | sed 's/#//g' \
+| awk -v OFS="\t" '{ print "#sample", $0 }' \
+> $WRKDIR/data/all_somatic/HMF.all.purple.somatic_qc.tsv
+while read file; do
+  sid=$( basename $file | sed 's/.purple.purity.tsv//g' )
+  cat $file | tail -n1 | paste <( echo -e "$sid" ) -
+done < <( find $WRKDIR/data/all_somatic/ -name "*.purple.purity.tsv" ) \
+| sort -Vk1,1 >> $WRKDIR/data/all_somatic/HMF.all.purple.somatic_qc.tsv
+gzip -f $WRKDIR/data/all_somatic/HMF.all.purple.somatic_qc.tsv
+
+
+
+### Download germline VCFs from Terra
+# This requires sample metadata manually downloaded from Terra
 col_idxs=$( head -n1 $WRKDIR/data/sample_info/HMF.hg19_terra_workspace.sample_info.tsv \
             | sed 's/\t/\n/g' | awk '{ if ($1 ~ "ras_loci_vcf") print NR }' | paste -s -d, )
 sed '1d' $WRKDIR/data/sample_info/HMF.hg19_terra_workspace.sample_info.tsv \
 | cut -f$col_idxs | sed 's/\t/\n/g' \
 | gsutil -m cp -I $WRKDIR/data/sample_vcfs/
-# 2. Get consensus header from all samples
+# Get consensus header from all samples
 find $WRKDIR/data/sample_vcfs/ -name "*vcf.gz" > $WRKDIR/data/HMF.sample_vcfs.list
-while read vcf; do
-  tabix -H $vcf | grep '^##FILTER\|^##INFO'
-done < $WRKDIR/data/HMF.sample_vcfs.list \
-| sort -V | uniq
-# 3. Merge single-sample VCFs into cohort-wide VCFs per chromosome
+
+
+### Curate clinical information for patients of interest
+# 1. Download HMF metadata
+gsutil -m cp \
+  gs://hmf-dr-355-us-central1/metadata.tsv \
+  gs://hmf-dr-355-us-central1/manifest.json \
+  $WRKDIR/data/sample_info/
+# 2. Curate metadata for patients with relevant cancer types and MSS tumors
+$TMPDIR/preprocess_hmf_phenotypes.py \
+  --metadata $WRKDIR/data/sample_info/metadata.tsv \
+  --purple-qc $WRKDIR/data/all_somatic/HMF.all.purple.somatic_qc.tsv.gz \
+  --germline-vcfs-list $WRKDIR/data/HMF.sample_vcfs.list \
+  --hmf-json $WRKDIR/data/sample_info/manifest.json \
+  --out-prefix $WRKDIR/data/sample_info/HMF.
+
+
+### Curate somatic variants in regions of interest
+# 2. Clear data for unnecessary samples
+# TODO: implement this
+
+
+
+### Curate germline variants in regions of interest
+# 1. Merge single-sample VCFs into cohort-wide VCFs per chromosome
 for contig in $( seq 1 22 ) X Y; do
   cat << EOF > $WRKDIR/LSF/scripts/merge_sample_vcfs.$contig.sh
 #!/usr/bin/env bash
@@ -69,7 +110,7 @@ EOF
     -e $WRKDIR/LSF/logs/merge_sample_vcfs.$contig.err \
     $WRKDIR/LSF/scripts/merge_sample_vcfs.$contig.sh
 done
-# 4. Merge cohort-wide VCFs across all chromosomes
+# 2. Merge cohort-wide VCFs across all chromosomes
 for contig in $( seq 1 22 ) X Y; do
   echo $WRKDIR/data/HMF.RAS_loci.$contig.vcf.gz
 done > $WRKDIR/data/HMF.combined_vcf_shards.list
@@ -78,13 +119,6 @@ bcftools concat \
   -O z -o $WRKDIR/data/HMF.RAS_loci.vcf.gz
 tabix -p vcf -f $WRKDIR/data/HMF.RAS_loci.vcf.gz
 
-
-### Curate somatic variants in regions of interest
-# 1. Download & extract HMF somatic data
-gsutil -m cp \
-  gs://hmf-dr-355-us-central1/somatic.tar.gz \
-  $WRKDIR/data/all_somatic/
-tar -xzvf $WRKDIR/data/all_somatic/somatic.tar.gz
 
 
 

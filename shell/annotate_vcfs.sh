@@ -20,6 +20,7 @@
 ### Set local parameters
 export TCGADIR=/data/gusev/USERS/rlc47/TCGA
 export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
+export HMFDIR=/data/gusev/USERS/rlc47/HMF
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
 export CODEDIR=$WRKDIR/../code/oncomod
 export VEP_CACHE=$WRKDIR/../refs/vep_cache
@@ -349,13 +350,16 @@ chmod a+x $WRKDIR/LSF/scripts/run_VEP.sh
 
 
 ### Annotate VCFs
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
       ;;
   esac
   for subset in somatic_variants RAS_loci; do
