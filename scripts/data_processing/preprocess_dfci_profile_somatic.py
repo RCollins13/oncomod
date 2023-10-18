@@ -209,7 +209,7 @@ def main():
     if args.priority_genes is not None:
         with open(args.priority_genes) as fin:
             key_genes = list(set([l.rstrip() for l in fin.readlines()]))
-            import pdb; pdb.set_trace()
+            mut_df = mut_df[mut_df.CANONICAL_GENE.isin(key_genes)]
 
     # Remove high-confidence germline variant predictions, if provided
     if args.lohgic is not None:
