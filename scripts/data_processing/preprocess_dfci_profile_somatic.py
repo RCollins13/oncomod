@@ -29,7 +29,8 @@ def load_id_map(samples_in, id_map_tsv):
     id_df = pd.read_csv(id_map_tsv, sep='\t')
     id_df = id_df[id_df.PBP.isin(samples)]
 
-    return id_df.set_index('SAMPLE_ACCESSION_NBR', drop=True).to_dict()['PBP']
+    return {'BL' : id_df.set_index('SAMPLE_ACCESSION_NBR', drop=True).to_dict()['PBP'],
+            'MRN' : id_df.set_index('DFCI_MRN', drop=True).to_dict()['PBP']}
 
 
 def load_mutation_data(mutation_csv, id_map):
@@ -139,6 +140,32 @@ def add_cna_data(cna_csv, mut_df, id_map, genes_gtf=None):
     return out_df.sort_values('CHROMOSOME POSITION'.split())
 
 
+def remove_germline(mut_df, mrn_map, lohgic_in):
+    """
+    Remove high-confidence germline predictions from somatic mut_df
+    """
+
+    join_keys = 'CHROMOSOME POSITION REF_ALLELE ALT_ALLELE PBP'.split()
+
+    # Load high-confidence germline predictions
+    ldf = pd.read_csv(lohgic_in, sep='\t')
+    ldf['PBP'] = ldf.DFCI_MRN.map(mrn_map)
+    ldf = ldf.loc[(ldf.pred_label == 'germline') & (~ldf.PBP.isna()),
+                  join_keys + ['pred_label']]
+
+    # Intersect germline with mut_df
+    join_key_types = {k : 'str' for k in join_keys}
+    ldf = ldf.astype(join_key_types)
+    mut_df = mut_df.astype(join_key_types)
+    mut_df = mut_df.merge(ldf, how='left', on=join_keys, sort=False)
+
+    # Discard all germline variants
+    mut_df = mut_df[mut_df.pred_label == 'germline']
+    mut_df.drop(columns='pred_label', inplace=True)
+
+    return mut_df
+
+
 def main():
     """
     Main block
@@ -155,7 +182,12 @@ def main():
     parser.add_argument('--id-map-tsv', help='.tsv mapping between various IDs', required=True)
     parser.add_argument('--genes-gtf', help='.gtf of gene annotations. If provided, ' +
                         'will be used to add approximate coordinates to CNA rows.')
+    parser.add_argument('--priority-genes', help='If provided, will subset all data ' + 
+                        'to only variants in these genes [default: keep all genes]')
     parser.add_argument('--ref-fasta', help='Reference .fasta', required=True)
+    parser.add_argument('--lohgic', help='Germline predictions from LOHGIC meta-' +
+                        'classifier. Not required, but will be used to exclude ' +
+                        'high-confidence germline variants if provided.')
     parser.add_argument('--header', help='Header to use for output .vcf', required=True)
     parser.add_argument('-o', '--outfile', default='stdout', help='path to somatic ' +
                         'variation .vcf [default: stdout]')
@@ -163,14 +195,25 @@ def main():
     args = parser.parse_args()
 
     # Load ID map for samples of interest
-    id_map = load_id_map(args.samples_list, args.id_map_tsv)
+    id_maps = load_id_map(args.samples_list, args.id_map_tsv)
+    id_map = id_maps['BL']
     samples = list(id_map.values())
 
-    # Load mutation data and subset to samples of interest
+    # Load mutation data and subset to samples (and genes) of interest
     mut_df = load_mutation_data(args.mutation_csv, id_map)
     
     # Load CNA data, subset to samples of interest, and merge with mut_df
     mut_df = add_cna_data(args.cna_csv, mut_df, id_map, args.genes_gtf)
+
+    # Subset to genes of interest, if optioned
+    if args.priority_genes is not None:
+        with open(args.priority_genes) as fin:
+            key_genes = list(set([l.rstrip() for l in fin.readlines()]))
+            import pdb; pdb.set_trace()
+
+    # Remove high-confidence germline variant predictions, if provided
+    if args.lohgic is not None:
+        remove_germline(mut_df, id_maps['MRN'], args.lohgic)
 
     # Load lists of samples missing mutation and/or CNA data
     # These samples will be included in the VCF but reported as null GT for all records

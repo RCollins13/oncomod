@@ -152,7 +152,9 @@ $CODEDIR/scripts/data_processing/preprocess_dfci_profile_somatic.py \
   --no-cna-data $WRKDIR/data/sample_info/PROFILE.ALL.samples.missing_somatic.cna.list \
   --id-map-tsv $CLINDIR/PROFILE_MRN_BL_PANEL.PBP.tab \
   --genes-gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
+  --priority-genes <( fgrep -w KRAS $WRKDIR/../refs/COSMIC.all_GCG.Nov8_2022.genes.list ) \
   --ref-fasta $WRKDIR/refs/GRCh37.fa \
+  --lohgic $WRKDIR/LOHGIC/data/PROFILE.LOHGIC.annotated.final_predictions.tsv.gz \
   --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
   --outfile $WRKDIR/data/PROFILE.somatic_variants.vcf.gz \
   --out-tsv $WRKDIR/data/PROFILE.somatic_variants.tsv.gz
