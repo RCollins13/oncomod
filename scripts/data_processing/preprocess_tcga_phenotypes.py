@@ -124,6 +124,9 @@ def clean_output_df(main_df):
     for col in missing_columns.split():
         main_df[col] = pd.NA
 
+    # Deduplicate by donor ID
+    main_df.drop_duplicates('DONOR_ID', inplace=True)
+
     col_order = 'DONOR_ID SEX POPULATION CANCER_TYPE PRIMARY_CANCER_DIAGNOSIS ' + \
                 'AJCC_STAGE APPROX_STAGE DIAGNOSIS_DATE AGE_AT_DIAGNOSIS ' + \
                 'DIAGNOSIS_YEAR IS_ALIVE LAST_ALIVE_DATE DAYS_SURVIVED ' + \

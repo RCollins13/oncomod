@@ -49,7 +49,6 @@ done < <( find $WRKDIR/data/all_somatic/ -name "*.purple.purity.tsv" ) \
 gzip -f $WRKDIR/data/all_somatic/HMF.all.purple.somatic_qc.tsv
 
 
-
 ### Download germline VCFs from Terra
 # This requires sample metadata manually downloaded from Terra
 col_idxs=$( head -n1 $WRKDIR/data/sample_info/HMF.hg19_terra_workspace.sample_info.tsv \
@@ -73,8 +72,7 @@ gsutil -m cp \
   gs://hmf-dr-355-us-central1/manifest.json \
   $WRKDIR/data/sample_info/
 # 2. Curate metadata for patients with relevant cancer types and MSS tumors
-# $CODEDIR/scripts/data_processing/preprocess_hmf_phenotypes.py \
-$TMPDIR/preprocess_hmf_phenotypes.py \
+$CODEDIR/scripts/data_processing/preprocess_hmf_phenotypes.py \
   --metadata $WRKDIR/data/sample_info/metadata.tsv \
   --purple-qc $WRKDIR/data/all_somatic/HMF.all.purple.somatic_qc.tsv.gz \
   --vcf-ids $WRKDIR/data/HMF.ss_germline_vcfs.all_samples.list \
@@ -83,9 +81,7 @@ $TMPDIR/preprocess_hmf_phenotypes.py \
 
 
 ### Curate somatic variants in regions of interest
-# 2. Clear data for unnecessary samples
 # TODO: implement this
-
 
 
 ### Curate germline variants in regions of interest
@@ -124,6 +120,8 @@ for contig in $( seq 1 22 ) X Y; do
 done > $WRKDIR/data/HMF.combined_vcf_shards.list
 bcftools concat \
   --file-list $WRKDIR/data/HMF.combined_vcf_shards.list \
+| bcftools annotate \
+  --header-lines <( tabix -H $WRKDIR/refs/simple_hg19_header.vcf.gz | grep 'SOURCE\|SVTYPE' ) \
   -O z -o $WRKDIR/data/HMF.RAS_loci.vcf.gz
 tabix -p vcf -f $WRKDIR/data/HMF.RAS_loci.vcf.gz
 

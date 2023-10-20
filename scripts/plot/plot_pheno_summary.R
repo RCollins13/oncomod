@@ -134,11 +134,14 @@ dev.off()
 # Cohort-specific plots #
 #########################
 for(cohort in names(meta)){
-  # Scatterplot of PC1xPC2 colored by ancestry
-  pdf(paste(out.prefix, cohort, "ancestry_pcs.pdf", sep="."),
-      height=2.5, width=3.25)
-  pc.scatter.w.bar(meta[[cohort]], pop.colors)
-  dev.off()
+  if(any(!is.na(meta[[cohort]]$PC1))
+     & any(!is.na(meta[[cohort]]$PC2))){
+    # Scatterplot of PC1xPC2 colored by ancestry
+    pdf(paste(out.prefix, cohort, "ancestry_pcs.pdf", sep="."),
+        height=2.5, width=3.25)
+    pc.scatter.w.bar(meta[[cohort]], pop.colors)
+    dev.off()
+  }
 }
 
 

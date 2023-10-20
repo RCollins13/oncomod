@@ -363,18 +363,21 @@ for cohort in TCGA PROFILE HMF; do
       ;;
   esac
   for subset in somatic_variants RAS_loci; do
-    for suf in err log; do
-      if [ -e $WRKDIR/LSF/logs/VEP_${cohort}_$subset.$suf ]; then
-        rm $WRKDIR/LSF/logs/VEP_${cohort}_$subset.$suf
-      fi
-    done
-    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
-      -J VEP_${cohort}_$subset \
-      -o $WRKDIR/LSF/logs/VEP_${cohort}_$subset.log \
-      -e $WRKDIR/LSF/logs/VEP_${cohort}_$subset.err \
-      "$WRKDIR/LSF/scripts/run_VEP.sh \
-         $COHORTDIR/data/$cohort.$subset.vcf.gz \
-         $COHORTDIR/data/$cohort.$subset.anno.vcf.gz"
+    invcf=$COHORTDIR/data/$cohort.$subset.vcf.gz
+    if [ -e $invcf ]; then
+      for suf in err log; do
+        if [ -e $WRKDIR/LSF/logs/VEP_${cohort}_$subset.$suf ]; then
+          rm $WRKDIR/LSF/logs/VEP_${cohort}_$subset.$suf
+        fi
+      done
+      bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+        -J VEP_${cohort}_$subset \
+        -o $WRKDIR/LSF/logs/VEP_${cohort}_$subset.log \
+        -e $WRKDIR/LSF/logs/VEP_${cohort}_$subset.err \
+        "$WRKDIR/LSF/scripts/run_VEP.sh \
+           $COHORTDIR/data/$cohort.$subset.vcf.gz \
+           $COHORTDIR/data/$cohort.$subset.anno.vcf.gz"
+    fi
   done
 done
 

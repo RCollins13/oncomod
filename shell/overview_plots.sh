@@ -16,6 +16,7 @@
 ### Set local parameters
 export TCGADIR=/data/gusev/USERS/rlc47/TCGA
 export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
+export HMFDIR=/data/gusev/USERS/rlc47/HMF
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
 export CODEDIR=$WRKDIR/../code/oncomod
 cd $WRKDIR
@@ -46,6 +47,7 @@ Rscript -e "install.packages('$WRKDIR/../code/rCNV2/source/rCNV2_1.0.1.tar.gz', 
 ### Plot patient metadata summaries
 $CODEDIR/scripts/plot/plot_pheno_summary.R \
   --cohort-name TCGA --metadata $TCGADIR/data/sample_info/TCGA.ALL.sample_metadata.tsv.gz \
+  --cohort-name HMF --metadata $HMFDIR/data/sample_info/HMF.ALL.sample_metadata.tsv.gz \
   --cohort-name DFCI --metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
   --out-prefix $WRKDIR/plots/overview/cohort_summary
 
@@ -126,13 +128,16 @@ $TMPDIR/gather_somatic_ras_data.py \
 
 ### Plot germline variant summaries
 # Convert each cohort's AF-annotated VCF to BED without samples
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
       ;;
   esac
   svtk vcf2bed -i ALL --no-samples \
@@ -146,6 +151,8 @@ $CODEDIR/scripts/plot/plot_germline_AF_comparisons.R \
   --name TCGA \
   --bed $WRKDIR/data/plotting/PROFILE.germline_variants.bed.gz \
   --name DFCI \
+  --bed $WRKDIR/data/plotting/HMF.germline_variants.bed.gz \
+  --name HMF \
   --out-prefix $WRKDIR/plots/overview/germline_variants/AF_comparisons/AF_comparisons
   
 

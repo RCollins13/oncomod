@@ -193,7 +193,7 @@ cat << EOF > $WRKDIR/LSF/scripts/merge_arrays_exomes_RAS_loci.sh
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
 $CODEDIR/scripts/data_processing/merge_tcga_arrays_exomes.py \
-  --sample-id-map /data/gusev/USERS/rlc47/TCGA/data/sample_info/TCGA.ALL.id_map.tsv.gz \
+  --sample-id-map $WRKDIR/data/sample_info/TCGA.ALL.id_map.tsv.gz \
   --exome-vcf $WRKDIR/data/TCGA.RAS_loci.exome.vcf.gz \
   --array-typed-vcf $WRKDIR/data/TCGA.RAS_loci.array_typed.vcf.gz \
   --array-imputed-vcf $WRKDIR/data/TCGA.RAS_loci.array_imputed.vcf.gz \
