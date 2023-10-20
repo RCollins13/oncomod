@@ -83,6 +83,7 @@ $CODEDIR/scripts/data_processing/harmonize_tcga_samples.py \
   --array-typed-ids $WRKDIR/data/sample_info/TCGA.vcf.array_typed.samples.gusev_IDs.list \
   --array-imputed-ids $WRKDIR/data/sample_info/TCGA.vcf.array_imputed.samples.gusev_IDs.list \
   --msi-tsv $WRKDIR/data/TCGA.MSI_mantis.Bonneville_2017.tsv.gz \
+  --cdr-csv $BASEDIR/TCGA_CDR.csv \
   --tcga-tss-table $CODEDIR/refs/TCGA_TSS_codes.tsv.gz \
   --tcga-study-table $CODEDIR/refs/TCGA_study_codes.tsv.gz \
   --out-prefix $WRKDIR/data/sample_info/TCGA

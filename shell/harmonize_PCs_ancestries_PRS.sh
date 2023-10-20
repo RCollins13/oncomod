@@ -273,6 +273,7 @@ bcftools merge \
   --threads 4 \
 | bcftools annotate \
   --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
+| bcftools view \
   --samples-file $HMFDIR/data/sample_info/HMF.ALL.samples.list \
 | bcftools norm \
   --atomize \
