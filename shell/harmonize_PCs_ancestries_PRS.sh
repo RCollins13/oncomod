@@ -239,6 +239,8 @@ for contig in $( seq 1 22 ); do
 done > $TCGADIR/data/1000G_common_snps.shards.list
 bcftools concat \
   --file-list $TCGADIR/data/1000G_common_snps.shards.list \
+| bcftools view \
+  --samples-file $TCGADIR/data/sample_info/TCGA.ALL.donors.list \
 | bcftools norm \
   --atomize \
   --check-ref x \
@@ -294,8 +296,6 @@ bsub \
 
 
 ### Merge SNPs across all cohorts
-# Note: currently imposing no call rate filter (can be added downstream)
-# May want to revisit this
 bcftools merge \
   --no-version \
   --threads 4 \
@@ -309,10 +309,25 @@ bcftools merge \
 
 
 ### Compute PC loadings with plink
+# Note: currently imposing no call rate filter. May need to revisit this
+cat << EOF > $WRKDIR/LSF/scripts/study_wide_PCA.sh
+#!/usr/bin/env bash
+. /PHShome/rlc47/.bashrc
+cd $WRKDIR
 module load plink/1.90b3
 plink \
-  --threads 4 \
-  --memory 16000 \
+  --threads 8 \
+  --memory 32000 \
   --vcf $WRKDIR/data/all_cohorts.1000G_common_snps.vcf.gz \
   --pca \
   --out $WRKDIR/data/all_cohorts.1000G_common_snps
+EOF
+chmod a+x $WRKDIR/LSF/scripts/study_wide_PCA.sh
+rm $WRKDIR/LSF/logs/study_wide_PCA.*
+bsub \
+  -q big-multi -sla miket_sc \
+  -n 8 -R 'rusage[mem=32000]' -J study_wide_PCA \
+  -o $WRKDIR/LSF/logs/study_wide_PCA.log \
+  -e $WRKDIR/LSF/logs/study_wide_PCA.err \
+  $WRKDIR/LSF/scripts/study_wide_PCA.sh
+
