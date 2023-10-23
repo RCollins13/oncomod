@@ -170,7 +170,7 @@ scaled.swarm <- function(values, colors, group.names=NULL, sep.wex=0.05,
 
   # Get plot dimensions
   group.widths <- group.size / sum(group.size)
-  group.lefts <- c(0, group.widths[-n.groups]) + (sep.wex * (0:(n.groups-1)))
+  group.lefts <- c(0, cumsum(group.widths)[-n.groups]) + (sep.wex * (0:(n.groups-1)))
   group.rights <- group.widths + group.lefts
   group.mids <- (group.lefts + group.rights) / 2
   xlims <- c(-sep.wex, max(group.rights))

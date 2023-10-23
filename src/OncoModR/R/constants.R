@@ -137,9 +137,9 @@ load.constants <- function(subset, envir=.GlobalEnv){
                        "2" = "#FFCC66",
                        "3" = "#FE8002",
                        "4" = "#ED3823"),
-    "cohort.color.prefixes" = c("TCGA" = "light2",
-                                "HMF" = "main",
-                                "DFCI" = "dark2"),
+    "cohort.color.prefixes" = c("HMF" = "light2",
+                                "DFCI" = "main",
+                                "TCGA" = "dark2"),
     "exon.color" = "#027831",
     "gene.color" = "#235020")
 
