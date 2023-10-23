@@ -28,7 +28,7 @@ cd $WRKDIR
 
 
 ### Set up directory trees as necessary
-for SUBDIR in LSF LSF/logs LSF/scripts; do
+for SUBDIR in LSF LSF/logs LSF/scripts data/1000G_SNPs; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -40,8 +40,7 @@ for SUBDIR in phase3 phase3/common_SNPs phase3/common_SNPs/LD_pruned; do
 done
 
 
-### Prepare ref panel of LD-pruned common SNP markers for downstream analyses
-# 1. Download VCFs with genotypes from 1kG phase 3 
+### Prepare ref panel data from 1kG phase 3
 for contig in $( seq 1 22 ); do
   cat <<EOF > $WRKDIR/LSF/scripts/dl_auton_vcf.$contig.sh
 #!/usr/bin/env bash
@@ -58,71 +57,95 @@ EOF
     -e $WRKDIR/LSF/logs/dl_auton_vcf.$contig.err \
     $WRKDIR/LSF/scripts/dl_auton_vcf.$contig.sh
 done
-# 2. Filter each to common biallelic SNPs
+
+
+### Identify SNP markers that are well-typed across all cohorts
+# 1. Identify well-typed biallelic SNPs in TCGA array data
+bcftools view \
+  --samples-file $TCGADIR/data/sample_info/TCGA.ALL.array_typed.samples.list \
+  $TCGADIR/data/TCGA.array_typed.vcf.gz \
+| bcftools +fill-tags - -- -t F_MISSING \
+| bcftools view \
+  --no-version -G --include 'F_MISSING < 0.02' -m 2 -M 2 --type snps \
+  -Oz -o $TCGADIR/data/TCGA.well_typed_snps.sites.vcf.gz
+tabix -p vcf -f $TCGADIR/data/TCGA.well_typed_snps.sites.vcf.gz
+# 2. Intersect with well-imputed PROFILE SNPS
 for contig in $( seq 1 22 ); do
-  cat <<EOF > $WRKDIR/LSF/scripts/filter_auton_vcf.$contig.sh
+  cat << EOF > $WRKDIR/LSF/scripts/PROFILE_get_well_typed_snps.$contig.sh
 #!/usr/bin/env bash
 . /PHShome/rlc47/.bashrc
-cd $KGDIR/phase3
+cd $PROFILEDIR
 bcftools view \
-  --include 'AF > 0.01 & AF < 1' \
+  --no-version \
+  --samples-file $PROFILEDIR/data/sample_info/PROFILE.ALL.samples.list \
+  --regions-file $TCGADIR/data/TCGA.well_typed_snps.sites.vcf.gz \
+  /data/gusev/PROFILE/2020_2022_combined/IMPUTE_HQ/PROFILE_COMB.$contig.HQ.vcf.gz \
+| bcftools +fill-tags - -- -t F_MISSING \
+| bcftools view \
+  --no-version -G --include 'F_MISSING < 0.02' -m 2 -M 2 --type snps \
+  -Oz -o $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_subset.$contig.vcf.gz
+tabix -p vcf -f $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_subset.$contig.vcf.gz
+EOF
+  chmod a+x $WRKDIR/LSF/scripts/PROFILE_get_well_typed_snps.$contig.sh
+  rm $WRKDIR/LSF/logs/PROFILE_get_well_typed_snps.$contig.*
+  bsub \
+    -q normal -R 'rusage[mem=6000]' -n 2 -J PROFILE_get_well_typed_snps_$contig \
+    -o $WRKDIR/LSF/logs/PROFILE_get_well_typed_snps.$contig.log \
+    -e $WRKDIR/LSF/logs/PROFILE_get_well_typed_snps.$contig.err \
+    $WRKDIR/LSF/scripts/PROFILE_get_well_typed_snps.$contig.sh
+done
+for contig in $( seq 1 22 ); do
+  echo $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_subset.$contig.vcf.gz
+done > $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_subset.vcfs.list
+bcftools concat \
+  --file-list $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_subset.vcfs.list \
+  -Oz -o $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_subset.vcf.gz
+# 3. LD prune these sites based on 1kG data
+for contig in $( seq 1 22 ); do
+  cat <<EOF > $WRKDIR/LSF/scripts/prune_wellGTed_snps.1000G.$contig.sh
+#!/usr/bin/env bash
+. /PHShome/rlc47/.bashrc
+module load plink/1.90b3
+bcftools view \
+  --regions-file $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_subset.vcf.gz \
   --types snps \
   -m 2 -M 2 \
   $KGDIR/phase3/ALL.chr$contig.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz \
 | bcftools annotate \
   --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
-  -Oz -o $KGDIR/phase3/common_SNPs/1000G.ph3.common_snps.chr$contig.vcf.gz
-tabix -p vcf -f $KGDIR/phase3/common_SNPs/1000G.ph3.common_snps.chr$contig.vcf.gz
-EOF
-  chmod a+x $WRKDIR/LSF/scripts/filter_auton_vcf.$contig.sh
-  rm $WRKDIR/LSF/logs/filter_auton_vcf.$contig.*
-  bsub \
-    -q normal -sla miket_sc -J filter_auton_vcf_$contig \
-    -o $WRKDIR/LSF/logs/filter_auton_vcf.$contig.log \
-    -e $WRKDIR/LSF/logs/filter_auton_vcf.$contig.err \
-    $WRKDIR/LSF/scripts/filter_auton_vcf.$contig.sh
-done
-# 3. LD prune all common SNPs and retain sites
-for contig in $( seq 1 22 ); do
-  cat <<EOF > $WRKDIR/LSF/scripts/prune_auton_vcf.$contig.sh
-#!/usr/bin/env bash
-. /PHShome/rlc47/.bashrc
-cd $KGDIR/phase3/common_SNPs
-module load plink/1.90b3
+  -Oz -o $WRKDIR/data/1000G_SNPs/1000G.ph3.well_typed_snps.TCGA_PROFILE_subset.chr$contig.vcf.gz
+tabix -p vcf -f $WRKDIR/data/1000G_SNPs/1000G.ph3.well_typed_snps.TCGA_PROFILE_subset.chr$contig.vcf.gz
 plink \
-  --vcf $KGDIR/phase3/common_SNPs/1000G.ph3.common_snps.chr$contig.vcf.gz \
+  --vcf $WRKDIR/data/1000G_SNPs/1000G.ph3.well_typed_snps.TCGA_PROFILE_subset.chr$contig.vcf.gz \
   --indep-pairwise 100kb 5 0.2 \
   --threads 4 \
-  --memory 16000 \
-  --out $KGDIR/phase3/common_SNPs/LD_pruned/1000G.ph3.common_snps.chr$contig.pruned
-bcftools view \
-  --drop-genotypes \
-  --include "ID=@$KGDIR/phase3/common_SNPs/LD_pruned/1000G.ph3.common_snps.chr$contig.pruned.prune.in" \
-  --no-version \
-  -Oz -o $KGDIR/phase3/common_SNPs/LD_pruned/1000G.ph3.common_snps.chr$contig.pruned.vcf.gz \
-  $KGDIR/phase3/common_SNPs/1000G.ph3.common_snps.chr$contig.vcf.gz
-tabix -p vcf -f $KGDIR/phase3/common_SNPs/LD_pruned/1000G.ph3.common_snps.chr$contig.pruned.vcf.gz
+  --memory 6000 \
+  --out $WRKDIR/data/1000G_SNPs/1000G.ph3.well_typed_snps.TCGA_PROFILE_subset.chr$contig.pruned
 EOF
-  chmod a+x $WRKDIR/LSF/scripts/prune_auton_vcf.$contig.sh
-  rm $WRKDIR/LSF/logs/prune_auton_vcf.$contig.*
+  chmod a+x $WRKDIR/LSF/scripts/prune_wellGTed_snps.1000G.$contig.sh
+  rm $WRKDIR/LSF/logs/prune_wellGTed_snps.1000G.$contig.*
   bsub \
-    -q big -sla miket_sc -R "rusage[mem=16000]" -n 4 \
-    -sla miket_sc -J prune_auton_vcf_$contig \
-    -o $WRKDIR/LSF/logs/prune_auton_vcf.$contig.log \
-    -e $WRKDIR/LSF/logs/prune_auton_vcf.$contig.err \
-    $WRKDIR/LSF/scripts/prune_auton_vcf.$contig.sh
+    -q normal -sla miket_sc -J prune_wellGTed_snps.1000G_$contig \
+    -o $WRKDIR/LSF/logs/prune_wellGTed_snps.1000G.$contig.log \
+    -e $WRKDIR/LSF/logs/prune_wellGTed_snps.1000G.$contig.err \
+    $WRKDIR/LSF/scripts/prune_wellGTed_snps.1000G.$contig.sh
 done
-# 4. Merge common sites across all contigs
+# 4. Compile final list of sites as VCF for subsetting
 for contig in $( seq 1 22 ); do
-  echo $KGDIR/phase3/common_SNPs/LD_pruned/1000G.ph3.common_snps.chr$contig.pruned.vcf.gz
-done > $KGDIR/phase3/common_SNPs/LD_pruned/pruned_vcf_shards.list
-bcftools concat \
-  --file-list $KGDIR/phase3/common_SNPs/LD_pruned/pruned_vcf_shards.list \
-  -O z -o $KGDIR/phase3/common_SNPs/LD_pruned/1000G.ph3.common_snps.pruned.vcf.gz
-tabix -p vcf -f $KGDIR/phase3/common_SNPs/LD_pruned/1000G.ph3.common_snps.pruned.vcf.gz
-# 5. Copy common SNPs reference to GCP (necessary for HMF data wrangling)
+  cat $WRKDIR/data/1000G_SNPs/1000G.ph3.well_typed_snps.TCGA_PROFILE_subset.chr$contig.pruned.prune.in
+done | sort -V | uniq \
+> $WRKDIR/data/well_typed_snps.TCGA_PROFILE_subset.pruned.ids.list
+bcftools annotate \
+  --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
+  $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_subset.vcf.gz \
+| bcftools view \
+  --no-version \
+  --include "ID=@$WRKDIR/data/well_typed_snps.TCGA_PROFILE_subset.pruned.ids.list" \
+  -Oz -o $WRKDIR/data/well_typed_snps.TCGA_PROFILE_subset.pruned.vcf.gz
+tabix -p vcf -f $WRKDIR/data/well_typed_snps.TCGA_PROFILE_subset.pruned.vcf.gz
+# 4. Copy SNPs reference to GCP (necessary for HMF data wrangling)
 gsutil -m cp \
-  $KGDIR/phase3/common_SNPs/LD_pruned/1000G.ph3.common_snps.pruned.vcf.gz* \
+  $WRKDIR/data/well_typed_snps.TCGA_PROFILE_subset.pruned.vcf.gz* \
   gs://fc-d2262497-7f5e-49b4-89ff-77d322023f02/
 
 
@@ -136,11 +159,14 @@ cd $PROFILEDIR
 bcftools view \
   --no-version \
   --samples-file $PROFILEDIR/data/sample_info/PROFILE.ALL.samples.list \
-  --regions-file $KGDIR/phase3/common_SNPs/LD_pruned/1000G.ph3.common_snps.pruned.vcf.gz \
+  --regions-file $WRKDIR/data/well_typed_snps.TCGA_PROFILE_subset.pruned.vcf.gz \
   /data/gusev/PROFILE/2020_2022_combined/IMPUTE_HQ/PROFILE_COMB.$contig.HQ.vcf.gz \
-| bcftools annotate --no-version -x FORMAT/GP,FORMAT/DS \
-  -Oz -o $PROFILEDIR/data/PROFILE.1000G_common_snps.$contig.vcf.gz
-tabix -p vcf -f $PROFILEDIR/data/PROFILE.1000G_common_snps.$contig.vcf.gz
+| bcftools annotate \
+  --no-version \
+  -x FORMAT/GP,FORMAT/DS \
+  --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
+  -Oz -o $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_PROFILE_subset.$contig.vcf.gz
+tabix -p vcf -f $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_PROFILE_subset.$contig.vcf.gz
 EOF
   chmod a+x $WRKDIR/LSF/scripts/PROFILE_extract_common_snps.$contig.sh
   rm $WRKDIR/LSF/logs/PROFILE_extract_common_snps.$contig.*
@@ -152,17 +178,29 @@ EOF
 done
 # 2. Combine marker SNPs across all chromosomes
 for contig in $( seq 1 22 ); do
-  echo $PROFILEDIR/data/PROFILE.1000G_common_snps.$contig.vcf.gz
-done > $PROFILEDIR/data/1000G_common_snps.shards.list
+  echo $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_PROFILE_subset.$contig.vcf.gz
+done > $PROFILEDIR/data/well_typed_snps.TCGA_PROFILE_subset.shards.list
+cat << EOF > $WRKDIR/LSF/scripts/PROFILE_merge_common_snp_vcfs.sh
 bcftools concat \
-  --file-list $PROFILEDIR/data/1000G_common_snps.shards.list \
+  --file-list $PROFILEDIR/data/well_typed_snps.TCGA_PROFILE_subset.shards.list \
 | bcftools norm \
   --atomize \
   --check-ref x \
   --fasta-ref $TCGADIR/refs/GRCh37.fa \
   --threads 4 \
-  -O z -o $PROFILEDIR/data/PROFILE.1000G_common_snps.vcf.gz
-tabix -p vcf -f $PROFILEDIR/data/PROFILE.1000G_common_snps.vcf.gz
+| bcftools annotate \
+  --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
+  -O z -o $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_PROFILE_subset.vcf.gz
+tabix -p vcf -f $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_PROFILE_subset.vcf.gz
+EOF
+chmod a+x $WRKDIR/LSF/scripts/PROFILE_merge_common_snp_vcfs.sh
+rm $WRKDIR/LSF/logs/PROFILE_merge_common_snp_vcfs.*
+bsub \
+  -q big -sla miket_sc \
+  -n 4 -R 'rusage[mem=16000]' -J PROFILE_merge_common_snp_vcfs \
+  -o $WRKDIR/LSF/logs/PROFILE_merge_common_snp_vcfs.log \
+  -e $WRKDIR/LSF/logs/PROFILE_merge_common_snp_vcfs.err \
+  $WRKDIR/LSF/scripts/PROFILE_merge_common_snp_vcfs.sh
 
 
 ## Filter TCGA SNPs
@@ -179,8 +217,8 @@ bcftools view \
   --no-version \
   --samples-file $TCGADIR/data/sample_info/TCGA.ALL.array_typed.samples.list \
   --regions-file \
-    <( bcftools view --regions $contig $KGDIR/phase3/common_SNPs/LD_pruned/1000G.ph3.common_snps.pruned.vcf.gz ) \
-  -Oz -o $TCGADIR/data/TCGA.1000G_common_snps.array_typed.$contig.vcf.gz \
+    <( bcftools view --regions $contig $WRKDIR/data/well_typed_snps.TCGA_PROFILE_subset.pruned.vcf.gz ) \
+  -Oz -o $TCGADIR/data/TCGA.well_typed_snps.TCGA_PROFILE_subset.array_typed.$contig.vcf.gz \
   $TCGADIR/data/TCGA.array_typed.vcf.gz
 
 # Imputed arrays
@@ -188,8 +226,8 @@ bcftools view \
   --no-version \
   --samples-file $TCGADIR/data/sample_info/TCGA.ALL.array_imputed.samples.list \
   --regions-file \
-    <( bcftools view --regions $contig $KGDIR/phase3/common_SNPs/LD_pruned/1000G.ph3.common_snps.pruned.vcf.gz ) \
-  -Oz -o $TCGADIR/data/TCGA.1000G_common_snps.array_imputed.$contig.vcf.gz \
+    <( bcftools view --regions $contig $WRKDIR/data/well_typed_snps.TCGA_PROFILE_subset.pruned.vcf.gz ) \
+  -Oz -o $TCGADIR/data/TCGA.well_typed_snps.TCGA_PROFILE_subset.array_imputed.$contig.vcf.gz \
   /data/gusev/TCGA/GENOTYPES/IMPUTED/$contig.vcf.gz
 
 # Fake header for exome
@@ -197,7 +235,7 @@ bcftools view \
   --no-version \
   --samples-file $TCGADIR/data/sample_info/TCGA.ALL.exome.samples.list \
   --header-only \
-  -Oz -o $TCGADIR/data/TCGA.1000G_common_snps.exome_dummy_empty.$contig.vcf.gz \
+  -Oz -o $TCGADIR/data/TCGA.well_typed_snps.TCGA_PROFILE_subset.exome_dummy_empty.$contig.vcf.gz \
   $TCGADIR/data/TCGA.RAS_loci.exome.vcf.gz
 EOF
   chmod a+x $WRKDIR/LSF/scripts/TCGA_subset_common_SNPs_by_tech.$contig.sh
@@ -216,14 +254,14 @@ for contig in $( seq 1 22 ); do
 cd $TCGADIR
 $CODEDIR/scripts/data_processing/merge_tcga_arrays_exomes.py \
   --sample-id-map $TCGADIR/data/sample_info/TCGA.ALL.id_map.tsv.gz \
-  --exome-vcf $TCGADIR/data/TCGA.1000G_common_snps.exome_dummy_empty.$contig.vcf.gz \
-  --array-typed-vcf $TCGADIR/data/TCGA.1000G_common_snps.array_typed.$contig.vcf.gz \
-  --array-imputed-vcf $TCGADIR/data/TCGA.1000G_common_snps.array_imputed.$contig.vcf.gz \
+  --exome-vcf $TCGADIR/data/TCGA.well_typed_snps.TCGA_PROFILE_subset.exome_dummy_empty.$contig.vcf.gz \
+  --array-typed-vcf $TCGADIR/data/TCGA.well_typed_snps.TCGA_PROFILE_subset.array_typed.$contig.vcf.gz \
+  --array-imputed-vcf $TCGADIR/data/TCGA.well_typed_snps.TCGA_PROFILE_subset.array_imputed.$contig.vcf.gz \
   --ref-fasta $TCGADIR/refs/GRCh37.fa \
   --header $TCGADIR/refs/simple_hg19_header.vcf.gz \
-  --outfile $TCGADIR/data/TCGA.1000G_common_snps.$contig.vcf.gz \
+  --outfile $TCGADIR/data/TCGA.well_typed_snps.TCGA_PROFILE_subset.$contig.vcf.gz \
   --verbose
-tabix -p vcf -f $TCGADIR/data/TCGA.1000G_common_snps.$contig.vcf.gz
+tabix -p vcf -f $TCGADIR/data/TCGA.well_typed_snps.TCGA_PROFILE_subset.$contig.vcf.gz
 EOF
   chmod a+x $WRKDIR/LSF/scripts/merge_TCGA_imputed_typed_common_SNPs.$contig.sh
   rm $WRKDIR/LSF/logs/merge_TCGA_imputed_typed_common_SNPs.$contig.*
@@ -233,21 +271,26 @@ EOF
     -e $WRKDIR/LSF/logs/merge_TCGA_imputed_typed_common_SNPs.$contig.err \
     $WRKDIR/LSF/scripts/merge_TCGA_imputed_typed_common_SNPs.$contig.sh
 done
-# 3. Combine SNP VCFs across all chromosomes
+# 3. Combine SNP VCFs across all chromosomes and apply 99% call rate filter
 for contig in $( seq 1 22 ); do
-  echo $TCGADIR/data/TCGA.1000G_common_snps.$contig.vcf.gz
-done > $TCGADIR/data/1000G_common_snps.shards.list
+  echo $TCGADIR/data/TCGA.well_typed_snps.TCGA_PROFILE_subset.$contig.vcf.gz
+done > $TCGADIR/data/well_typed_snps.TCGA_PROFILE_subset.shards.list
 bcftools concat \
-  --file-list $TCGADIR/data/1000G_common_snps.shards.list \
+  --naive \
+  --file-list $TCGADIR/data/well_typed_snps.TCGA_PROFILE_subset.shards.list \
+| bcftools +fill-tags -- -t AN,AC,AF,F_MISSING \
 | bcftools view \
   --samples-file $TCGADIR/data/sample_info/TCGA.ALL.donors.list \
+  -i 'INFO/F_MISSING < 0.02' \
+| bcftools annotate \
+  --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
 | bcftools norm \
   --atomize \
   --check-ref x \
   --fasta-ref $TCGADIR/refs/GRCh37.fa \
   --threads 4 \
-  -O z -o $TCGADIR/data/TCGA.1000G_common_snps.vcf.gz
-tabix -p vcf -f $TCGADIR/data/TCGA.1000G_common_snps.vcf.gz
+  -O z -o $TCGADIR/data/TCGA.well_typed_snps.TCGA_PROFILE_subset.vcf.gz
+tabix -p vcf -f $TCGADIR/data/TCGA.well_typed_snps.TCGA_PROFILE_subset.vcf.gz
 
 
 ### Filter HMF SNPs
@@ -261,7 +304,7 @@ fi
 sed '1d' $HMFDIR/data/sample_info/HMF.hg19_terra_workspace.sample_info.tsv \
 | cut -f$col_idxs | sed 's/\t/\n/g' \
 | gsutil -m cp -I $HMFDIR/data/sample_common_snp_vcfs/
-# 2. Merge VCFs across all samples
+# 2. Merge VCFs across all samples & apply 98% call rate filter
 find $HMFDIR/data/sample_common_snp_vcfs/ -name "*vcf.gz" \
 > $HMFDIR/data/HMF.sample_common_snp_vcfs.list
 cat << EOF > $WRKDIR/LSF/scripts/HMF_merge_common_snp_vcfs.sh
@@ -277,50 +320,76 @@ bcftools merge \
   --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
 | bcftools view \
   --samples-file $HMFDIR/data/sample_info/HMF.ALL.samples.list \
+| bcftools +fill-tags - -- -t F_MISSING \
+| bcftools view \
+  -i 'INFO/F_MISSING < 0.02' \
 | bcftools norm \
   --atomize \
   --check-ref x \
   --fasta-ref $TCGADIR/refs/GRCh37.fa \
   --threads 4 \
-  -Oz -o $HMFDIR/data/HMF.1000G_common_snps.vcf.gz
-tabix -p vcf -f $HMFDIR/data/HMF.1000G_common_snps.vcf.gz
+  -Oz -o $HMFDIR/data/HMF.well_typed_snps.TCGA_PROFILE_subset.vcf.gz
+tabix -p vcf -f $HMFDIR/data/HMF.well_typed_snps.TCGA_PROFILE_subset.vcf.gz
 EOF
 chmod a+x $WRKDIR/LSF/scripts/HMF_merge_common_snp_vcfs.sh
 rm $WRKDIR/LSF/logs/HMF_merge_common_snp_vcfs.*
 bsub \
   -q big -sla miket_sc \
-  -n 4 -R 'rusage[mem=32000]' -J HMF_merge_common_snp_vcfs \
+  -n 4 -R 'rusage[mem=16000]' -J HMF_merge_common_snp_vcfs \
   -o $WRKDIR/LSF/logs/HMF_merge_common_snp_vcfs.log \
   -e $WRKDIR/LSF/logs/HMF_merge_common_snp_vcfs.err \
   $WRKDIR/LSF/scripts/HMF_merge_common_snp_vcfs.sh
 
 
+### Merge 1kG genotypes for select loci for ground truth data in ancestry assignment
+for contig in $( seq 1 22 ); do
+  echo $WRKDIR/data/1000G_SNPs/1000G.ph3.well_typed_snps.TCGA_PROFILE_subset.chr$contig.vcf.gz
+done > $WRKDIR/data/1000G_SNPs/1000G.ph3.well_typed_snps.TCGA_PROFILE_subset.shards.list
+bcftools concat \
+  --file-list $WRKDIR/data/1000G_SNPs/1000G.ph3.well_typed_snps.TCGA_PROFILE_subset.shards.list \
+  -a --regions-file $WRKDIR/data/well_typed_snps.TCGA_PROFILE_subset.pruned.vcf.gz \
+| bcftools norm \
+  --atomize \
+  --check-ref x \
+  --fasta-ref $TCGADIR/refs/GRCh37.fa \
+  --threads 4 \
+| bcftools annotate \
+  --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
+  -O z -o $WRKDIR/data/1000G_SNPs/1000G.ph3.well_typed_snps.TCGA_PROFILE_subset.pruned.vcf.gz
+tabix -p vcf -f $WRKDIR/data/1000G_SNPs/1000G.ph3.well_typed_snps.TCGA_PROFILE_subset.pruned.vcf.gz
+
+
 ### Merge SNPs across all cohorts
+# 2. Merge genotypes for SNPs that are well-typed in all three cohorts
+# Also add 1kG samples at this stage for ground truth ancestry inference data
 bcftools merge \
   --no-version \
   --threads 4 \
-  $PROFILEDIR/data/PROFILE.1000G_common_snps.vcf.gz \
-  $TCGADIR/data/TCGA.1000G_common_snps.vcf.gz \
-  $HMFDIR/data/HMF.1000G_common_snps.vcf.gz \
+  $PROFILEDIR/data/PROFILE.well_typed_snps.TCGA_PROFILE_subset.vcf.gz \
+  $TCGADIR/data/TCGA.well_typed_snps.TCGA_PROFILE_subset.vcf.gz \
+  $HMFDIR/data/HMF.well_typed_snps.TCGA_PROFILE_subset.vcf.gz \
+  $WRKDIR/data/1000G_SNPs/1000G.ph3.well_typed_snps.TCGA_PROFILE_subset.pruned.vcf.gz \
 | bcftools +fill-tags -- -t AN,AC,AF,F_MISSING \
 | bcftools view \
-  --include 'INFO/AF > 0.01 & INFO/AF < 1' \
-  -Oz -o $WRKDIR/data/all_cohorts.1000G_common_snps.vcf.gz
+  --include 'INFO/F_MISSING < 0.01' \
+  -Oz -o $WRKDIR/data/all_cohorts.well_typed_snps.TCGA_PROFILE_subset.vcf.gz
 
 
-### Compute PC loadings with plink
-# Note: currently imposing no call rate filter. May need to revisit this
+### Compute PC loadings and kinship with plink2
 cat << EOF > $WRKDIR/LSF/scripts/study_wide_PCA.sh
 #!/usr/bin/env bash
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
-module load plink/1.90b3
-plink \
+module load plink/2.0a2.3
+plink2 \
   --threads 8 \
   --memory 32000 \
-  --vcf $WRKDIR/data/all_cohorts.1000G_common_snps.vcf.gz \
+  --vcf $WRKDIR/data/all_cohorts.well_typed_snps.TCGA_PROFILE_subset.vcf.gz \
+  --geno 0.1 \
   --pca \
-  --out $WRKDIR/data/all_cohorts.1000G_common_snps
+  --make-king-table \
+  --king-table-filter 0.1 \
+  --out $WRKDIR/data/all_cohorts.well_typed_snps.TCGA_PROFILE_subset
 EOF
 chmod a+x $WRKDIR/LSF/scripts/study_wide_PCA.sh
 rm $WRKDIR/LSF/logs/study_wide_PCA.*
