@@ -356,10 +356,9 @@ bsub \
 cd $CODEDIR/../ && \
 git clone git@github.com:vanallenlab/ped_germline_SV.git && \
 cd -
-# Note: library must be installed manually due to w/r permissions on ERISOne
-# R
-# install.packages("bedr")
-# install.packages("/data/gusev/USERS/rlc47/code/ped_germline_SV/src/PedSV_0.0.2.tar.gz", type="source", repos=NULL)
+Rscript -e "install.packages(c('bedr', '$CODEDIR/../ped_germline_SV/src/PedSV_0.0.2.tar.gz') \
+                             lib='~/R/x86_64-pc-linux-gnu-library/3.6', \
+                             type='source', repos=NULL)"
 # Note: 1000G truth labels must be uploaded to $WRKDIR/refs
 if [ -e $WRKDIR/data/ancestry_inference ]; then
   rm -rf $WRKDIR/data/ancestry_inference

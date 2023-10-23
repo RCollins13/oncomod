@@ -47,8 +47,8 @@ Rscript -e "install.packages('$WRKDIR/../code/rCNV2/source/rCNV2_1.0.1.tar.gz', 
 ### Plot patient metadata summaries
 $CODEDIR/scripts/plot/plot_pheno_summary.R \
   --cohort-name TCGA --metadata $TCGADIR/data/sample_info/TCGA.ALL.sample_metadata.tsv.gz \
-  --cohort-name HMF --metadata $HMFDIR/data/sample_info/HMF.ALL.sample_metadata.tsv.gz \
   --cohort-name DFCI --metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
+  --cohort-name HMF --metadata $HMFDIR/data/sample_info/HMF.ALL.sample_metadata.tsv.gz \
   --out-prefix $WRKDIR/plots/overview/cohort_summary
 
 

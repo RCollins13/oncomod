@@ -75,6 +75,10 @@ def main():
     md = update_pcs(md, args.PCs)
 
     # Write updated metadata to --outfile
+    if args.outfile is None:
+        outfile = args.metadata
+    else:
+        outfile = args.outfile
     md.to_csv(args.outfile, sep='\t', na_rep='NA', index=False)
 
 
