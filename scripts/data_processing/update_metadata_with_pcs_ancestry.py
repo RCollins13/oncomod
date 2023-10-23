@@ -79,7 +79,7 @@ def main():
         outfile = args.metadata
     else:
         outfile = args.outfile
-    md.to_csv(args.outfile, sep='\t', na_rep='NA', index=False)
+    md.to_csv(outfile, sep='\t', na_rep='NA', index=False)
 
 
 if __name__ == '__main__':
