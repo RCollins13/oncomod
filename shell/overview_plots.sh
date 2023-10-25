@@ -147,12 +147,12 @@ for cohort in TCGA PROFILE HMF; do
 done
 # Plot correlations of germline AFs (inter-cohort & each cohort vs. gnomAD)
 $CODEDIR/scripts/plot/plot_germline_AF_comparisons.R \
-  --bed $WRKDIR/data/plotting/TCGA.germline_variants.bed.gz \
-  --name TCGA \
-  --bed $WRKDIR/data/plotting/PROFILE.germline_variants.bed.gz \
-  --name DFCI \
   --bed $WRKDIR/data/plotting/HMF.germline_variants.bed.gz \
   --name HMF \
+  --bed $WRKDIR/data/plotting/PROFILE.germline_variants.bed.gz \
+  --name DFCI \
+  --bed $WRKDIR/data/plotting/TCGA.germline_variants.bed.gz \
+  --name TCGA \
   --out-prefix $WRKDIR/plots/overview/germline_variants/AF_comparisons/AF_comparisons
   
 

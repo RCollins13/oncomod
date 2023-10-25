@@ -252,7 +252,7 @@ $CODEDIR/scripts/data_processing/preprocess_tcga_somatic.py \
   --no-mutation-data $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.mc3.list \
   --no-cna-data $WRKDIR/data/sample_info/TCGA.ALL.donors.missing_somatic.cna.list \
   --genes-gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
-  --priority-genes <( fgrep -w KRAS $WRKDIR/../refs/COSMIC.all_GCG.Nov8_2022.genes.list ) \
+  --priority-genes <( echo "KRAS" ) \
   --ref-fasta $WRKDIR/refs/GRCh37.fa \
   --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
   --outfile $WRKDIR/data/TCGA.somatic_variants.vcf.gz \

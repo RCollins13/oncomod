@@ -166,20 +166,29 @@ bsub \
 while read sid; do
   tid=$( echo $sid | sed 's/R$/T/g' \
          | fgrep -f - $WRKDIR/data/sample_info/metadata.tsv \
-         | head -n1 | cut -f1)
+         | head -n1 | cut -f1 )
   if [ -z $tid ]; then
     echo -e "$sid matched tumor cannot be found?"
     continue
   fi
-  ploidy=$( cut -f5 CPCT02050187T.purple.purity.tsv | tail -n1 )
+  ploidy=$( cut -f5 $WRKDIR/data/all_somatic/$tid/purple/$tid.purple.purity.tsv | tail -n1 )
   awk -v FS="\t" '{ if ($4=="KRAS") print }' \
     $WRKDIR/data/all_somatic/$tid/purple/$tid.purple.cnv.gene.tsv \
   | awk -v FS="\t" -v OFS="\t" -v ploidy=$ploidy -v sid=$sid \
-    '{ if ($6>=(1.5*ploidy)) print sid, "AMP"; else if ($5<=(0.5*ploidy)) print sid, "DEL" }'
+    '{ if ($6>=(1.5*ploidy)) print sid, "KRAS", "AMP"; else if ($5<=(0.5*ploidy)) print sid, "KRAS", "DEL" }'
 done < $WRKDIR/data/sample_info/HMF.ALL.samples.list \
 > $WRKDIR/data/HMF.KRAS_CNA_carriers.tsv
 # 4. Unify somatic SNVs/indels and CNAs in KRAS
-# TODO: implement this
+$CODEDIR/scripts/data_processing/preprocess_hmf_somatic.py \
+  --muts-vcf $WRKDIR/data/HMF.somatic_variants.snvs_indels.vcf.gz \
+  --cna-tsv $WRKDIR/data/HMF.KRAS_CNA_carriers.tsv \
+  --genes-gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
+  --priority-genes <( echo "KRAS" ) \
+  --ref-fasta /data/gusev/USERS/rlc47/TCGA/refs/GRCh37.fa \
+  --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
+  --outfile $WRKDIR/data/HMF.somatic_variants.vcf.gz
+tabix -p vcf -f $WRKDIR/data/HMF.somatic_variants.vcf.gz
+
 
 
 ### Curate germline variants in regions of interest
