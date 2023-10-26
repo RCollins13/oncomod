@@ -61,12 +61,13 @@ def build_cnv_records(cna_in, gtf_in, vcf_out, key_genes=None):
 
             # Make basic record
             chrom = sub('^chr', '', gdat.chrom)
-            pos = gdat.start
-            end = gdat.stop
+            pos = gdat.start - 5
+            end = gdat.stop + 5
             alleles = ('N', '<' + svtype + '>', )
             vid = '{}_{}_{}_{}'.format(chrom, pos, *alleles)
             record = vcf_out.new_record(contig=chrom, start=pos, stop=end,
                                         alleles=alleles, id=vid)
+            record.filter.add('PASS')
 
             # Populate samples
             AC, AN, AF = 0, 0, 0
@@ -203,18 +204,18 @@ def main():
             next_cna = cna_records[0]
             cna_chrom = next_cna.chrom
             cna_pos = next_cna.pos
-            while chrom_dict[cna_chrom] <= chrom_dict[mut_chrom] \
-            and cna_pos <= mut_pos:
-                vcf_out.write(next_cna)
-
-                # Move to next CNA record (if any exist)
-                if len(cna_records) > 1:
-                    cna_records = cna_records[1:]
-                    next_cna = cna_records[0]
-                    cna_chrom = next_cna.chrom
-                    cna_pos = next_cna.pos
-                else:
-                    break
+            if next_cna is not None:
+                while chrom_dict[cna_chrom] <= chrom_dict[mut_chrom] \
+                and cna_pos <= mut_pos:
+                    vcf_out.write(next_cna)
+                    cna_records.pop(0)
+                    if len(cna_records) > 0:
+                        next_cna = cna_records[0]
+                        cna_chrom = next_cna.chrom
+                        cna_pos = next_cna.pos
+                    else:
+                        next_cna = None
+                        break
 
         # After handling CNA records, clean somatic mutation record 
         # and write to --outfile
