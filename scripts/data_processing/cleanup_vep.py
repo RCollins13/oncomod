@@ -222,12 +222,12 @@ def reformat_header(invcf):
 
 def load_ras_bt(gtf_in):
     """
-    Extract start/stop coordinates for KRAS/NRAS/HRAS
+    Extract start/stop coordinates for KRAS
     """
 
     return pbt.BedTool(gtf_in).\
                filter(lambda x: x[2] == 'gene').\
-               filter(lambda x: x.attrs.get('gene_name') in 'HRAS NRAS KRAS'.split()).\
+               filter(lambda x: x.attrs.get('gene_name') == 'KRAS').\
                saveas()
 
 
@@ -315,8 +315,6 @@ def _clean_gtex(record, vdf, tx_map):
     """
 
     gtex_tissue_map = {'Pancreas' : 'pancreas',
-                       'Skin_Sun_Exposed_Lower_leg' : 'skin',
-                       'Skin_Not_Sun_Exposed_Suprapubic' : 'skin',
                        'Colon_Sigmoid' : 'colon',
                        'Colon_Transverse' : 'colon',
                        'Lung' : 'lung'}
