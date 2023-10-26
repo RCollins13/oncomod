@@ -60,20 +60,30 @@ def build_cnv_records(cna_in, gtf_in, vcf_out, key_genes=None):
         for svtype in g_cna.cna.value_counts().index:
 
             # Make basic record
-            record = vcf_out.new_record()
-            record.chrom = sub('^chr', '', gdat.chrom)
-            record.pos = gdat.start
-            record.stop = gdat.stop
-            record.alleles = ('N', '<' + svtype + '>')
+            chrom = sub('^chr', '', gdat.chrom)
+            pos = gdat.start
+            end = gdat.stop
+            alleles = ('N', '<' + svtype + '>', )
+            vid = '{}_{}_{}_{}'.format(chrom, pos, *alleles)
+            record = vcf_out.new_record(contig=chrom, start=pos, stop=end,
+                                        alleles=alleles, id=vid)
 
             # Populate samples
+            AC, AN, AF = 0, 0, 0
             cna_samps = set(g_cna.loc[g_cna.cna == svtype, 'sample'].values.tolist())
             for sid in record.samples.keys():
+                AN += 1
                 if sid in cna_samps:
                     GT = 1
+                    AC += 1
                 else:
                     GT = 0
                 record.samples[sid]['GT'] = GT
+
+            # Update AC/AN/AF in INFO
+            record.info['AN'] = AN
+            record.info['AC'] = AC
+            record.info['AF'] = AC / AN
 
             # Add record to list of records to add to output VCF
             cna_records.append(record)
@@ -81,31 +91,59 @@ def build_cnv_records(cna_in, gtf_in, vcf_out, key_genes=None):
     return cna_records
 
 
-def clean_mut_record(record):
+def clean_mut_record(old_record, vcf_out):
     """
-    Cleans a VCF record for a somatic mutation
+    Cleans a VCF record for a single somatic mutation
     """
+
+    # Get reused values from old record
+    vid = '{}_{}_{}_{}'.format(old_record.chrom, old_record.pos, 
+                               old_record.ref, old_record.alleles[1])
+    star_alleles = [idx for idx, a in enumerate(old_record.alleles) if a == '*']
+    new_alleles = (a for idx, a in enumerate(old_record.alleles) if a != '*')
+
+    # Make new record attached to vcf_out header
+    # Dev note: for reasons I can't fully explain, it appears that trying to
+    # write a record from vcf_in (with a subtly different header) to vcf_out
+    # fails due to a suspicious htslib error. This error goes away when 
+    # vcf_out is opened in 'wb' mode, and the header entry cited by the error 
+    # changes depending on input and output files. I suspect this is more 
+    # htslib/pysam weirdness but have been unable to track it down.
+    # Long story short: it seems easier to make a new record native to the 
+    # header of vcf_out and transfer the info over from old_record
+    record = vcf_out.new_record(contig=old_record.chrom, start=old_record.pos,
+                                alleles=new_alleles, id=vid, qual=old_record.qual)
+    if 'END' in record.info.keys():
+        record.info.pop('END')
+    record.filter.add('PASS')
 
     # Translate all GTs to allele dosages (presence|absence)
     AC, AN, AF = 0, 0, 0
-    for sid, sdat in record.samples.items():
-        GT = [a for a in sdat['GT'] if a is not None]
+    for sid, sdat in old_record.samples.items():
+        GT = []
+        for a in sdat['GT']:
+            if a is None:
+                continue
+            elif a in star_alleles:
+                GT.append(0)
+            else:
+                GT.append(a)
         if len(GT) == 0:
             new_GT = (None, )
         else:
             AN += 1
             if any([a > 0 for a in GT]):
-                new_GT = 1
+                new_GT = (1, )
                 AC += 1
             else:
-                new_GT = 0
+                new_GT = (0, )
         record.samples[sid]['GT'] = new_GT
 
     # Update AC/AN/AF
     record.info['AC'] = AC
     record.info['AN'] = AN
     if AN > 0:
-        record.info['AF'] = AC / AN
+        record.info['AF'] = round(AC / AN, 8)
     else:
         record.info['AF'] = 0
     
@@ -139,8 +177,13 @@ def main():
     else:
         key_genes = None
 
-    # Load VCF header and open connection to output VCF
-    header = pysam.VariantFile(args.header, 'r').header
+    # Load VCF header
+    header = pysam.VariantFile(args.header).header
+
+    # Open connections to in/out VCFs
+    vcf_in = pysam.VariantFile(args.muts_vcf)
+    for sid in vcf_in.header.samples:
+        header.add_sample(sid)
     vcf_out = pysam.VariantFile(args.outfile, 'w', header=header)
 
     # Build VCF records for all CNAs, if provided
@@ -150,11 +193,8 @@ def main():
     else:
         cna_records = []
 
-    # Open connection to input VCFs
-    mut_records = pysam.VariantFile(args.muts_vcf, 'r')
-
     # Iterate over mutation records, spiking in CNA records where appropriate
-    for record in mut_records.fetch():
+    for record in vcf_in.fetch():
         mut_chrom = record.chrom
         mut_pos = record.pos
 
@@ -178,7 +218,7 @@ def main():
 
         # After handling CNA records, clean somatic mutation record 
         # and write to --outfile
-        record = clean_mut_record(record)
+        record = clean_mut_record(record, vcf_out)
         vcf_out.write(record)
 
     # After processing all records, close connection to output VCF to clear buffer
