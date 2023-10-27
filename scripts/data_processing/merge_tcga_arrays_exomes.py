@@ -199,6 +199,11 @@ def map_genotypes(old_rec, new_rec, id_mappings, rec_fmt):
 
     for sample in old_rec.samples:
 
+        # Skip samples not slated for inclusion in merged VCF
+        new_sample = id_mappings.get(sample)
+        if new_sample is None:
+            continue
+
         # Get old genotype
         # Note: DeepVariant (used on exomes) does not call ref GTs
         # We have already pre-filtered for well-captured exome intervals,

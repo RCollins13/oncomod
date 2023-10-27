@@ -128,7 +128,7 @@ $TMPDIR/gather_somatic_ras_data.py \
 
 ### Plot germline variant summaries
 # Convert each cohort's AF-annotated VCF to BED without samples
-for cohort in TCGA PROFILE HMF; do
+for cohort in TCGA PROFILE; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
@@ -147,8 +147,6 @@ for cohort in TCGA PROFILE HMF; do
 done
 # Plot correlations of germline AFs (inter-cohort & each cohort vs. gnomAD)
 $CODEDIR/scripts/plot/plot_germline_AF_comparisons.R \
-  --bed $WRKDIR/data/plotting/HMF.germline_variants.bed.gz \
-  --name HMF \
   --bed $WRKDIR/data/plotting/PROFILE.germline_variants.bed.gz \
   --name DFCI \
   --bed $WRKDIR/data/plotting/TCGA.germline_variants.bed.gz \

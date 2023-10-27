@@ -350,6 +350,7 @@ chmod a+x $WRKDIR/LSF/scripts/run_VEP.sh
 
 
 ### Annotate VCFs
+# Note: given the large size of HMF germline data, all annotation and downstream steps are done per chromosome
 for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
@@ -363,6 +364,9 @@ for cohort in TCGA PROFILE HMF; do
       ;;
   esac
   for subset in somatic_variants RAS_loci; do
+    if [ $cohort == "HMF" ] && [ $subset == "RAS_loci" ]; then
+      continue
+    fi
     invcf=$COHORTDIR/data/$cohort.$subset.vcf.gz
     if [ -e $invcf ]; then
       for suf in err log; do
@@ -380,6 +384,36 @@ for cohort in TCGA PROFILE HMF; do
     fi
   done
 done
+# Annotate HMF germline data per chromosome for improved parallelization
+for contig in $( seq 1 22 ) X; do
+  for suf in err log; do
+    if [ -e $WRKDIR/LSF/logs/VEP_HMF_RAS_loci.$contig.$suf ]; then
+      rm $WRKDIR/LSF/logs/VEP_HMF_RAS_loci.$contig.$suf
+    fi
+  done
+  bsub -q normal -sla miket_sc -R "rusage[mem=6000]" -n 2 \
+    -J VEP_HMF_RAS_loci_$contig \
+    -o $WRKDIR/LSF/logs/VEP_HMF_RAS_loci.$contig.log \
+    -e $WRKDIR/LSF/logs/VEP_HMF_RAS_loci.$contig.err \
+    "bcftools view \
+      --regions $contig \
+      -Oz -o $HMFDIR/data/HMF.RAS_loci.$contig.vcf.gz \
+      $HMFDIR/data/HMF.RAS_loci.vcf.gz
+    tabix -p vcf -f $HMFDIR/data/HMF.RAS_loci.$contig.vcf.gz
+    $WRKDIR/LSF/scripts/run_VEP.sh \
+       $HMFDIR/data/HMF.RAS_loci.$contig.vcf.gz \
+       $HMFDIR/data/HMF.RAS_loci.$contig.anno.vcf.gz"
+done
+# Concatenate HMF germline data across all chromosomes
+# Note: downstream steps can still use the per-chromosome VCFs for better parallelization
+for contig in $( seq 1 22 ) X; do
+  echo "$HMFDIR/data/HMF.RAS_loci.$contig.anno.vcf.gz"
+done > $HMFDIR/data/HMF.RAS_loci.anno.vcfs_per_chrom.list
+bcftools concat \
+  --naive \
+  --file-list $HMFDIR/data/HMF.RAS_loci.anno.vcfs_per_chrom.list \
+  -Oz -o $HMFDIR/data/HMF.RAS_loci.anno.vcf.gz
+tabix -p vcf -f $HMFDIR/data/HMF.RAS_loci.anno.vcf.gz
 
 
 #########################
@@ -405,7 +439,8 @@ chmod a+x $WRKDIR/LSF/scripts/clean_VEP.sh
 
 
 ### Clean up VCFs
-for cohort in TCGA PROFILE; do
+# Note: given the large size of HMF germline data, all annotation and downstream steps are done per chromosome
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
@@ -413,8 +448,14 @@ for cohort in TCGA PROFILE; do
     PROFILE)
       COHORTDIR=$PROFILEDIR
       ;;
+    HMF)
+      COHORTDIR=$HMFDIR
+      ;;
   esac
   for subset in somatic_variants RAS_loci; do
+    if [ $cohort == "HMF" ] && [ $subset == "RAS_loci" ]; then
+      continue
+    fi
     for suf in err log; do
       if [ -e $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.$suf ]; then
         rm $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.$suf
@@ -429,6 +470,31 @@ for cohort in TCGA PROFILE; do
          $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz"
   done
 done
+# Clean up HMF germline data per chromosome for improved parallelization
+for contig in $( seq 1 22 ) X; do
+  for suf in err log; do
+    if [ -e $WRKDIR/LSF/logs/VEP_cleanup_HMF_RAS_loci.$contig.$suf ]; then
+      rm $WRKDIR/LSF/logs/VEP_cleanup_HMF_RAS_loci.$contig.$suf
+    fi
+  done
+  bsub -q normal -sla miket_sc -R "rusage[mem=6000]" -n 2 \
+    -J VEP_cleanup_HMF_RAS_loci_$contig \
+    -o $WRKDIR/LSF/logs/VEP_cleanup_HMF_RAS_loci.$contig.log \
+    -e $WRKDIR/LSF/logs/VEP_cleanup_HMF_RAS_loci.$contig.err \
+    "$WRKDIR/LSF/scripts/clean_VEP.sh \
+         $HMFDIR/data/HMF.RAS_loci.$contig.anno.vcf.gz \
+         $HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.vcf.gz"
+done
+# Concatenate HMF germline data across all chromosomes
+# Note: downstream steps can still use the per-chromosome VCFs for better parallelization
+for contig in $( seq 1 22 ) X; do
+  echo "$HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.vcf.gz"
+done > $HMFDIR/data/HMF.RAS_loci.anno.clean.vcfs_per_chrom.list
+bcftools concat \
+  --naive \
+  --file-list $HMFDIR/data/HMF.RAS_loci.anno.clean.vcfs_per_chrom.list \
+  -Oz -o $HMFDIR/data/HMF.RAS_loci.anno.clean.vcf.gz
+tabix -p vcf -f $HMFDIR/data/HMF.RAS_loci.anno.clean.vcf.gz
 
 
 ##############################
@@ -451,7 +517,8 @@ chmod a+x $WRKDIR/LSF/scripts/annotate_AFs.sh
 
 
 ### Annotate AFs for all VCFs
-for cohort in TCGA PROFILE; do
+# Note: given the large size of HMF germline data, all annotation and downstream steps are done per chromosome
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
@@ -461,8 +528,15 @@ for cohort in TCGA PROFILE; do
       COHORTDIR=$PROFILEDIR
       sample_field=PBP
       ;;
+    HMF)
+      COHORTDIR=$HMFDIR
+      sample_field=SAMPLE_ID
+      ;;
   esac
   for subset in somatic_variants RAS_loci; do
+    if [ $cohort == "HMF" ] && [ $subset == "RAS_loci" ]; then
+      continue
+    fi
     for suf in err log; do
       if [ -e $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.$suf ]; then
         rm $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.$suf
@@ -479,12 +553,39 @@ for cohort in TCGA PROFILE; do
          $COHORTDIR/data/$cohort.$subset.anno.clean.wAF.vcf.gz"
   done
 done
+# Annotate in-sample AFs of HMF germline data per chromosome for improved parallelization
+for contig in $( seq 1 22 ) X; do
+  for suf in err log; do
+    if [ -e $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.$suf ]; then
+      rm $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.$suf
+    fi
+  done
+  bsub -q normal -sla miket_sc \
+    -J annotate_AFs_HMF_RAS_loci_$contig \
+    -o $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.log \
+    -e $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.err \
+    "$WRKDIR/LSF/scripts/annotate_AFs.sh \
+         $HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.vcf.gz \
+         $HMFDIR/data/sample_info/HMF.ALL.sample_metadata.tsv.gz \
+         SAMPLE_ID \
+         $HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.wAF.vcf.gz"
+done
+# Concatenate HMF germline data across all chromosomes
+# Note: downstream steps can still use the per-chromosome VCFs for better parallelization
+for contig in $( seq 1 22 ) X; do
+  echo "$HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.wAF.vcf.gz"
+done > $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcfs_per_chrom.list
+bcftools concat \
+  --naive \
+  --file-list $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcfs_per_chrom.list \
+  -Oz -o $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcf.gz
+tabix -p vcf -f $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcf.gz
 
 
 ######################################
 ### Build simple genotype matrixes ###
 ######################################
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
@@ -493,6 +594,10 @@ for cohort in TCGA PROFILE; do
     PROFILE)
       COHORTDIR=$PROFILEDIR
       sample_field=PBP
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
+      sample_field=SAMPLE_ID
       ;;
   esac
   for subset in somatic_variants RAS_loci; do
