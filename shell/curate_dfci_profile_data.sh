@@ -50,6 +50,7 @@ $CODEDIR/scripts/data_processing/preprocess_dfci_profile_ehr.py \
   --dx-csv $CLINDIR/OncDRS/ALL_2021_11/CANCER_DIAGNOSIS_CAREG.csv.gz \
   --ancestry-csv $CLINDIR/PROFILE_2022_ANCESTRY.csv.gz \
   --survival-csv $CLINDIR/OncDRS/ALL_2021_11/PT_INFO_STATUS_REGISTRATION.csv.gz \
+  --allfit-tsv $WRKDIR/LOHGIC/AllFIT/PROFILE.AllFIT_purity_estimates.tsv \
   --out-prefix $WRKDIR/data/sample_info/PROFILE. \
   --vcf-ids $WRKDIR/data/sample_info/PROFILE.vcf.samples.list \
   --priority-ids $WRKDIR/data/sample_info/PROFILE.oncopanel_lohgic.vcf.samples.list

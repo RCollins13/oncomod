@@ -49,7 +49,8 @@ def _status_report(main_df, stage=None):
         print('{}: {:,}'.format(cancer, int(count)))
 
 
-def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None, priority_ids=None):
+def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None, 
+                      priority_ids=None, allfit_tsv=None):
     """
     Load basic information for samples to be included in study
     Subset to cancer types of interest
@@ -67,6 +68,17 @@ def load_primary_data(genomic_csv, id_map_tsv, vcf_ids_in=None, priority_ids=Non
     genomic_df.rename(columns={'SAMPLE_ACCESSION_NBR' : 'BL_ID'}, inplace=True)
     genomic_df.loc[genomic_df.TUMOR_PURITY < 0, 'TUMOR_PURITY'] = pd.NA
     genomic_df.TUMOR_PURITY = genomic_df.TUMOR_PURITY / 100
+
+    # Update purity from allfit_tsv if provided
+    if allfit_tsv is not None:
+        allfit_df = pd.read_csv(allfit_tsv, sep='\t').\
+                       rename(columns={'PURITY' : 'TUMOR_PURITY',
+                                       'SAMPLE_ACCESSION_NBR' : 'BL_ID'}).\
+                       set_index('BL_ID', drop=True)
+        allfit_dat = allfit_df.TUMOR_PURITY.to_dict()
+        allfit_overlaps = genomic_df.BL_ID.isin(allfit_dat.keys())
+        genomic_df.loc[allfit_overlaps, 'TUMOR_PURITY'] \
+            = genomic_df.BL_ID[allfit_overlaps].map(allfit_dat)
 
     # Drop MSI tumors
     msi_idx = (genomic_df.HOMOPOLYMER_PER_MEGABASE > 2) | \
@@ -281,6 +293,7 @@ def main():
     parser.add_argument('--ancestry-csv', help='Ancestry .csv', required=True)
     # parser.add_argument('--hx-csv', help='Health history .csv')
     parser.add_argument('--survival-csv', help='Survival info .csv', required=True)
+    parser.add_argument('--allfit-tsv', help='Refined purity estimates from All-FIT')
     parser.add_argument('--out-prefix', help='Prefix for output files', required=True)
     parser.add_argument('--vcf-ids', dest='vcf_ids_in', help='Flat one-column ' +
                         'file with PBP IDs present in SNP VCF. If provided, ' +
@@ -295,7 +308,8 @@ def main():
 
     # Load primary data for all samples
     main_df = load_primary_data(args.genomic_csv, args.id_map_tsv, 
-                                args.vcf_ids_in, args.priority_ids)
+                                args.vcf_ids_in, args.priority_ids,
+                                args.allfit_tsv)
     if args.verbose:
         _status_report(main_df, stage="loading primary data")
 
