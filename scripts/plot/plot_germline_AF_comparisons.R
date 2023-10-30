@@ -121,7 +121,7 @@ apply(combn(args$name, 2), 2, function(pair.names){
 ##########################
 sapply(args$name, function(cohort){
   # One plot per ancestry
-  sapply(setdiff(names(pop.names.short), "SAS"), function(pop){
+  sapply(names(pop.names.short), function(pop){
     col.name <- paste(pop, "_AF.", cohort, sep="")
     if(!(col.name %in% colnames(dat))){return()}
     gpop <- if(pop == "EUR"){"NFE"}else{pop}

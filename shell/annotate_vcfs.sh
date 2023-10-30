@@ -576,7 +576,6 @@ for contig in $( seq 1 22 ) X; do
   echo "$HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.wAF.vcf.gz"
 done > $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcfs_per_chrom.list
 bcftools concat \
-  --naive \
   --file-list $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcfs_per_chrom.list \
   -Oz -o $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcf.gz
 tabix -p vcf -f $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcf.gz
@@ -621,15 +620,19 @@ done
 ### Define sets of samples lacking DFCI/BWH Tier 1 mutations ###
 ################################################################
 # Extract lists of samples
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
-      sample_field="donors"
+      sample_field=DONOR_ID
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
-      sample_field="samples"
+      sample_field=PBP
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
+      sample_field=SAMPLE_ID
       ;;
   esac
   $CODEDIR/scripts/data_processing/define_control_samples.py \
