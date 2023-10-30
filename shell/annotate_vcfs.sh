@@ -619,6 +619,13 @@ done
 ################################################################
 ### Define sets of samples lacking DFCI/BWH Tier 1 mutations ###
 ################################################################
+for cancer in PDAC CRAD LUAD; do
+  $CODEDIR/scripts/data_processing/get_tier1_kras_muts.R \
+    --mutations-csv /data/gusev/PROFILE/CLINICAL/OncDRS/ALL_2022_11/GENOMIC_MUTATION_RESULTS.csv \
+    --sample-ids $PROFILEDIR/data/sample_info/PROFILE.$cancer.samples.list \
+    --id-map /data/gusev/PROFILE/CLINICAL/PROFILE_MRN_BL_PANEL.PBP.tab \
+    --outfile $WRKDIR/data/$cancer.tier1_kras_mutations.list
+done
 # Extract lists of samples
 for cohort in TCGA PROFILE HMF; do
   case $cohort in
