@@ -126,6 +126,7 @@ sapply(args$name, function(cohort){
     if(!(col.name %in% colnames(dat))){return()}
     gpop <- if(pop == "EUR"){"NFE"}else{pop}
     gcol.name <- paste("gnomAD_AF_", gpop, sep="")
+    if(!(gcol.name %in% colnames(dat))){return()}
     sub.dat <- dat[, c(col.name, gcol.name)]
     sub.dat <- sub.dat[complete.cases(sub.dat), ]
     if(nrow(sub.dat) == 0){return()}
