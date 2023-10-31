@@ -619,36 +619,49 @@ done
 ################################################################
 ### Define sets of samples lacking DFCI/BWH Tier 1 mutations ###
 ################################################################
+# Get complete list of all tier 1 KRAS mutations ever reported in our PROFILE samples
 for cancer in PDAC CRAD LUAD; do
   $CODEDIR/scripts/data_processing/get_tier1_kras_muts.R \
     --mutations-csv /data/gusev/PROFILE/CLINICAL/OncDRS/ALL_2022_11/GENOMIC_MUTATION_RESULTS.csv \
     --sample-ids $PROFILEDIR/data/sample_info/PROFILE.$cancer.samples.list \
     --id-map /data/gusev/PROFILE/CLINICAL/PROFILE_MRN_BL_PANEL.PBP.tab \
     --outfile $WRKDIR/data/$cancer.tier1_kras_mutations.list
+
+  echo -e "\n\n${cancer} tier 1 KRAS mutations:\n==========================="
+  cat $WRKDIR/data/$cancer.tier1_kras_mutations.list
+
+  $TMPDIR/format_control_exclusion_json.py \
+    $WRKDIR/data/$cancer.tier1_kras_mutations.list \
+    $WRKDIR/data/$cancer.control_exclusion_criteria.json
 done
 # Extract lists of samples
 for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
-      sample_field=DONOR_ID
+      sample_field=donors
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
-      sample_field=PBP
+      sample_field=samples
       ;;
     HMF)
       COHORTDIR=$HMFDIR
-      sample_field=SAMPLE_ID
+      sample_field=samples
       ;;
   esac
-  $CODEDIR/scripts/data_processing/define_control_samples.py \
-    --vcf $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
-    --criteria $CODEDIR/refs/RAS_control_sample_criteria.json \
-    --regions $CODEDIR/refs/RAS_loci.GRCh37.bed.gz \
-    --eligible-samples $COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.list \
-    --exclude-samples $COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.missing_somatic.list \
-    --outfile $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list
+  # Define cancer type-specific lists of eligible controls
+  for cancer in PDAC CRAD LUAD; do
+    $CODEDIR/scripts/data_processing/define_control_samples.py \
+      --vcf $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
+      --criteria $WRKDIR/data/$cancer.control_exclusion_criteria.json \
+      --eligible-samples $COHORTDIR/data/sample_info/$cohort.$cancer.$sample_field.list \
+      --exclude-samples $COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.missing_somatic.list \
+      --outfile $COHORTDIR/data/sample_info/$cohort.$cancer.eligible_controls.list
+  done
+  # Concatenate all cancer type-specific control lists
+  for cancer in PDAC CRAD LUAD; do
+  done
 done
 # Summarize as table
 for cancer in PDAC CRAD LUAD SKCM; do

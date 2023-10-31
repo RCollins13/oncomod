@@ -188,7 +188,9 @@ $CODEDIR/scripts/data_processing/preprocess_hmf_somatic.py \
   --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
   --outfile $WRKDIR/data/HMF.somatic_variants.vcf.gz
 tabix -p vcf -f $WRKDIR/data/HMF.somatic_variants.vcf.gz
-
+# Since all HMF samples have somatic information, we need to make an empty list
+# of samples missing somatic info (as this is expected by some downstream steps)
+touch $WRKDIR/data/sample_info/HMF.ALL.samples.missing_somatic.list
 
 
 ### Curate germline variants in regions of interest
