@@ -18,7 +18,7 @@ import pandas as pd
 import pybedtools as pbt
 import pysam
 from sys import stdout, path
-path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
+# path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
 from vep_utils import parse_vep_map, vep2df
 
 
@@ -154,7 +154,7 @@ def main():
     if args.regions is not None:
         regions = pbt.BedTool(args.regions)
     else:
-        regions = []
+        regions = ['']
 
     # Iterate over records in VCF
     for region in regions:
