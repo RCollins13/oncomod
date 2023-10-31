@@ -655,6 +655,7 @@ for cohort in TCGA PROFILE HMF; do
     $CODEDIR/scripts/data_processing/define_control_samples.py \
       --vcf $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
       --criteria $WRKDIR/data/$cancer.control_exclusion_criteria.json \
+      --regions $WRKDIR/../refs/RAS_genes.bed.gz \
       --eligible-samples $COHORTDIR/data/sample_info/$cohort.$cancer.$sample_field.list \
       --exclude-samples $COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.missing_somatic.list \
       --outfile $COHORTDIR/data/sample_info/$cohort.$cancer.eligible_controls.list

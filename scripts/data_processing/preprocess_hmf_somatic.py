@@ -112,7 +112,11 @@ def clean_mut_record(old_record, vcf_out):
     # htslib/pysam weirdness but have been unable to track it down.
     # Long story short: it seems easier to make a new record native to the 
     # header of vcf_out and transfer the info over from old_record
-    record = vcf_out.new_record(contig=old_record.chrom, start=old_record.pos,
+
+    # Also note that pysam irritatingly auto-increments positions by +1,
+    # so we need to subtract 1 from old_record.pos to have the same POS 
+    # appear in vcf_out
+    record = vcf_out.new_record(contig=old_record.chrom, start=old_record.pos-1,
                                 alleles=new_alleles, id=vid, qual=old_record.qual)
     if 'END' in record.info.keys():
         record.info.pop('END')
