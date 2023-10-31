@@ -18,7 +18,7 @@ import pandas as pd
 import pybedtools as pbt
 import pysam
 from sys import stdout, path
-# path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
+path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
 from vep_utils import parse_vep_map, vep2df
 
 
