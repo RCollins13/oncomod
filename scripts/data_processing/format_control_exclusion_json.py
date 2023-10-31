@@ -22,7 +22,7 @@ def reformat_mut(mut):
     """
 
     # Define protein position
-    aa_pos = int(re.split('[A-Z_]', mut)[1])
+    aa_pos = int(re.split('[A-z_]', mut)[1])
     mdict = {'Protein_position' : aa_pos}
 
     # Other annotations depend on variant type

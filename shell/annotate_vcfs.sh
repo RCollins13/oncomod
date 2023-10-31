@@ -630,7 +630,7 @@ for cancer in PDAC CRAD LUAD; do
   echo -e "\n\n${cancer} tier 1 KRAS mutations:\n==========================="
   cat $WRKDIR/data/$cancer.tier1_kras_mutations.list
 
-  $TMPDIR/format_control_exclusion_json.py \
+  $CODEDIR/scripts/data_processing/format_control_exclusion_json.py \
     $WRKDIR/data/$cancer.tier1_kras_mutations.list \
     $WRKDIR/data/$cancer.control_exclusion_criteria.json
 done
