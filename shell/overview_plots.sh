@@ -54,13 +54,16 @@ $CODEDIR/scripts/plot/plot_pheno_summary.R \
 
 ### Plot somatic variant summaries
 # Collapse all variant frequencies for all cohorts
-for cohort in TCGA PROFILE; do
+for cohort in HMF PROFILE TCGA; do
   case $cohort in
-    TCGA)
-      cname=TCGA
+    HMF)
+      cname=HMF
       ;;
     PROFILE)
       cname=DFCI
+      ;;
+    TCGA)
+      cname=TCGA
       ;;
   esac
   for context in coding other; do
@@ -74,15 +77,19 @@ done \
 | gzip -c \
 > $TMPDIR/somatic_variant_freqs.tsv.gz
 # Build simple table of variant coordinates for each cohort 
-for cohort in TCGA PROFILE; do
+for cohort in HMF PROFILE TCGA; do
   case $cohort in
-    TCGA)
-      COHORTDIR=$TCGADIR
-      cname=TCGA
+    HMF)
+      COHORTDIR=$HMFDIR
+      cname=HMF
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
       cname=DFCI
+      ;;
+    TCGA)
+      COHORTDIR=$TCGADIR
+      cname=TCGA
       ;;
   esac
   bcftools query \
@@ -91,18 +98,21 @@ for cohort in TCGA PROFILE; do
     $COHORTDIR/data/$cohort.RAS_loci.anno.clean.vcf.gz \
   | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $1, $2, $3 }'
 done \
-| sort -Vk3,3 -k4,4n -k1,1V \
+| sort -Vk3,3 -k4,4n -k1,1V | uniq \
 | cat <( echo -e "cohort\tvid\tchrom\tpos" ) - \
 | gzip -c \
 > $TMPDIR/somatic_variant_coords.tsv.gz
 # Collapse all variant sets across cohorts
-for cohort in TCGA PROFILE; do
+for cohort in HMF PROFILE TCGA; do
   case $cohort in
-    TCGA)
-      cname=TCGA
+    HMF)
+      cname=HMF
       ;;
     PROFILE)
       cname=DFCI
+      ;;
+    TCGA)
+      cname=TCGA
       ;;
   esac
   for context in collapsed_coding_csqs other_single_variants; do
@@ -114,7 +124,8 @@ done \
 | gzip -c \
 > $TMPDIR/variant_set_map.tsv.gz
 # Gather necessary plotting data into single file
-$TMPDIR/gather_somatic_ras_data.py \
+
+$CODEDIR/scripts/plot/gather_somatic_ras_data.py \
   --freqs $TMPDIR/somatic_variant_freqs.tsv.gz \
   --variant-coords $TMPDIR/somatic_variant_coords.tsv.gz \
   --variant-set-map $TMPDIR/variant_set_map.tsv.gz \

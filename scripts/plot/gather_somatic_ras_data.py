@@ -21,6 +21,10 @@ from general_utils import load_tx_map
 
 
 cancers = 'PDAC CRAD LUAD'.split()
+aa_map = {"Ala": "A", "Arg": "R", "Asn": "N", "Asp": "D", "Cys": "C", "Glu": "E", 
+          "Gln": "Q", "Gly": "G", "His": "H", "Ile": "I", "Leu": "L", "Lys": "K", 
+          "Met": "M", "Phe": "F", "Pro": "P", "Ser": "S", "Thr": "T", "Trp": "W", 
+          "Tyr": "Y", "Val": "V"}
 
 
 def load_coords(coords_in):
@@ -32,9 +36,12 @@ def load_coords(coords_in):
 
     coords = {}
     for cohort, subdf in df.groupby('cohort'):
-        sub_map = subdf.drop('cohort', axis=1).\
-                        set_index('vid', drop=True).\
-                        to_dict(orient='index')
+        try:
+            sub_map = subdf.drop('cohort', axis=1).\
+                            set_index('vid', drop=True).\
+                            to_dict(orient='index')
+        except:
+            import pdb; pdb.set_trace()
         coords[cohort] = sub_map
 
     return coords
@@ -73,19 +80,31 @@ def update_res_df(res_df, cohort, set_id, freqs, coords, var_sets,
     else:
         pos = pd.NA
     if set_id.startswith('ENS'):
-        enst = set_id.split('_')[0]
+        sid_parts = set_id.split('_')
+        enst = sid_parts[0]
         ensg = tx_map['ENSG'][enst]
         gene = tx_map['ENSG_to_symbol'][ensg]
-        csq_wPrefix = set_id.split('_')[1]
+        csq_wPrefix = sid_parts[1]
         if csq_wPrefix in 'AMP DEL'.split():
             alt = csq = csq_wPrefix
             codon = pd.NA
             ref = 'CN2'
         else:
-            csq = re.sub('^p\.', '', csq_wPrefix)
+            if len(sid_parts) > 2:
+                csq = re.sub('^p\.', '', '_'.join(sid_parts[1:]))
+            else:
+                csq = re.sub('^p\.', '', csq_wPrefix)
             ref = re.split('[0-9]+', csq)[0]
-            alt = re.split('[0-9]+', csq)[1]
-            codon = int(re.sub('[A-z=]', '', csq))
+            try:
+                ref = aa_map[ref]
+            except:
+                pass
+            alt = re.split('[0-9]+', csq, maxsplit=1)[-1]
+            try:
+                alt = aa_map[alt]
+            except:
+                pass
+            codon = int(re.split('[A-z=]+', csq.split('_')[0])[1])
 
     else:
         gene = pd.NA
@@ -111,7 +130,8 @@ def update_res_df(res_df, cohort, set_id, freqs, coords, var_sets,
 
     # Attempt to find matching variant unless auto_add is specified
     freq_idx = (freqs.cohort == cohort) & (freqs.set_id == set_id)
-    prior_idx = (res_df.chrom == chrom) & (res_df.position == pos) & (res_df.alt == alt)
+    prior_idx = ((res_df.chrom == chrom) & (res_df.position == pos) & (res_df.alt == alt)) | \
+                ((res_df.gene == gene) & (res_df.csq == csq))
     if auto_add or not prior_idx.any():
         new_vals = [gene, chrom, pos, csq, codon, ref, alt, set_id, ','.join(sorted(vids))]
         new_val_idxs = 'gene chrom position csq codon ref alt'.split()
@@ -156,6 +176,19 @@ def unify_data(freqs, coords, var_sets, tx_map):
         for set_id in subdf.set_id.unique():
             res_df = update_res_df(res_df, cohort, set_id, freqs, coords, var_sets,
                                    tx_map, auto_add=cohort == cohorts[0])
+
+    # Only retain variants with an annotated coding consequence
+    res_df = res_df[~res_df.csq.str.contains('other_')]
+
+    # Given that we are only retaining coding variants, it is ~safe to assume
+    # that variants missing from each cohort were not observed (rather than)
+    # artificially missing due to sequencing/technical factors
+    # We will fill these NA columns to reflect AF~0
+    for colname in res_df.columns[res_df.columns.str.endswith('_AN')]:
+        res_df[colname] = res_df[colname].fillna(res_df[colname].max())
+    for suffix in '_AC _AF'.split():
+        for colname in res_df.columns[res_df.columns.str.endswith(suffix)]:
+            res_df[colname] = res_df[colname].fillna(0)
 
     return res_df
 
