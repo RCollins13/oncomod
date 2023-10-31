@@ -36,7 +36,7 @@ def reformat_mut(mut):
     elif alt == '*':
         mdict['Consequence'] = 'stop_gained'
     elif alt in ascii_uppercase:
-        mdict['Consequence'] = 'missense_mutation'
+        mdict['Consequence'] = 'missense_variant'
         mdict['Amino_acids'] = alt
 
     return mdict

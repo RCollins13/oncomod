@@ -661,12 +661,14 @@ for cohort in TCGA PROFILE HMF; do
   done
   # Concatenate all cancer type-specific control lists
   for cancer in PDAC CRAD LUAD; do
-  done
+    cat $COHORTDIR/data/sample_info/$cohort.$cancer.eligible_controls.list
+  done | sort -V | uniq \
+  > $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list
 done
 # Summarize as table
-for cancer in PDAC CRAD LUAD SKCM; do
+for cancer in PDAC CRAD LUAD; do
   echo $cancer
-  for cohort in TCGA PROFILE; do
+  for cohort in PROFILE HMF TCGA; do
     case $cohort in
       TCGA)
         COHORTDIR=$TCGADIR
@@ -674,6 +676,10 @@ for cancer in PDAC CRAD LUAD SKCM; do
         ;;
       PROFILE)
         COHORTDIR=$PROFILEDIR
+        sample_field="samples"
+        ;;
+      HMF)
+        COHORTDIR=$HMFDIR
         sample_field="samples"
         ;;
     esac
