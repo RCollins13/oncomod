@@ -120,10 +120,10 @@ $TMPDIR/gather_somatic_ras_data.py \
   --variant-set-map $TMPDIR/variant_set_map.tsv.gz \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
   --outfile $WRKDIR/data/plotting/ras_somatic_variants.tsv.gz
-# Plot single-gene locus overview plots for each RAS gene
+# Plot KRAS somatic overview plot
 # TODO: implement this
-# Scatterplots of inter-cohort somatic frequency correlations
-# TODO: implement this
+# Scatterplots of inter-cohort somatic frequency correlations for KRAS
+# TODO: implement this / reuse code from germline AF correlation plots
 
 
 ### Plot germline variant summaries

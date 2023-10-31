@@ -14,13 +14,13 @@ import argparse
 import numpy as np
 import os
 import pandas as pd
+import re
 from sys import path
 path.insert(0, os.path.join(path[0], '..', '..', 'utils'))
 from general_utils import load_tx_map
 
 
-ras_genes = 'NRAS HRAS KRAS'.split()
-cancers = 'PDAC CRAD LUAD SKCM'.split()
+cancers = 'PDAC CRAD LUAD'.split()
 
 
 def load_coords(coords_in):
@@ -58,23 +58,79 @@ def load_set_map(set_map_in):
     return var_sets
 
 
-def update_res_df(res_df, cohort, set_id, freqs, coords, var_sets, auto_add=False):
+def update_res_df(res_df, cohort, set_id, freqs, coords, var_sets, 
+                  tx_map, auto_add=False):
     """
     Update res_df for a single variant set in a single cohort 
     """
 
     # Get basic info
     vids = var_sets[cohort].get(set_id, set())
+    chrom = list(vids)[0].split('_')[0]
+    all_pos = [int(v.split('_')[1]) for v in vids if 'AMP' not in v and 'DEL' not in v]
+    if len(all_pos) > 0:
+        pos = int(np.round(np.nanmean(all_pos), 0))
+    else:
+        pos = pd.NA
+    if set_id.startswith('ENS'):
+        enst = set_id.split('_')[0]
+        ensg = tx_map['ENSG'][enst]
+        gene = tx_map['ENSG_to_symbol'][ensg]
+        csq_wPrefix = set_id.split('_')[1]
+        if csq_wPrefix in 'AMP DEL'.split():
+            alt = csq = csq_wPrefix
+            codon = pd.NA
+            ref = 'CN2'
+        else:
+            csq = re.sub('^p\.', '', csq_wPrefix)
+            ref = re.split('[0-9]+', csq)[0]
+            alt = re.split('[0-9]+', csq)[1]
+            codon = int(re.sub('[A-z=]', '', csq))
+
+    else:
+        gene = pd.NA
+        codon = pd.NA
+        alleles = set_id.split('_')[2:]
+        if any([len(a) > 1 for a in alleles]):
+            csq = 'other_InDel'
+            ref, alt = alleles
+        elif 'AMP' in set_id:
+            ref = 'CN2'
+            alt = csq = 'AMP'
+        elif 'DEL' in set_id:
+            ref = 'CN2'
+            alt = csq = 'DEL'
+        else:
+            csq = 'other_SNV'
+            ref, alt = alleles
+
+    # Make small updates for CNAs
+    if any([a in set_id for a in 'AMP DEL'.split()]):
+        gene = chrom
+        chrom = pd.NA
 
     # Attempt to find matching variant unless auto_add is specified
-    if auto_add:
+    freq_idx = (freqs.cohort == cohort) & (freqs.set_id == set_id)
+    prior_idx = (res_df.chrom == chrom) & (res_df.position == pos) & (res_df.alt == alt)
+    if auto_add or not prior_idx.any():
+        new_vals = [gene, chrom, pos, csq, codon, ref, alt, set_id, ','.join(sorted(vids))]
+        new_val_idxs = 'gene chrom position csq codon ref alt'.split()
+        for suffix in 'set_id vids'.split():
+            new_val_idxs.append(cohort + '_' + suffix)
+        for suffix in freqs.columns[2:]:
+            new_vals.append(freqs.loc[freq_idx, suffix].values[0])
+            new_val_idxs.append(cohort + '_' + suffix)
+        new_row = pd.Series(new_vals, index=new_val_idxs)
+        res_df = res_df.append(new_row, ignore_index=True)
         
     else:
-        # TODO: implement this
-        import pdb; pdb.set_trace()
+        res_df.loc[prior_idx, cohort + '_set_id'] = set_id
+        res_df.loc[prior_idx, cohort + '_vids'] = ','.join(sorted(vids))
+        for suffix in freqs.columns[2:]:
+            newval = freqs.loc[freq_idx, suffix].values[0]
+            res_df.loc[prior_idx, cohort + '_' + suffix] = newval
 
     return res_df
-
 
 
 def unify_data(freqs, coords, var_sets, tx_map):
@@ -86,20 +142,20 @@ def unify_data(freqs, coords, var_sets, tx_map):
     cohorts = sorted(freqs.cohort.unique().tolist())
 
     # Link variants/sets between cohorts
-    res_df = pd.DataFrame(columns='gene position csq'.split())
+    res_df = pd.DataFrame(columns='gene chrom position csq codon ref alt'.split())
     for cohort, subdf in freqs.groupby('cohort'):
 
         # Add missing columns to res_df for cohort-specific info and cancer frequencies
         for suffix in 'set_id vids'.split():
-            res_df[cohort + '_' + suffix] = [set()] * len(res_df)
+            res_df[cohort + '_' + suffix] = [pd.NA] * len(res_df)
         for cancer in cancers:
             for suffix in 'AN AC AF'.split():
-                res_df['{}.{}_{}'.format(cohort, cancer, suffix)] = pd.NA
+                res_df['{}_{}_{}'.format(cohort, cancer, suffix)] = pd.NA
 
         # Update res_df for each variant set in serial
         for set_id in subdf.set_id.unique():
             res_df = update_res_df(res_df, cohort, set_id, freqs, coords, var_sets,
-                                   auto_add=cohort == cohorts[0])
+                                   tx_map, auto_add=cohort == cohorts[0])
 
     return res_df
 
@@ -140,12 +196,15 @@ def main():
     # Unify all data
     res_df = unify_data(freqs, coords, var_sets, tx_map)
 
+    # Sort data by chrom, gene, codon, pos, alt
+    res_df.sort_values('chrom gene codon position alt'.split(), inplace=True)
+
     # Write results to output tsv
     if args.outfile in '- stdout /dev/stdout'.split():
         outfile = stdout
     else:
         outfile = args.outfile
-    res_df.to_csv(outfile, sep='\t', index=False)
+    res_df.to_csv(outfile, sep='\t', index=False, na_rep='NA')
 
 
 if __name__ == '__main__':

@@ -34,7 +34,7 @@ for SUBDIR in data data/variant_sets data/variant_set_freqs; do
 done
 
 
-### Generate maps of somatic variants with the same protein consequence
+### Generate maps of variants with the same protein consequence
 for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)

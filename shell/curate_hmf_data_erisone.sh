@@ -201,7 +201,6 @@ for contig in $( seq 1 22 ) X Y; do
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
 bcftools merge \
-  --merge none \
   --file-list $WRKDIR/data/HMF.sample_vcfs.list \
   --regions $contig \
   --no-version \
@@ -211,12 +210,13 @@ bcftools merge \
   --samples-file $WRKDIR/data/sample_info/HMF.ALL.samples.list \
 | bcftools annotate \
   -x FORMAT/AD,FORMAT/DP,FORMAT/GQ,FORMAT/PL,FORMAT/MIN_DP,FORMAT/PGT,FORMAT/PID,FORMAT/RGQ,FORMAT/SB,INFO/AF,INFO/BaseQRankSum,INFO/ClippingRankSum,INFO/DB,INFO/DP,INFO/FS,INFO/MQ,INFO/MQRankSum,INFO/QD,INFO/ReadPosRankSum,INFO/SOR,INFO/ExcessHet \
-  --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
 | bcftools norm \
   --check-ref x \
   -m - \
   --fasta-ref /data/gusev/USERS/rlc47/TCGA/refs/GRCh37.fa \
 | bcftools +fill-tags - -- -t AN,AC,AF \
+| bcftools annotate \
+  --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
 | bcftools view \
   --trim-alt-alleles \
   -Oz -o $WRKDIR/data/HMF.RAS_loci.$contig.vcf.gz \
