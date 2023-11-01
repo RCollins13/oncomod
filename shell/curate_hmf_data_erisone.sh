@@ -100,11 +100,11 @@ cd $WRKDIR
 bcftools view \
   --samples $tid \
   --include 'FILTER == "PASS"' \
-  --regions-file <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz \
-                    | fgrep -w KRAS ) \
+  --regions $( zcat $WRKDIR/../refs/RAS_genes.bed.gz | fgrep -w KRAS \
+               | awk '{ print $1":"$2-10000"-"$3+10000 }' ) \
   $WRKDIR/data/all_somatic/$tid/purple/$tid.purple.somatic.vcf.gz \
 | bcftools norm \
-  --atomize \
+  -m - \
   --check-ref x \
   --fasta-ref /data/gusev/USERS/rlc47/TCGA/refs/GRCh37.fa \
 | bcftools reheader \

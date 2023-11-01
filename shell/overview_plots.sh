@@ -94,7 +94,7 @@ for cohort in HMF PROFILE TCGA; do
   esac
   bcftools query \
     -f '%ID\t%CHROM\t%POS\n' \
-    --regions-file $WRKDIR/../refs/RAS_genes.bed.gz \
+    --regions-file $CODEDIR/refs/RAS_loci.GRCh37.bed.gz \
     $COHORTDIR/data/$cohort.RAS_loci.anno.clean.vcf.gz \
   | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $1, $2, $3 }'
 done \
@@ -120,7 +120,6 @@ for cohort in HMF PROFILE TCGA; do
   zcat $WRKDIR/data/variant_sets/$cohort.somatic.other_single_variants.tsv.gz \
   | grep -e 'AMP\|DEL' | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $1, $NF }'
 done \
-| cat - <( echo -e "HMF\tKRAS_AMP\tKRAS_AMP\nHMF\tKRAS_DEL\tKRAS_DEL" ) \
 | sort -Vk2,2 -k1,1V | uniq \
 | cat <( echo -e "cohort\tset_id\tvids" ) - \
 | gzip -c \
@@ -132,8 +131,6 @@ $CODEDIR/scripts/plot/gather_somatic_ras_data.py \
   --variant-set-map $TMPDIR/variant_set_map.tsv.gz \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
   --outfile $WRKDIR/data/plotting/ras_somatic_variants.tsv.gz
-zcat $WRKDIR/data/plotting/ras_somatic_variants.tsv.gz \
-
 # Plot KRAS somatic overview plot
 # TODO: implement this
 # Scatterplots of inter-cohort somatic frequency correlations for KRAS

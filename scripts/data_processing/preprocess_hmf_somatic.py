@@ -68,6 +68,7 @@ def build_cnv_records(cna_in, gtf_in, vcf_out, key_genes=None):
             record = vcf_out.new_record(contig=chrom, start=pos, stop=end,
                                         alleles=alleles, id=vid)
             record.filter.add('PASS')
+            record.info['SVTYPE'] = svtype
 
             # Populate samples
             AC, AN, AF = 0, 0, 0

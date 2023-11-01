@@ -59,7 +59,8 @@ plot.AF.scatter <- function(x, y, pair.names, pop){
 # RScript #
 ###########
 # Parse command line arguments and options
-parser <- ArgumentParser(description="Summarize cohort and patient phenotype metadata")
+parser <- ArgumentParser(description=paste("Plot comparisons of germline allele",
+                                           "frequencies between all cohorts"))
 parser$add_argument("--bed", metavar="BED", type="character", action="append",
                     help="single-cohort vcf2bed output", required=TRUE)
 parser$add_argument("--name", metavar="string", type="character", action="append",
