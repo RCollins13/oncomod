@@ -177,8 +177,9 @@ def unify_data(freqs, coords, var_sets, tx_map):
             res_df = update_res_df(res_df, cohort, set_id, freqs, coords, var_sets,
                                    tx_map, auto_add=cohort == cohorts[0])
 
-    # Only retain variants with an annotated coding consequence
+    # Only retain variants with an annotated coding consequence in KRAS
     res_df = res_df[~res_df.csq.str.contains('other_')]
+    res_df = res_df[res_df.gene == 'KRAS']
 
     # Given that we are only retaining coding variants, it is ~safe to assume
     # that variants missing from each cohort were not observed (rather than)
