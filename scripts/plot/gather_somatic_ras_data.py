@@ -104,7 +104,7 @@ def update_res_df(res_df, cohort, set_id, freqs, coords, var_sets,
                 alt = aa_map[alt]
             except:
                 pass
-            codon = int(re.split('[A-z=]+', csq.split('_')[0])[1])
+            codon = int(re.split('[A-z=?]+', csq.split('_')[0])[1])
 
     else:
         gene = pd.NA

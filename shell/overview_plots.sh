@@ -66,10 +66,10 @@ for cohort in HMF PROFILE TCGA; do
       cname=TCGA
       ;;
   esac
-  for context in coding other; do
-    zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.${context}_variants.freq.tsv.gz \
-    | sed '1d' | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $0 }'
-  done
+  zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.coding_variants.freq.tsv.gz \
+  | sed '1d' | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $0 }'
+  zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.other_variants.freq.tsv.gz \
+  | grep -e 'AMP\|DEL' | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $0 }'
 done \
 | sort -Vk2,2 -k1,1V \
 | cat <( zcat $WRKDIR/data/variant_set_freqs/TCGA.somatic.coding_variants.freq.tsv.gz \
@@ -94,7 +94,7 @@ for cohort in HMF PROFILE TCGA; do
   esac
   bcftools query \
     -f '%ID\t%CHROM\t%POS\n' \
-    --regions-file $CODEDIR/refs/RAS_loci.GRCh37.bed.gz \
+    --regions-file $WRKDIR/../refs/RAS_genes.bed.gz \
     $COHORTDIR/data/$cohort.RAS_loci.anno.clean.vcf.gz \
   | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $1, $2, $3 }'
 done \
@@ -115,16 +115,17 @@ for cohort in HMF PROFILE TCGA; do
       cname=TCGA
       ;;
   esac
-  for context in collapsed_coding_csqs other_single_variants; do
-    zcat $WRKDIR/data/variant_sets/$cohort.somatic.$context.tsv.gz | sed '1d'
-  done | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $1, $NF }'
+  zcat $WRKDIR/data/variant_sets/$cohort.somatic.collapsed_coding_csqs.tsv.gz \
+  | sed '1d' | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $1, $NF }'
+  zcat $WRKDIR/data/variant_sets/$cohort.somatic.other_single_variants.tsv.gz \
+  | grep -e 'AMP\|DEL' | awk -v OFS="\t" -v cohort=$cname '{ print cohort, $1, $NF }'
 done \
-| sort -Vk2,2 -k1,1V \
+| cat - <( echo -e "HMF\tKRAS_AMP\tKRAS_AMP\nHMF\tKRAS_DEL\tKRAS_DEL" ) \
+| sort -Vk2,2 -k1,1V | uniq \
 | cat <( echo -e "cohort\tset_id\tvids" ) - \
 | gzip -c \
 > $TMPDIR/variant_set_map.tsv.gz
 # Gather necessary plotting data into single file
-
 $CODEDIR/scripts/plot/gather_somatic_ras_data.py \
   --freqs $TMPDIR/somatic_variant_freqs.tsv.gz \
   --variant-coords $TMPDIR/somatic_variant_coords.tsv.gz \
