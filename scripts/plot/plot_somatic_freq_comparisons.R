@@ -28,7 +28,10 @@ OncoModR::load.constants("all")
 load.somatic.freqs <- function(tsv.in){
   # Read data into memory
   data <- read.table(tsv.in, sep="\t", comment.char="", check.names=F, header=T)
-  rownames(data) <- data$csq
+  data$csq.simple <- paste(data$ref, data$codon, data$alt, sep="")
+  data$csq.simple[which(data$alt == "AMP")] <- "AMP"
+  data$csq.simple[which(data$alt == "DEL")] <- "DEL"
+  rownames(data) <- data$csq.simple
 
   # Only keep frequency data
   data <- data[, grep("_AN$|_AF$|_AC$", colnames(data))]
@@ -55,9 +58,13 @@ load.somatic.freqs <- function(tsv.in){
 plot.somatic.freq.scatter <- function(data, p1, p2, pair.names, cancer,
                                       label.top.n=5){
   # Prepare plot area
-  prep.plot.area(xlims=c(0, 1), ylims=c(0, 1), parmar=c(2.5, 2.5, 1.25, 1.25))
+  max.freq <- max(data[, paste(c(p1, p2), "AF", sep="_")], na.rm=T)
+  ax.lims <- c(0, min(c(1.5 * max.freq, 1)))
+  prep.plot.area(xlims=ax.lims, ylims=ax.lims, parmar=c(2.75, 2.75, 1.25, 1.25))
   sapply(1:2, function(k){
-    clean.axis(k, title=paste(pair.names[k], "Freq."), infinite=T)
+    clean.axis(k, title=paste(pair.names[k], "Frequency"), infinite=T,
+               labels=paste(100 * axTicks(k), "%", sep=""),
+               title.line=if(k==1){0.5}else{0.85})
   })
   mtext(paste(pair.names[1], " vs. ", pair.names[2], " (",
               cancer.names.short[cancer], ")", sep=""), 3, line=0.25)
@@ -127,7 +134,7 @@ apply(combn(cohorts, 2), 2, function(pair.names){
               pair.names[1], pair.names[2], cancer, "png", sep="."),
         height=3*300, width=3*300, res=300)
     plot.somatic.freq.scatter(data, p1=col.prefixes[1], p2=col.prefixes[2],
-                              pair.names, cancer, label.top.n=3)
+                              pair.names, cancer, label.top.n=4)
     dev.off()
   })
 })
