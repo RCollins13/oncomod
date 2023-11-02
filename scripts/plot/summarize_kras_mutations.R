@@ -382,7 +382,7 @@ ctype.ylims <- lapply(cancer.order, function(cancer){
 })
 names(ctype.ylims) <- cancer.order
 protein.feat.colors <- c("P-Loop" = "#569DA8",
-                         "GTP" = "#B1EAF2",
+                         "GTP" = "#95D2DB",
                          "Switch I" = "#FAE641",
                          "Switch II" = "#FA9E41",
                          "Effector" = "#A85D5E",

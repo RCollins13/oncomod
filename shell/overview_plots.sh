@@ -134,7 +134,9 @@ $CODEDIR/scripts/plot/gather_somatic_ras_data.py \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
   --outfile $WRKDIR/data/plotting/ras_somatic_variants.tsv.gz
 # Plot KRAS somatic overview plot
-# TODO: implement this
+$CODEDIR/scripts/plot/summarize_kras_mutations.R \
+  --stats $WRKDIR/data/plotting/ras_somatic_variants.tsv.gz \
+  --out-pdf $WRKDIR/plots/overview/somatic_variants/KRAS_mutation_summary.pdf
 # Scatterplots of inter-cohort somatic frequency correlations for KRAS
 $CODEDIR/scripts/plot/plot_somatic_freq_comparisons.R \
   --stats $WRKDIR/data/plotting/ras_somatic_variants.tsv.gz \
