@@ -20,17 +20,13 @@ import re
 
 
 def mutdf_to_vcf(mut_df, samples, header_in, outfile, fasta_file, 
-                 sample_column='DONOR_ID'):
+                 sample_column='DONOR_ID', no_mut_samples=[], no_cna_samples=[]):
     """
     Main wrapper function to convert mut_df to vcf
     """
 
     # Open connection to reference fa
     ref_fa = pysam.FastaFile(fasta_file)
-
-    # Get list of samples to fill with no-call GTs (due to missing somatic variant data)
-    no_mut_samples = samples.difference(set(mut_df[mut_df.END.isna()][sample_column].values))
-    no_cna_samples = samples.difference(set(mut_df[~mut_df.END.isna()][sample_column].values))
 
     # Build dict of all records, metadata, and carrier samples
     vdict = compile_variant_dict(mut_df, ref_fa, sample_column)

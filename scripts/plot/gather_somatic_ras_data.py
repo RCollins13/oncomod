@@ -99,7 +99,7 @@ def update_res_df(res_df, cohort, set_id, freqs, coords, var_sets,
                 ref = aa_map[ref]
             except:
                 pass
-            alt = re.split('[0-9]+', csq, maxsplit=1)[-1]
+            alt = re.sub('^_', '', re.split('[0-9]+', csq, maxsplit=1)[-1])
             try:
                 alt = aa_map[alt]
             except:

@@ -25,6 +25,8 @@ cd $WRKDIR
 ### Set up directory trees as necessary
 for SUBDIR in plots plots/overview plots/overview/germline_variants \
               plots/overview/germline_variants/AF_comparisons \
+              plots/overview/somatic_variants \
+              plots/overview/somatic_variants/freq_comparisons \
               data/plotting; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
@@ -134,7 +136,9 @@ $CODEDIR/scripts/plot/gather_somatic_ras_data.py \
 # Plot KRAS somatic overview plot
 # TODO: implement this
 # Scatterplots of inter-cohort somatic frequency correlations for KRAS
-# TODO: implement this / reuse code from germline AF correlation plots
+$CODEDIR/scripts/plot/plot_somatic_AF_comparisons.R \
+  --stats $WRKDIR/data/plotting/ras_somatic_variants.tsv.gz \
+  --out-prefix $WRKDIR/plots/overview/somatic_variants/freq_comparisons/somatic_freq_comparisons
 
 
 ### Plot germline variant summaries
@@ -165,5 +169,4 @@ $CODEDIR/scripts/plot/plot_germline_AF_comparisons.R \
   --bed $WRKDIR/data/plotting/TCGA.germline_variants.bed.gz \
   --name TCGA \
   --out-prefix $WRKDIR/plots/overview/germline_variants/AF_comparisons/AF_comparisons
-  
 

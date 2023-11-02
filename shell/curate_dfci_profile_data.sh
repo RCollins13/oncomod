@@ -162,31 +162,11 @@ $CODEDIR/scripts/data_processing/preprocess_dfci_profile_somatic.py \
 tabix -p vcf -f $WRKDIR/data/PROFILE.somatic_variants.vcf.gz
 
 
-# Summarize somatic variant status by gene & cancer type
-for cancer in PDAC CRAD LUAD SKCM; do
-  n_samp=$( fgrep -wvf \
-              $WRKDIR/data/sample_info/PROFILE.ALL.samples.missing_somatic.list \
-              ${WRKDIR}/data/sample_info/PROFILE.$cancer.samples.list | wc -l )
-  while read gene; do
-    zcat $WRKDIR/data/PROFILE.somatic_variants.tsv.gz \
-    | fgrep -wf ${WRKDIR}/data/sample_info/PROFILE.$cancer.samples.list \
-    | fgrep -wvf $WRKDIR/data/sample_info/PROFILE.ALL.samples.missing_somatic.list \
-    | awk -v gene=$gene -v FS="\t" '{ if ($9==gene && ($15~/AMP|DEL|Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/)) print $7 }' \
-    | sort | uniq | wc -l | awk -v n=$n_samp '{ print $1/n }'
-  done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep -v "#" | cut -f4 )
-  zcat $WRKDIR/data/PROFILE.somatic_variants.tsv.gz \
-  | fgrep -wf ${WRKDIR}/data/sample_info/PROFILE.$cancer.samples.list \
-  | fgrep -wvf $WRKDIR/data/sample_info/PROFILE.ALL.samples.missing_somatic.list \
-  | awk -v FS="\t" '{ if ($9~/NRAS|HRAS|KRAS/ && ($15~/AMP|DEL|Frame_Shift_Del|Frame_Shift_Ins|In_Frame_Del|In_Frame_Ins|Missense_Mutation|Nonsense_Mutation|Nonstop_Mutation|Splice_Site/)) print $7 }' \
-  | sort | uniq | wc -l | awk -v n=$n_samp '{ print $1/n }'
-done | paste - - - -
-
-
-# Curate selected PRS for PROFILE samples
-$CODEDIR/scripts/data_processing/curate_profile_prs.R \
-  $BASEDIR/23andme/DFCI_PRS_scores.txt \
-  $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
-  $CODEDIR/refs/PROFILE_selected_PRS.tsv \
-  $WRKDIR/data/PROFILE.PRS.tsv
-gzip -f $WRKDIR/data/PROFILE.PRS.tsv
+# # Curate selected PRS for PROFILE samples
+# $CODEDIR/scripts/data_processing/curate_profile_prs.R \
+#   $BASEDIR/23andme/DFCI_PRS_scores.txt \
+#   $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
+#   $CODEDIR/refs/PROFILE_selected_PRS.tsv \
+#   $WRKDIR/data/PROFILE.PRS.tsv
+# gzip -f $WRKDIR/data/PROFILE.PRS.tsv
 

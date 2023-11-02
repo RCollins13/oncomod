@@ -106,3 +106,4 @@ for cancer in PDAC CRAD LUAD; do
     | wc -l | addcom
   done | paste -s -
 done | paste - -
+

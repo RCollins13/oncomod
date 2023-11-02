@@ -186,10 +186,12 @@ def main():
     # These samples will be included in the VCF but reported as null GT for all records
     if args.no_mutation_data is not None:
         no_mut = [l.rstrip() for l in open(args.no_mutation_data).readlines()]
+        no_mut = list(set(no_mut).intersection(set(donors)))
     else:
         no_mut = []
     if args.no_cna_data is not None:
         no_cna = [l.rstrip() for l in open(args.no_cna_data).readlines()]
+        no_cna = list(set(no_cna).intersection(set(donors)))
     else:
         no_cna = []
 
@@ -199,8 +201,9 @@ def main():
                to_csv(args.out_tsv, sep='\t', index=False, na_rep='.')
 
     # Convert mut_df to VCF
-    mutdf_to_vcf(mut_df, set(donors + no_mut + no_cna), args.header, 
-                 args.outfile, args.ref_fasta)
+    mutdf_to_vcf(mut_df, set(donors), args.header, 
+                 args.outfile, args.ref_fasta, no_mut_samples=no_mut,
+                 no_cna_samples=no_cna)
 
 
 if __name__ == '__main__':
