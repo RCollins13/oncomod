@@ -182,7 +182,7 @@ kras.protein <- function(n.codons=189, text.cex=5/6, parmar=c(0.5, 2, 0.5, 1)){
   prep.plot.area(xlims=c(0, n.codons), ylims=c(0, 1), parmar=parmar)
 
   # Draw rectangle
-  rect(xleft=0, xright=n.codons, ybottom=0, ytop=1, xpd=T, border=NA, col="gray88")
+  rect(xleft=0, xright=n.codons, ybottom=0, ytop=1, xpd=T, border=NA, col="#EBE4DD")
 
   # Add domains
   rect(xleft=features$start, xright=features$stop,
@@ -191,7 +191,7 @@ kras.protein <- function(n.codons=189, text.cex=5/6, parmar=c(0.5, 2, 0.5, 1)){
        col=protein.feat.colors[features$class])
 
   # Add breaks for exons
-  abline(v=exon.breaks, col="gray65")
+  abline(v=exon.breaks, col="gray65", lty=3)
   sapply(exon.breaks, function(x){
     axis(3, at=x, labels=NA, col.ticks="gray65", col="gray65", tck=-0.015)
   })
@@ -290,11 +290,13 @@ plot.freq.meta.single <- function(data, csq, cancer, title=NULL, text.cex=5/6,
 
   # Prep plot area
   prep.plot.area(xlims=xlims, ylims=ylims, parmar=parmar)
+  y.ax.at <- axTicks(2)
+  if(length(y.ax.at > 5)){y.ax.at <- y.ax.at[c(TRUE, FALSE)]}
   if(label.y.axis){
-    y.labels <- paste(100 * axTicks(2), "%", sep="")
+    y.labels <- paste(100 * y.ax.at, "%", sep="")
     y.ax.col <- "black"
   }else{
-    y.labels <- rep("", length(axTicks(2)))
+    y.labels <- rep("", length(y.ax.at))
     y.ax.col <- "gray70"
   }
   if(title.y.axis){
@@ -303,7 +305,7 @@ plot.freq.meta.single <- function(data, csq, cancer, title=NULL, text.cex=5/6,
     y.title <- ""
   }
   if(y.axis){
-    clean.axis(2, tck=ax.tck, infinite=TRUE, labels=y.labels,
+    clean.axis(2, at=y.ax.at, tck=ax.tck, infinite=TRUE, labels=y.labels,
                title=y.title, title.line=1, cex.title=text.cex,
                cex.axis=text.cex, col.axis=y.ax.col)
   }
@@ -379,12 +381,12 @@ ctype.ylims <- lapply(cancer.order, function(cancer){
                          grep(paste(cancer, "AF", sep="_"), colnames(top.data))]))
 })
 names(ctype.ylims) <- cancer.order
-protein.feat.colors <- c("P-Loop" = "#4EC7B9",
-                         "GTP" = "#6BBD28",
-                         "Switch I" = "#FFD333",
-                         "Switch II" = "#E6781C",
-                         "Effector" = "#E6496E",
-                         "Hypervariable" = "#665848")
+protein.feat.colors <- c("P-Loop" = "#569DA8",
+                         "GTP" = "#B1EAF2",
+                         "Switch I" = "#FAE641",
+                         "Switch II" = "#FA9E41",
+                         "Effector" = "#A85D5E",
+                         "Hypervariable" = "#756A5E")
 
 # Plot main figure
 pdf(args$out_pdf, width=180/25.4, height=4.4)
@@ -432,7 +434,7 @@ for(k in 1:length(cancer.order)){
   plot.freq.meta.single(top.data, "any_mis", cancer=cancer.order[k],
                         ylims=c(0, 1), title=if(k==1){"Any Mis."}else{NULL},
                         title.y.axis=FALSE,
-                        parmar=if(k==1){c(0.5, 2.5, 3, 0.5)}else{c(0.5, 2.5, 1, 0.5)})
+                        parmar=if(k==1){c(0.5, 2.5, 2.5, 0.5)}else{c(0.5, 2.5, 1, 0.5)})
   simple.bar.legend(cancer.order[k],
                     parmar=if(k==1){c(0.75, 0.5, 2.5, 0.5)}else{c(0.75, 0.5, 0.75, 0.5)})
 }
