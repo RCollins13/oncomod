@@ -44,8 +44,10 @@ prep.plot.area <- function(xlims, ylims, parmar, xaxs="i", yaxs="i"){
 #' @param title Axis title
 #' @param tck Value passed to `axis()`. See `?axis` for details. \[default: -0.025\]
 #' @param cex.axis Value passed to `axis()`. See `?axis` for details. \[default: 5/6\]
+#' @param col.axis Value passed as `col` and `col.ticks` to `axis()`. See `?axis` for details. \[default: black\]
 #' @param label.line `line` parameter for axis labels \[default: -0.65\]
 #' @param title.line `line` parameter for axis title \[default: 0.5\]
+#' @param cex.title `cex` parameter for axis title \[default: 1\]
 #' @param infinite Indicator for the axis to be extended infinitely (without ticks) \[default: FALSE\]
 #'
 #' @returns NULL
@@ -53,9 +55,10 @@ prep.plot.area <- function(xlims, ylims, parmar, xaxs="i", yaxs="i"){
 #' @export clean.axis
 #' @export
 clean.axis <- function(side, at=NULL, labels=NULL, title=NULL, tck=-0.025,
-                       cex.axis=5/6, label.line=-0.65, title.line=0.5,
-                       infinite=FALSE){
-  if(infinite){axis(side, at=c(-10e10, 10e10), tck=0, labels=NA)}
+                       cex.axis=5/6, col.axis="black", label.line=-0.65,
+                       title.line=0.5, cex.title=1, infinite=FALSE){
+  if(infinite){axis(side, at=c(-10e10, 10e10), tck=0, labels=NA,
+                    col=col.axis, col.ticks=col.axis)}
   if(is.null(at)){at <- axTicks(side)}
   if(is.null(labels)){labels <- at}
   if(side %in% c(1, 3)){
@@ -65,7 +68,7 @@ clean.axis <- function(side, at=NULL, labels=NULL, title=NULL, tck=-0.025,
     las <- 2
     title.at <- mean(par("usr")[3:4])
   }
-  axis(side, at=at, labels=NA, tck=tck)
+  axis(side, at=at, labels=NA, tck=tck, col=col.axis, col.ticks=col.axis)
   sapply(1:length(at), function(i){
     if(is.numeric(labels[i])){
       label <- prettyNum(labels[i], big.mark=",")
@@ -76,7 +79,8 @@ clean.axis <- function(side, at=NULL, labels=NULL, title=NULL, tck=-0.025,
          las=las, line=label.line)
   })
   if(!is.null(title)){
-    axis(side, at=title.at, tick=F, labels=title, line=title.line, xpd=T)
+    axis(side, at=title.at, tick=F, labels=title, line=title.line, xpd=T,
+         cex.axis=cex.title)
   }
 }
 

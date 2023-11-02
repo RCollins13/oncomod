@@ -136,7 +136,7 @@ $CODEDIR/scripts/plot/gather_somatic_ras_data.py \
 # Plot KRAS somatic overview plot
 # TODO: implement this
 # Scatterplots of inter-cohort somatic frequency correlations for KRAS
-$CODEDIR/scripts/plot/plot_somatic_AF_comparisons.R \
+$CODEDIR/scripts/plot/plot_somatic_freq_comparisons.R \
   --stats $WRKDIR/data/plotting/ras_somatic_variants.tsv.gz \
   --out-prefix $WRKDIR/plots/overview/somatic_variants/freq_comparisons/somatic_freq_comparisons
 
