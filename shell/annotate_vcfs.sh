@@ -485,6 +485,7 @@ for contig in $( seq 1 22 ) X; do
     -o $WRKDIR/LSF/logs/VEP_cleanup_HMF_RAS_loci.$contig.log \
     -e $WRKDIR/LSF/logs/VEP_cleanup_HMF_RAS_loci.$contig.err \
     "$WRKDIR/LSF/scripts/clean_VEP.sh \
+         RAS_loci \
          $HMFDIR/data/HMF.RAS_loci.$contig.anno.vcf.gz \
          $HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.vcf.gz"
 done

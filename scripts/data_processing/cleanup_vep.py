@@ -435,6 +435,8 @@ def keep_in_output(record, mode, keep_genes, vep_map, kras_window_start=24520649
 
         # Otherwise, only keep variants with a coding/UTR consequence in a gene 
         # of interest (keep_genes)
+        if len(vdf) == 0:
+            return False
         if ((vdf.SYMBOL.isin(keep_genes)) & (vdf.Consequence.isin(vep_coding_csqs))).any():
             return True
         else:
