@@ -428,12 +428,14 @@ set -eu -o pipefail
 $CODEDIR/scripts/data_processing/cleanup_vep.py \
   --gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
-  \$1 stdout \
+  --mode \$1 \
+  --priority-genes $CODEDIR/refs/NCI_RAS_pathway.genes.list \
+  \$2 stdout \
 | grep -ve "^##bcftools" | grep -ve "^##CADD_" | grep -ve "^##UTRAnnotator_" \
 | grep -ve "^##LoF_" | grep -ve "^##SpliceAI_" | grep -ve "^##VEP-command-line" \
 | bgzip -c \
-> \$2
-tabix -f -p vcf \$2
+> \$3
+tabix -f -p vcf \$3
 EOF
 chmod a+x $WRKDIR/LSF/scripts/clean_VEP.sh
 
@@ -466,6 +468,7 @@ for cohort in TCGA PROFILE HMF; do
       -o $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.log \
       -e $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.err \
       "$WRKDIR/LSF/scripts/clean_VEP.sh \
+         $subset \
          $COHORTDIR/data/$cohort.$subset.anno.vcf.gz \
          $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz"
   done

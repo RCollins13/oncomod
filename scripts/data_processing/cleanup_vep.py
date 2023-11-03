@@ -108,7 +108,8 @@ clinvar_remap = {'Pathogenic' : 'P',
                 'Conflicting_interpretations_of_pathogenicity' : 'CONFLICTING',
                 'Likely_benign' : 'LB',
                 'Benign' : 'B'}
-ras_genes = 'KRAS NRAS HRAS'.split()
+ras_genes = ['KRAS']
+vep_coding_csqs = [k for k, v in vep_severity.items() if v <= 23]
 
 
 def reformat_header(invcf):
@@ -396,6 +397,50 @@ def _clean_regulatory(record, vdf, tx_map):
     return record, vdf
 
 
+def keep_in_output(record, mode, keep_genes, vep_map, kras_window_start=24520649,
+                   kras_window_stop=29688980):
+    """
+    Determine whether the record meets the criteria for being retained in output
+
+    Behavior depends on the value of the "mode" argument, as follows:
+    - "somatic_variants" will keep all coding variants in KRAS only
+    - "RAS_loci" will keep all variants in the KRAS-proximal region as well as
+      any coding variaints in any of the genes in keep_genes
+    """
+
+    vdf = vep2df(record, vep_map, vep_pop)
+
+    if mode == 'somatic_variants':
+        # Always pass CNAs
+        if record.info.get('SVTYPE') in 'AMP DUP DEL'.split():
+            return True
+
+        # If no VEP CSQ is annotated, skip variant
+        if len(vdf) == 0:
+            return False
+
+        # If there are no annotated consequences on KRAS mRNA (protein-coding 
+        # or UTR), skip this variant
+        if ((vdf.SYMBOL == 'KRAS') & (vdf.Consequence.isin(vep_coding_csqs))).any():
+            return True
+        else:
+            return False
+
+    else:
+        # Keep all variants in cis of KRAS
+        if record.chrom in '12 chr12'.split() \
+        and record.pos >= kras_window_start \
+        and record.pos <= kras_window_stop:
+            return True
+
+        # Otherwise, only keep variants with a coding/UTR consequence in a gene 
+        # of interest (keep_genes)
+        if ((vdf.SYMBOL.isin(keep_genes)) & (vdf.Consequence.isin(vep_coding_csqs))).any():
+            return True
+        else:
+            return False
+
+
 def cleanup_cnv(record, vep_fields, gtf_tabix):
     """
     Add simple gene overlap CSQ entry to CNVs
@@ -453,7 +498,8 @@ def cleanup_cnv(record, vep_fields, gtf_tabix):
     return record
 
 
-def cleanup(record, vep_map, tx_map, ras_bt, spliceai_cutoff=0.5):
+def cleanup(record, vep_map, tx_map, ras_bt, keep_genes, mode, 
+            spliceai_cutoff=0.5):
     """
     Simplify VEP entry for a single record
     """
@@ -462,9 +508,11 @@ def cleanup(record, vep_map, tx_map, ras_bt, spliceai_cutoff=0.5):
     # (Excluding keys in vep_pop, defined above)
     vdf = vep2df(record, vep_map, vep_pop)
 
-    # Don't process records lacking CSQ INFO field
-    if len(vdf) == 0:
-        return record
+    # Only keep annotations involving genes of interest
+    if mode == 'somatic_variants':
+        vdf = vdf[(vdf.SYMBOL == 'KRAS') & (vdf.Consequence.isin(vep_coding_csqs))]
+    else:
+        vdf = vdf[vdf.SYMBOL.isin(keep_genes)]
 
     # Pre-filter VEP entries to ignore all intergenic entries if any genic entries are present
     genic_csqs = [k for k, v in vep_severity.items() if v <= 27]
@@ -612,6 +660,11 @@ def main():
     parser.add_argument('--gtf', help='GTF for annotating CNVs', required=True)
     parser.add_argument('-t', '--transcript-info', required=True, help='.tsv ' + \
                         'mapping ENST:ENSG:symbol:length')
+    parser.add_argument('--mode', help='Indicate whether variants should be ' + \
+                        'filtered according to germline or somatic logic', 
+                        required=True)
+    parser.add_argument('--priority-genes', help='List of genes to retain in ' + \
+                        'output; behavior depends on --mode.', required=True)
     args = parser.parse_args()
 
     # Open connection to input vcf
@@ -623,6 +676,8 @@ def main():
     # Parse mapping of VEP fields and transcript info
     vep_map = parse_vep_map(invcf)
     tx_map = load_tx_map(args.transcript_info)
+    with open(args.priority_genes) as fin:
+        keep_genes = set([g.rstrip() for g in fin.readlines()])
     gtf_tabix = pysam.TabixFile(args.gtf)
     ras_bt = load_ras_bt(args.gtf)    
     
@@ -634,12 +689,19 @@ def main():
         outvcf = pysam.VariantFile(args.vcf_out, 'w', header=out_header)
     out_vep_map = parse_vep_map(outvcf)
 
-    # Iterate over records in invcf, clean up each, and write to outvcf
+    # Iterate over records in invcf, clean up each, and write keepers to output VCF
     for record in invcf.fetch():
+        # Determine whether the record meets criteria for being retained in output
+        # If not, don't bother cleaning the record and continue to the next record
+        if not keep_in_output(record, args.mode, keep_genes, vep_map):
+            continue
+
         if 'SVTYPE' in record.info.keys():
             record = cleanup_cnv(record, out_vep_map.values(), gtf_tabix)
         else:
-            record = cleanup(record, vep_map, tx_map, ras_bt)
+            record = cleanup(record, vep_map, tx_map, ras_bt, keep_genes, 
+                             args.mode)
+
         outvcf.write(record)
 
     # Close connection to output VCF to clear buffer
