@@ -500,8 +500,7 @@ def cleanup_cnv(record, vep_fields, gtf_tabix):
     return record
 
 
-def cleanup(record, vep_map, tx_map, ras_bt, keep_genes, mode, 
-            spliceai_cutoff=0.5):
+def cleanup(record, vep_map, tx_map, ras_bt, keep_genes, spliceai_cutoff=0.5):
     """
     Simplify VEP entry for a single record
     """
@@ -509,12 +508,6 @@ def cleanup(record, vep_map, tx_map, ras_bt, keep_genes, mode,
     # Build pd.DataFrame of all VEP entries
     # (Excluding keys in vep_pop, defined above)
     vdf = vep2df(record, vep_map, vep_pop)
-
-    # Only keep annotations involving genes of interest
-    if mode == 'somatic_variants':
-        vdf = vdf[(vdf.SYMBOL == 'KRAS') & (vdf.Consequence.isin(vep_coding_csqs))]
-    else:
-        vdf = vdf[vdf.SYMBOL.isin(keep_genes)]
 
     # Pre-filter VEP entries to ignore all intergenic entries if any genic entries are present
     genic_csqs = [k for k, v in vep_severity.items() if v <= 27]
@@ -530,8 +523,9 @@ def cleanup(record, vep_map, tx_map, ras_bt, keep_genes, mode,
     #   2. Take most severe consequence, if multiple are present
     #   3a. Take canonical transcript, if most severe consequence present on multiple
     #   3b. Take longest transcript, if most severe consequence present on multiple
+    # Only keep annotations involving genes of interest
     keep_idxs = set()
-    for gene in set(vdf.Gene.values):
+    for gene in set(vdf.Gene.values).intersect(set(keep_genes)):
 
         gdf = vdf.loc[vdf.Gene == gene]
 
@@ -666,7 +660,7 @@ def main():
                         'filtered according to germline or somatic logic', 
                         required=True)
     parser.add_argument('--priority-genes', help='List of genes to retain in ' + \
-                        'output; behavior depends on --mode.', required=True)
+                        'output; behavior depends on --mode.')
     args = parser.parse_args()
 
     # Open connection to input vcf
@@ -678,8 +672,11 @@ def main():
     # Parse mapping of VEP fields and transcript info
     vep_map = parse_vep_map(invcf)
     tx_map = load_tx_map(args.transcript_info)
-    with open(args.priority_genes) as fin:
-        keep_genes = set([g.rstrip() for g in fin.readlines()])
+    if args.mode == 'somatic_variants':
+        keep_genes = ras_genes
+    else:
+        with open(args.priority_genes) as fin:
+            keep_genes = set([g.rstrip() for g in fin.readlines()])
     gtf_tabix = pysam.TabixFile(args.gtf)
     ras_bt = load_ras_bt(args.gtf)    
     
@@ -701,8 +698,7 @@ def main():
         if 'SVTYPE' in record.info.keys():
             record = cleanup_cnv(record, out_vep_map.values(), gtf_tabix)
         else:
-            record = cleanup(record, vep_map, tx_map, ras_bt, keep_genes, 
-                             args.mode)
+            record = cleanup(record, vep_map, tx_map, ras_bt, keep_genes)
 
         outvcf.write(record)
 
