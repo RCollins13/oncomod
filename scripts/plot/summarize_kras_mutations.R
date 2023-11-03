@@ -192,13 +192,13 @@ kras.protein <- function(n.codons=189, label.domains=TRUE,
        col=protein.feat.colors[features$class])
 
   # Add breaks for exons
-  abline(v=exon.breaks, col="gray65", lty=3)
+  abline(v=exon.breaks, col="gray65")
   sapply(exon.breaks, function(x){
     axis(3, at=x, labels=NA, col.ticks="gray65", col="gray65", tck=-0.015)
   })
 
   # Add labels
-  axis(2, at=0.5, tick=F, line=-0.7, labels="KRAS\nProtein", cex.axis=text.cex, las=2)
+  axis(2, at=0.5, tick=F, line=-0.7, labels="Protein\nDomains", cex.axis=text.cex, las=2)
   if(label.domains){
     text(x=apply(features[grep("Switch", features$class), c("start", "stop")], 1, mean),
          y=0.5, cex=text.cex, labels=c("Sw. I", "Switch II"))
