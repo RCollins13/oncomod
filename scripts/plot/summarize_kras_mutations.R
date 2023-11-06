@@ -316,10 +316,14 @@ plot.freq.meta.single <- function(data, csq, cancer, title=NULL, text.cex=5/6,
   }
   mtext(title, side=3, font=2, cex=title.cex, line=title.line)
 
-  # Add bars for individual cohorts
-  rect(xleft=bar.xleft, xright=bar.xright, ybottom=0, ytop=point.ests,
-       col=cancer.palettes[[cancer]][cohort.color.prefixes[cohorts]],
-       border=cancer.palettes[[cancer]][cohort.color.prefixes[cohorts]])
+  # Add bars for individual cohorts in order of sample size
+  # This is necessary such that smaller cohorts are plotted on top of
+  # larger cohorts so they remain visible when their borders overlap
+  for(i in order(sample.sizes, decreasing=T)){
+    rect(xleft=bar.xleft[i], xright=bar.xright[i], ybottom=0, ytop=point.ests[i],
+         col=cancer.palettes[[cancer]][cohort.color.prefixes[cohorts[i]]],
+         border=cancer.palettes[[cancer]][cohort.color.prefixes[cohorts[i]]])
+  }
   clean.axis(1, tck=0, labels=NA)
 
   # Add diamond for meta-analysis
