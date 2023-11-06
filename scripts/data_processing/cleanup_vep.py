@@ -525,7 +525,7 @@ def cleanup(record, vep_map, tx_map, ras_bt, keep_genes, spliceai_cutoff=0.5):
     #   3b. Take longest transcript, if most severe consequence present on multiple
     # Only keep annotations involving genes of interest
     keep_idxs = set()
-    for gene in set(vdf.Gene.values).intersect(set(keep_genes)):
+    for gene in set(vdf.Gene.values).intersection(set(keep_genes)):
 
         gdf = vdf.loc[vdf.Gene == gene]
 
