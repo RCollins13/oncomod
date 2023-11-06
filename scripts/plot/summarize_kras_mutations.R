@@ -370,7 +370,7 @@ data$csq.simple <- paste(data$ref, data$codon, data$alt, sep="")
 data$max_freq <- apply(data[, grep("meta_.*_AF$", colnames(data))], 1, max)
 
 # Restrict frequency data to top N non-CNA mutations
-n.mut.highlights <- 12
+n.mut.highlights <- length(which(data$max_freq >= 0.01 & !(data$alt %in% c("DEL", "AMP"))))
 freq.order <- order(data$max_freq, decreasing=TRUE)
 highlight.muts <- head(setdiff(rownames(data)[freq.order],
                                c("AMP", "DEL", "any_mis")), n.mut.highlights)
