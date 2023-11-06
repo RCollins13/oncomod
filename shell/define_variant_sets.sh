@@ -146,9 +146,11 @@ for cohort in TCGA PROFILE HMF; do
     case $context in
       germline)
         subset="RAS_loci"
+        elig_genes_option="--eligible-genes $CODEDIR/refs/NCI_RAS_pathway.genes.list"
         ;;
       somatic)
         subset="somatic_variants"
+        elig_genes_option="--eligible-genes <( echo KRAS )"
         ;;
     esac
     for suf in err log; do
@@ -162,6 +164,7 @@ for cohort in TCGA PROFILE HMF; do
       "$CODEDIR/scripts/data_processing/populate_variant_sets.py \
          --vcf $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
          --sets-json $CODEDIR/refs/variant_set_criteria.$context.json \
+         $elig_genes_option \
        | gzip -c > $WRKDIR/data/variant_sets/$cohort.$context.burden_sets.tsv.gz"
   done
 done

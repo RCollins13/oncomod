@@ -66,6 +66,12 @@ def eval_criteria(record, key, criterion, vep_map):
 
     # Handle all VEP-related criteria
     if keys[0] == 'CSQ':
+
+        # Check if VEP is present in the record's INFO field
+        # If not, automatically fails the criterion
+        if 'CSQ' not in record.info.keys():
+            return False, []
+
         # UTRAnnotator needs to be treated separately
         if keys[1].startswith('UTRAnnotator'):
             criteria_met = False
@@ -201,6 +207,10 @@ def main():
     parser.add_argument('--vcf', required=True, help='input .vcf')
     parser.add_argument('--sets-json', required=True, help='.json of rules for ' +
                         'each set. See README for specs.')
+    parser.add_argument('--eligible-genes', help='Optional list of gene symbols ' +
+                        'that are eligible for gene-based variant sets. [default: ' +
+                        'build a set for any gene with at least one qualifying ' +
+                        'variant in VCF]')
     parser.add_argument('-o', '--outfile', help='output .tsv [default: stdout]', 
                         default='stdout')
     args = parser.parse_args()
@@ -218,6 +228,11 @@ def main():
     # Load VEP parser info
     vep_map = parse_vep_map(invcf)
 
+    # Load list of eligible genes, if optioned
+    if args.eligible_genes is not None:
+        with open(args.eligible_genes) as fin:
+            elig_genes = [g.rstrip() for g in fin.readlines()]
+
     # Iterate over each record in --vcf and assign to any sets where it meets the criteria
     set_vids = {sid : {} for sid in rules_dict.keys()}
     for record in invcf.fetch():
@@ -225,6 +240,9 @@ def main():
             meets_rules, genes = check_rules(record, rules, vep_map)
             if meets_rules:
                 for gene in genes:
+                    if args.eligible_genes is not None:
+                        if gene not in elig_genes:
+                            continue
                     if gene not in set_vids[sid].keys():
                         set_vids[sid][gene] = set()
                     set_vids[sid][gene].add(record.id)
