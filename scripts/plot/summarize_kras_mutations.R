@@ -268,7 +268,7 @@ plot.freq.meta.single <- function(data, csq, cancer, title=NULL, text.cex=5/6,
                                   title.cex=0.65, diamond.ratio=1/3,
                                   proportional.bars=TRUE, x.space=1/10,
                                   ylims=NULL, y.axis=TRUE, label.y.axis=TRUE,
-                                  title.y.axis=TRUE, ax.tck=-0.05,
+                                  title.y.axis=TRUE, title.line=0.75, ax.tck=-0.05,
                                   parmar=c(0.5, 3, 1.5, 0.1)){
   # Get data
   cohorts <- unique(cohort.names.short)
@@ -314,7 +314,7 @@ plot.freq.meta.single <- function(data, csq, cancer, title=NULL, text.cex=5/6,
                title=y.title, title.line=1, cex.title=text.cex,
                cex.axis=text.cex, col.axis=y.ax.col)
   }
-  mtext(title, side=3, font=2, cex=title.cex, line=0.5)
+  mtext(title, side=3, font=2, cex=title.cex, line=title.line)
 
   # Add bars for individual cohorts
   rect(xleft=bar.xleft, xright=bar.xright, ybottom=0, ytop=point.ests,
@@ -370,7 +370,7 @@ data$csq.simple <- paste(data$ref, data$codon, data$alt, sep="")
 data$max_freq <- apply(data[, grep("meta_.*_AF$", colnames(data))], 1, max)
 
 # Restrict frequency data to top N non-CNA mutations
-n.mut.highlights <- 9
+n.mut.highlights <- 12
 freq.order <- order(data$max_freq, decreasing=TRUE)
 highlight.muts <- head(setdiff(rownames(data)[freq.order],
                                c("AMP", "DEL", "any_mis")), n.mut.highlights)
@@ -394,7 +394,7 @@ protein.feat.colors <- c("P-Loop" = "#569DA8",
                          "Hypervariable" = "#756A5E")
 
 # Plot main figure
-pdf(args$out_pdf, width=180/25.4, height=4.4)
+pdf(args$out_pdf, width=180/25.4, height=4.2)
 layout(matrix(c(rep(1, n.mut.highlights+2),
                 rep(2, n.mut.highlights+2),
                 rep(3, n.mut.highlights), 4, 4,
@@ -404,8 +404,8 @@ layout(matrix(c(rep(1, n.mut.highlights+2),
                 rep(9, n.mut.highlights), 10, 10,
                 (1:(3*(n.mut.highlights+2)))+10),
               nrow=10, byrow=T),
-       heights=c(0.4, 1, 0.45, 0.5, 0.18, 0.18, 0.18, 1.25, 0.9, 0.9),
-       widths=c(1.4, rep(1, n.mut.highlights-1), 1.35, 0.9))
+       heights=c(0.4, 1, 0.45, 0.5, 0.15, 0.15, 0.15, 1.2, 0.75, 0.75),
+       widths=c(1.4, rep(1, n.mut.highlights-1), 1.3, 1.1))
 kras.idio(parmar=c(0.5, 2.5, 0.5, 0.5))
 kras.gene(parmar=c(0.2, 2.5, 1.25, 0.5))
 kras.protein(label.domains=FALSE, parmar=c(0.5, 3.2, 0.5, 0.5))
@@ -429,8 +429,8 @@ codon.heat(counts=get.codon.mut.freq(data, "LUAD"),
 codon.mut.freq.heat.legend(parmar=c(0.8, 1.5, 0.2, 2.5))
 for(k in 1:length(cancer.order)){
   for(i in 1:n.mut.highlights){
-    parmar <- if(i==1){c(0.5, 3, 1, 0.5)}else{c(0.5, 1, 1, 0.5)}
-    if(k == 1){parmar[3] <- 2.5}
+    parmar <- if(i==1){c(0.5, 3, 0.35, 0.5)}else{c(0.5, 1, 0.35, 0.5)}
+    if(k == 1){parmar[3] <- 3.25}
     plot.freq.meta.single(top.data, rownames(top.data)[i], cancer=cancer.order[k],
                           ylims=ctype.ylims[[k]], label.y.axis=(i == 1), title.y.axis=(i == 1),
                           title=if(k==1){top.data[i, "csq.simple"]}else{NULL},
@@ -439,9 +439,9 @@ for(k in 1:length(cancer.order)){
   plot.freq.meta.single(top.data, "any_mis", cancer=cancer.order[k],
                         ylims=c(0, 1), title=if(k==1){"Any Mis."}else{NULL},
                         title.y.axis=FALSE,
-                        parmar=if(k==1){c(0.5, 2.5, 2.5, 0.5)}else{c(0.5, 2.5, 1, 0.5)})
+                        parmar=if(k==1){c(0.5, 2.5, 3.25, 0.5)}else{c(0.5, 2.5, 0.35, 0.5)})
   simple.bar.legend(cancer.order[k],
-                    parmar=if(k==1){c(0.75, 0.5, 2.5, 0.5)}else{c(0.75, 0.5, 0.75, 0.5)})
+                    parmar=if(k==1){c(0.75, 0.5, 3.25, 0.5)}else{c(0.75, 0.5, 0.35, 0.5)})
 }
 dev.off()
 

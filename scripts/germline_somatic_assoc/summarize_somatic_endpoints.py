@@ -214,7 +214,8 @@ def main():
     for cancer in cancers:
         for gene in ras_genes:
             header_vals.append('_'.join([cancer, gene]))
-        header_vals.append(cancer + '_Union')
+        if len(ras_genes) > 1:
+            header_vals.append(cancer + '_Union')
     outfile.write('\t'.join(header_vals + ['Total']) + '\n')
 
     # Summarize as table
@@ -226,7 +227,8 @@ def main():
             for gene in ras_genes:
                 outvals.append(len(vals[cancer][gene]))
                 sub_union.update(vals[cancer][gene])
-            outvals.append(len(sub_union))
+            if len(ras_genes) > 1:
+                outvals.append(len(sub_union))
             total += len(sub_union)
         outfile.write('\t'.join([str(x) for x in outvals + [total]]) + '\n')
 
