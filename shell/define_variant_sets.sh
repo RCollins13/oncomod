@@ -130,6 +130,12 @@ done
 
 
 ### Generate somatic and germline variant sets for burden testing
+# First, must make lists of eligible genes for somatic & germline criteria
+echo "KRAS" > $TMPDIR/eligible_somatic.genes.list
+cat \
+  $CODEDIR/refs/NCI_RAS_pathway.genes.list \
+  $CODEDIR/refs/protein_coding_genes_near_KRAS_locus.list \
+| sort -V | uniq > $TMPDIR/eligible_germline.genes.list
 for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
@@ -146,11 +152,9 @@ for cohort in TCGA PROFILE HMF; do
     case $context in
       germline)
         subset="RAS_loci"
-        elig_genes_option="--eligible-genes $CODEDIR/refs/NCI_RAS_pathway.genes.list"
         ;;
       somatic)
         subset="somatic_variants"
-        elig_genes_option="--eligible-genes <( echo KRAS )"
         ;;
     esac
     for suf in err log; do
@@ -164,7 +168,7 @@ for cohort in TCGA PROFILE HMF; do
       "$CODEDIR/scripts/data_processing/populate_variant_sets.py \
          --vcf $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
          --sets-json $CODEDIR/refs/variant_set_criteria.$context.json \
-         $elig_genes_option \
+         --eligible-genes $TMPDIR/eligible_$context.genes.list \
        | gzip -c > $WRKDIR/data/variant_sets/$cohort.$context.burden_sets.tsv.gz"
   done
 done
