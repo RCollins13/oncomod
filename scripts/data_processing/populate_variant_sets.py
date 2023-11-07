@@ -110,9 +110,15 @@ def eval_criteria(record, key, criterion, vep_map):
             criteria_met = False
             genes = []
         else:
-            criteria_met = True
-            genes = [re.split(':|\|', s) for s in val]
-            genes = [g for s in genes for g in s]
+            anno_genes = [re.split(':|\|', s) for s in val]
+            anno_genes = [g for s in anno_genes for g in s]
+            if criterion[0] == '':
+                criteria_met = True
+                genes = anno_genes
+            else:
+                query_genes = set(criterion[0].split('|'))
+                genes = list(set(anno_genes).intersection(query_genes))
+                criteria_met = len(genes) > 0
 
     # Handle tissue-specific annotations (enhancers and eQTLs)
     elif keys[0] in 'enhancer GTEx_eQTL'.split():
@@ -128,10 +134,7 @@ def eval_criteria(record, key, criterion, vep_map):
             elif keys[0] == 'GTEx_eQTL':
                 vdf.columns = 'gene tissue beta'.split()
                 vdf['beta'] = vdf.beta.astype(float)
-            try:
-                hits = vdf[keys[1]].apply(lambda x: op(x, criterion[0]))
-            except:
-                import pdb; pdb.set_trace()
+            hits = vdf[keys[1]].apply(lambda x: op(x, criterion[0]))
             if hits.any():
                 criteria_met = True
                 genes = vdf.gene[hits].values.tolist()
@@ -160,7 +163,7 @@ def eval_criteria(record, key, criterion, vep_map):
 def check_single_rule(record, rule_dict, vep_map):
     """
     Check if record meets ALL criteria specified in rule_dict
-    Returns boolean True/False and a list of gene symbols meeting criteria
+    Returns boolean True/False and a list of gene symbols meeting *ALL* criteria
     """
 
     criteria_res = [eval_criteria(record, key, crit, vep_map) \
@@ -169,7 +172,10 @@ def check_single_rule(record, rule_dict, vep_map):
     criteria_met = [b for b, g in criteria_res]
     if all(criteria_met):
         glists = [g for b, g in criteria_res]
-        genes = list(set([g for l in glists for g in l]))
+        genes = set([g for l in glists for g in l])
+        for sublist in glists:
+            genes = genes.intersection(set(sublist))
+        genes = list(genes)
     else:
         genes = []
 
@@ -182,7 +188,7 @@ def check_rules(record, rules, vep_map):
     Input rules: must be a list of dicts following the .json spec (see README).
                  Each dict within the list will be evaluated separately
     Returns boolean True/False if any of the dicts in rules are satisfied
-    Also returns list of genes meeting any of the rules
+    Also returns list of genes meeting *any* of the rules
     """
 
     rule_res = [check_single_rule(record, r, vep_map) for r in rules]
