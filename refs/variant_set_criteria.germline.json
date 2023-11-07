@@ -260,13 +260,17 @@
 
 	"all_promoter":
 	[
-		{"promoter" : ["", "!="]}
+		{
+			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"promoter" : ["", "!="]
+		}
 	],
 
 
 	"conserved_promoter":
 	[
 		{
+			"CSQ:SYMBOL" : ["KRAS", "=="],
 			"promoter" : ["", "!="],
 			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
