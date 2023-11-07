@@ -138,8 +138,10 @@ kras.gene <- function(view.start=25404589, view.stop=25357497,
   prep.plot.area(xlim=c(view.start, view.stop), ylim=c(2.75, -0.75), parmar=parmar)
   clean.axis(3, labels=paste(axTicks(3) / 1000000, "Mb", sep=""), infinite=TRUE,
              tck=-0.05, col.axis="gray65", cex.axis=text.cex)
-  text(x=max(unlist(unlist(kras.coords))), y=1, labels="KRAS", font=3,
-       pos=2, xpd=T, cex=text.cex)
+  text(x=max(unlist(unlist(kras.coords))), y=0.65,
+       labels="KRAS", font=3, pos=2, xpd=T, cex=text.cex)
+  text(x=max(unlist(unlist(kras.coords))), y=1.35,
+       labels="Locus", font=1, pos=2, xpd=T, cex=text.cex)
 
   # Add 4a & 4b coordinates
   segments(x0=sapply(kras.coords, function(l){min(unlist(l), na.rm=T)}),
@@ -161,10 +163,10 @@ kras.gene <- function(view.start=25404589, view.stop=25357497,
 
   # Add labels for 4A/4B exons
   text(x=(kras.4a.coords$exon.starts + kras.4a.coords$exon.stops)/2,
-       y=0.5-(utr.height/2), pos=3, labels=rev(c(1, 2, 3, "4A")),
+       y=0.6-(utr.height/2), pos=3, labels=rev(c(1, 2, 3, "4A")),
        cex=text.cex, col=gene.color, xpd=T)
   text(x=((kras.4b.coords$exon.starts + kras.4b.coords$exon.stops)/2)[1],
-       y=1.5+(utr.height/2), pos=1, labels="4B", cex=text.cex,
+       y=1.4+(utr.height/2), pos=1, labels="4B", cex=text.cex,
        col=gene.color, xpd=T)
 }
 
@@ -198,7 +200,7 @@ kras.protein <- function(n.codons=189, label.domains=TRUE,
   })
 
   # Add labels
-  axis(2, at=0.5, tick=F, line=-0.7, labels="Protein\nDomains", cex.axis=text.cex, las=2)
+  axis(2, at=0.5, tick=F, line=-0.7, labels="KRAS\nProtein", cex.axis=text.cex, las=2)
   if(label.domains){
     text(x=apply(features[grep("Switch", features$class), c("start", "stop")], 1, mean),
          y=0.5, cex=text.cex, labels=c("Sw. I", "Switch II"))
@@ -246,7 +248,7 @@ codon.mut.heat.legend <- function(max.hits=5, text.cex=5/6,
        col=pal[1:(max.hits+1)], xpd=T, border="gray65")
   text(x=(1:(max.hits))-0.5, y=0.5, labels=(1:(max.hits))-1, cex=text.cex)
   text(x=max.hits+0.5, y=0.5, labels=bquote("" >= .(max.hits)), cex=text.cex)
-  text(x=mean(par("usr")[1:2]), y=1.5, labels="Unique Alleles at Site", xpd=T,
+  text(x=mean(par("usr")[1:2]), y=1.5, labels="Unique Alleles at Position", xpd=T,
        cex=text.cex)
 }
 
@@ -268,7 +270,7 @@ plot.freq.meta.single <- function(data, csq, cancer, title=NULL, text.cex=5/6,
                                   title.cex=0.65, diamond.ratio=1/3,
                                   proportional.bars=TRUE, x.space=1/10,
                                   ylims=NULL, y.axis=TRUE, label.y.axis=TRUE,
-                                  title.y.axis=TRUE, title.line=0.75, ax.tck=-0.05,
+                                  title.y.axis=TRUE, title.line=0.7, ax.tck=-0.05,
                                   parmar=c(0.5, 3, 1.5, 0.1)){
   # Get data
   cohorts <- unique(cohort.names.short)
@@ -398,7 +400,7 @@ protein.feat.colors <- c("P-Loop" = "#569DA8",
                          "Hypervariable" = "#756A5E")
 
 # Plot main figure
-pdf(args$out_pdf, width=180/25.4, height=4.2)
+pdf(args$out_pdf, width=180/25.4, height=4)
 layout(matrix(c(rep(1, n.mut.highlights+2),
                 rep(2, n.mut.highlights+2),
                 rep(3, n.mut.highlights), 4, 4,
@@ -408,9 +410,9 @@ layout(matrix(c(rep(1, n.mut.highlights+2),
                 rep(9, n.mut.highlights), 10, 10,
                 (1:(3*(n.mut.highlights+2)))+10),
               nrow=10, byrow=T),
-       heights=c(0.4, 1, 0.45, 0.5, 0.15, 0.15, 0.15, 1.2, 0.75, 0.75),
+       heights=c(0.35, 0.8, 0.45, 0.5, 0.15, 0.15, 0.15, 1.15, 0.7, 0.7),
        widths=c(1.4, rep(1, n.mut.highlights-1), 1.3, 1.1))
-kras.idio(parmar=c(0.5, 2.5, 0.5, 0.5))
+kras.idio(parmar=c(0.3, 2.5, 0.5, 0.5))
 kras.gene(parmar=c(0.2, 2.5, 1.25, 0.5))
 kras.protein(label.domains=FALSE, parmar=c(0.5, 3.2, 0.5, 0.5))
 protein.legend()
@@ -430,7 +432,7 @@ codon.heat(counts=get.codon.mut.freq(data, "CRAD"),
 codon.heat(counts=get.codon.mut.freq(data, "LUAD"),
            pal=viridis(51), left.label="LUAD",
            number.residues=FALSE, parmar=c(0.1, 3.2, 0.1, 0.5))
-codon.mut.freq.heat.legend(parmar=c(0.8, 1.5, 0.2, 2.5))
+codon.mut.freq.heat.legend(parmar=c(0.6, 1.5, 0.4, 2.5))
 for(k in 1:length(cancer.order)){
   for(i in 1:n.mut.highlights){
     parmar <- if(i==1){c(0.5, 3, 0.35, 0.5)}else{c(0.5, 1, 0.35, 0.5)}
@@ -445,7 +447,7 @@ for(k in 1:length(cancer.order)){
                         title.y.axis=FALSE,
                         parmar=if(k==1){c(0.5, 2.5, 3.25, 0.5)}else{c(0.5, 2.5, 0.35, 0.5)})
   simple.bar.legend(cancer.order[k],
-                    parmar=if(k==1){c(0.75, 0.5, 3.25, 0.5)}else{c(0.75, 0.5, 0.35, 0.5)})
+                    parmar=if(k==1){c(0.5, 0.5, 3.25, 0.5)}else{c(0.5, 0.5, 0.35, 0.5)})
 }
 dev.off()
 
