@@ -39,54 +39,65 @@ done
 
 # TODO: update all germline variant filtering below
 
-# ### Determine LD-independent number of individual germline variants to test per cancer type
-# module load plink/1.90b3
-# for cancer in PDAC CRAD LUAD SKCM; do
-#   # Subset VCFs per cohort to:
-#   # 1. Non-rare (10≤AC≤(2*N_samples - 10)) variants
-#   # 2. called in at least 75% of samples and 
-#   # 3. in HWE
-#   for cohort in TCGA PROFILE; do
-#     case $cohort in
-#       TCGA)
-#         COHORTDIR=$TCGADIR
-#         sample_name="donors"
-#         ;;
-#       PROFILE)
-#         COHORTDIR=$PROFILEDIR
-#         sample_name="samples"
-#         ;;
-#     esac
-#     bcftools view \
-#       --samples-file $COHORTDIR/data/sample_info/$cohort.$cancer.$sample_name.list \
-#       $COHORTDIR/data/$cohort.RAS_loci.vcf.gz \
-#     | bcftools +fill-tags - -- -t AC,AN,F_MISSING,HWE \
-#     | bcftools view \
-#       --include 'AC >= 10 & (AN-AC) >= 10 & F_MISSING < 0.5 & HWE>0.000001' \
-#       -o $COHORTDIR/data/$cohort.RAS_loci.$cancer.qc_pass.vcf.gz \
-#       -O z
-#     tabix -p vcf -f $COHORTDIR/data/$cohort.RAS_loci.$cancer.qc_pass.vcf.gz
-#   done
+### Determine LD-independent number of individual germline variants to test per cancer type
+module load plink/2.0a2.3
+for cancer in PDAC CRAD LUAD; do
+  # Subset VCFs per cohort to:
+  # 1. Non-rare (10≤AC≤(2*N_samples - 10)) variants
+  # 2. called in at least 75% of samples and 
+  # 3. in HWE
+  for cohort in TCGA PROFILE HMF; do
+    case $cohort in
+      TCGA)
+        COHORTDIR=$TCGADIR
+        sample_name="donors"
+        ;;
+      PROFILE)
+        COHORTDIR=$PROFILEDIR
+        sample_name="samples"
+        ;;
+      HMF)
+        COHORTDIR=$HMFDIR
+        sample_name="samples"
+        ;;
+    esac
+    bcftools view \
+      --samples-file $COHORTDIR/data/sample_info/$cohort.$cancer.$sample_name.list \
+      $COHORTDIR/data/$cohort.RAS_loci.vcf.gz \
+    | bcftools +fill-tags - -- -t AC,AN,F_MISSING,HWE \
+    | bcftools view \
+      --include 'AC >= 10 & (AN-AC) >= 10 & F_MISSING < 0.5 & HWE>0.000001' \
+    | bcftools norm \
+      -m - \
+      --check-ref s \
+      --fasta-ref /data/gusev/USERS/rlc47/TCGA/refs/GRCh37.fa \
+      -o $COHORTDIR/data/$cohort.RAS_loci.$cancer.qc_pass.vcf.gz \
+      -O z
+    tabix -p vcf -f $COHORTDIR/data/$cohort.RAS_loci.$cancer.qc_pass.vcf.gz
+  done
 
-#   # Merge QC-pass VCFs across cohorts
-#   bcftools merge \
-#     -m none \
-#     -o $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
-#     -O z \
-#     $TCGADIR/data/TCGA.RAS_loci.$cancer.qc_pass.vcf.gz \
-#     $PROFILEDIR/data/PROFILE.RAS_loci.$cancer.qc_pass.vcf.gz
-#   tabix -p vcf -f $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz
+  # Merge QC-pass VCFs across cohorts
+  bcftools merge \
+    -o $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
+    -O z \
+    $TCGADIR/data/TCGA.RAS_loci.$cancer.qc_pass.vcf.gz \
+    $PROFILEDIR/data/PROFILE.RAS_loci.$cancer.qc_pass.vcf.gz \
+    $HMFDIR/data/HMF.RAS_loci.$cancer.qc_pass.vcf.gz
+  tabix -p vcf -f $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz
 
-#   # LD prune with PLINK
-#   plink \
-#     --vcf $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
-#     --indep-pairwise 100kb 5 0.2 \
-#     --recode vcf bgz \
-#     --out $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.pruned
-# done
+  # LD prune with PLINK
+  plink2 \
+    --threads 8 \
+    --memory 16000 \
+    --vcf $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
+    --indep-pairwise 500kb 1 0.2 \
+    --vcf-half-call missing \
+    --recode vcf bgz \
+    --out $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.pruned
+done
 
 # # Once merged & LD-pruned, determine number of variants retained per cancer type per gene 
-# for cancer in PDAC CRAD LUAD SKCM; do
+# for cancer in PDAC CRAD LUAD; do
 #   while read chrom start end gene; do
 #     bcftools query \
 #       -f '%ID\n' -r "$chrom" \
@@ -94,40 +105,44 @@ done
 #     | fgrep -wf - \
 #       $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.pruned.prune.in \
 #     | wc -l
-#   done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz ) | paste -s - \
+#   done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz | fgrep KRAS ) | paste -s - \
 #   | awk -v OFS="\t" '{ print $0, $1+$2+$3 }'
 # done | paste -s -
 
 
-# ### Filter germline variant sets for RAS genes to determine which have sufficient 
-# ### data to be tested (AC≥10)
-# for cohort in TCGA PROFILE; do
-#   freqs=$WRKDIR/data/variant_set_freqs/$cohort.germline.burden_sets.freq.tsv.gz
-#   zcat $WRKDIR/data/variant_sets/$cohort.germline.burden_sets.tsv.gz \
-#   | awk '{ if ($4 ~ /,/) print $1 }' \
-#   | fgrep -wf - <( zcat $freqs ) | cat <( zcat $freqs | head -n1 ) - \
-#   | grep -e '^set_id\|^NRAS_\|^HRAS_\|^KRAS_' \
-#   | $CODEDIR/scripts/data_processing/filter_freq_table.py \
-#     --freq-tsv stdin \
-#     --min-ac 10 \
-#     --min-freq 0 \
-#     --report-ac \
-#     --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.germline.burden_sets.freq.qc_pass.tsv.gz
-# done
+### Filter germline variant sets for RAS genes to determine which have sufficient 
+### data to be tested (AC≥10)
+for cohort in PROFILE HMF TCGA; do
+  freqs=$WRKDIR/data/variant_set_freqs/$cohort.germline.burden_sets.freq.tsv.gz
+  zcat $WRKDIR/data/variant_sets/$cohort.germline.burden_sets.tsv.gz \
+  | awk '{ if ($4 ~ /,/) print $1 }' \
+  | fgrep -wf - <( zcat $freqs ) | cat <( zcat $freqs | head -n1 ) - \
+  | $CODEDIR/scripts/data_processing/filter_freq_table.py \
+    --freq-tsv stdin \
+    --min-ac 10 \
+    --min-freq 0 \
+    --report-ac \
+    --outfile $WRKDIR/data/variant_set_freqs/filtered/$cohort.germline.burden_sets.freq.qc_pass.tsv.gz
+done
 
-# # Summarize filtered sets
-# $CODEDIR/scripts/germline_somatic_assoc/summarize_germline_burden_sets.py \
-#   --burden-sets $WRKDIR/data/variant_set_freqs/filtered/TCGA.germline.burden_sets.freq.qc_pass.tsv.gz \
-#   --burden-sets $WRKDIR/data/variant_set_freqs/filtered/PROFILE.germline.burden_sets.freq.qc_pass.tsv.gz \
-#   --memberships $WRKDIR/data/variant_sets/PROFILE.germline.burden_sets.tsv.gz \
-#   --memberships $WRKDIR/data/variant_sets/PROFILE.germline.collapsed_coding_csqs.tsv.gz \
-#   --memberships $WRKDIR/data/variant_sets/PROFILE.germline.other_single_variants.tsv.gz \
-#   --memberships $WRKDIR/data/variant_sets/PROFILE.germline.recurrently_mutated_codons.tsv.gz \
-#   --memberships $WRKDIR/data/variant_sets/TCGA.germline.burden_sets.tsv.gz \
-#   --memberships $WRKDIR/data/variant_sets/TCGA.germline.collapsed_coding_csqs.tsv.gz \
-#   --memberships $WRKDIR/data/variant_sets/TCGA.germline.other_single_variants.tsv.gz \
-#   --memberships $WRKDIR/data/variant_sets/TCGA.germline.recurrently_mutated_codons.tsv.gz \
-#   --out-prefix $WRKDIR/data/variant_sets/test_sets/
+# Summarize filtered sets
+$CODEDIR/scripts/germline_somatic_assoc/summarize_germline_burden_sets.py \
+  --burden-sets $WRKDIR/data/variant_set_freqs/filtered/TCGA.germline.burden_sets.freq.qc_pass.tsv.gz \
+  --burden-sets $WRKDIR/data/variant_set_freqs/filtered/PROFILE.germline.burden_sets.freq.qc_pass.tsv.gz \
+  --burden-sets $WRKDIR/data/variant_set_freqs/filtered/HMF.germline.burden_sets.freq.qc_pass.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/TCGA.germline.burden_sets.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/TCGA.germline.collapsed_coding_csqs.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/TCGA.germline.other_single_variants.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/TCGA.germline.recurrently_mutated_codons.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/PROFILE.germline.burden_sets.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/PROFILE.germline.collapsed_coding_csqs.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/PROFILE.germline.other_single_variants.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/PROFILE.germline.recurrently_mutated_codons.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/HMF.germline.burden_sets.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/HMF.germline.collapsed_coding_csqs.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/HMF.germline.other_single_variants.tsv.gz \
+  --memberships $WRKDIR/data/variant_sets/HMF.germline.recurrently_mutated_codons.tsv.gz \
+  --out-prefix $WRKDIR/data/variant_sets/test_sets/
 
 # # Supplement filtered sets with individual variant IDs per gene & cancer type
 # for cancer in PDAC CRAD LUAD SKCM; do
@@ -239,13 +254,16 @@ for cohort in TCGA PROFILE HMF; do
 done
 
 # 5. Frequent intra-gene co-mutation pairs involving KRAS
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
       ;;
   esac
   freqs=$WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.freq.tsv.gz
@@ -277,6 +295,9 @@ $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
   --burden-sets $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.burden_sets.freq.1pct.tsv.gz \
   --burden-sets $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.burden_sets.freq.1pct.tsv.gz \
   --burden-sets $WRKDIR/data/variant_set_freqs/filtered/HMF.somatic.burden_sets.freq.1pct.tsv.gz \
+  --comutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.comutations.freq.1pct.tsv.gz \
+  --comutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.comutations.freq.1pct.tsv.gz \
+  --comutations $WRKDIR/data/variant_set_freqs/filtered/HMF.somatic.comutations.freq.1pct.tsv.gz \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
   --memberships $WRKDIR/data/variant_sets/TCGA.somatic.burden_sets.tsv.gz \
   --memberships $WRKDIR/data/variant_sets/TCGA.somatic.collapsed_coding_csqs.tsv.gz \
@@ -293,8 +314,6 @@ $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
   --memberships $WRKDIR/data/variant_sets/HMF.somatic.recurrently_mutated_codons.tsv.gz \
   --memberships $WRKDIR/data/variant_sets/HMF.somatic.recurrently_mutated_exons.tsv.gz \
   --out-prefix $WRKDIR/data/variant_sets/test_sets/
-  # --comutations $WRKDIR/data/variant_set_freqs/filtered/TCGA.somatic.comutations.freq.1pct.tsv.gz \
-  # --comutations $WRKDIR/data/variant_set_freqs/filtered/PROFILE.somatic.comutations.freq.1pct.tsv.gz \
 
 
 ### Shard germline test sets for improved parallelization

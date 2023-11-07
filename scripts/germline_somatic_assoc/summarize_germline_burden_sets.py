@@ -21,11 +21,10 @@ from general_utils import load_tx_map
 
 
 # Define various variables used throughout the below functions
-cancers = 'PDAC CRAD SKCM LUAD'.split()
-ras_genes = 'NRAS HRAS KRAS'.split()
+cancers = 'PDAC CRAD LUAD'.split()
+ras_genes = ['KRAS']
 tissue_map = {'PDAC' : 'pancreas',
               'CRAD' : 'colon',
-              'SKCM' : 'skin',
               'LUAD' : 'lung'}
 
 
