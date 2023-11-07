@@ -260,18 +260,14 @@
 
 	"all_promoter":
 	[
-		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
-			"promoter" : ["", "!="]
-		}
+		{"promoter" : ["KRAS", "=="]}
 	],
 
 
 	"conserved_promoter":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
-			"promoter" : ["", "!="],
+			"promoter" : ["KRAS", "=="],
 			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
 	],
@@ -280,7 +276,7 @@
 	"all_pancreas_enhancer":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"enhancer:gene" : ["KRAS", "=="],
 			"enhancer:tissue" : ["pancreas", "=="]
 		 }
 	],
@@ -289,7 +285,7 @@
 	"conserved_pancreas_enhancer":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"enhancer:gene" : ["KRAS", "=="],
 			"enhancer:tissue" : ["pancreas", "=="],
 			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
@@ -299,7 +295,7 @@
 	"all_colon_enhancer":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"enhancer:gene" : ["KRAS", "=="],
 			"enhancer:tissue" : ["colon", "=="]
 		}
 	],
@@ -308,7 +304,7 @@
 	"conserved_colon_enhancer":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"enhancer:gene" : ["KRAS", "=="],
 			"enhancer:tissue" : ["colon", "=="],
 			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
@@ -318,7 +314,7 @@
 	"all_lung_enhancer":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"enhancer:gene" : ["KRAS", "=="],
 			"enhancer:tissue" : ["lung", "=="]
 		}
 	],
@@ -327,7 +323,7 @@
 	"conserved_lung_enhancer":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"enhancer:gene" : ["KRAS", "=="],
 			"enhancer:tissue" : ["lung", "=="],
 			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
@@ -337,7 +333,7 @@
 	"all_pancreas_eqtls":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["pancreas", "=="]
 		}
 	],
@@ -346,7 +342,7 @@
 	"positive_pancreas_eqtls":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["pancreas", "=="],
 			"GTEx_eQTL:beta" : [0, ">"]
 		}
@@ -356,7 +352,7 @@
 	"negative_pancreas_eqtls":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["pancreas", "=="],
 			"GTEx_eQTL:beta" : [0, "<"]
 		}
@@ -366,7 +362,7 @@
 	"all_colon_eqtls":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["colon", "=="]
 		}
 	],
@@ -375,7 +371,7 @@
 	"positive_colon_eqtls":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["colon", "=="],
 			"GTEx_eQTL:beta" : [0, ">"]
 		}
@@ -385,7 +381,7 @@
 	"negative_colon_eqtls":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["colon", "=="],
 			"GTEx_eQTL:beta" : [0, "<"]
 		}
@@ -395,7 +391,7 @@
 	"all_lung_eqtls":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["lung", "=="]
 		}
 	],
@@ -404,7 +400,7 @@
 	"positive_lung_eqtls":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["lung", "=="],
 			"GTEx_eQTL:beta" : [0, ">"]
 		}
@@ -414,7 +410,7 @@
 	"negative_lung_eqtls":
 	[
 		{
-			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["lung", "=="],
 			"GTEx_eQTL:beta" : [0, "<"]
 		}

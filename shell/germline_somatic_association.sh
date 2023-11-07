@@ -96,18 +96,17 @@ for cancer in PDAC CRAD LUAD; do
     --out $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.pruned
 done
 
-# # Once merged & LD-pruned, determine number of variants retained per cancer type per gene 
-# for cancer in PDAC CRAD LUAD; do
-#   while read chrom start end gene; do
-#     bcftools query \
-#       -f '%ID\n' -r "$chrom" \
-#       $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
-#     | fgrep -wf - \
-#       $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.pruned.prune.in \
-#     | wc -l
-#   done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz | fgrep KRAS ) | paste -s - \
-#   | awk -v OFS="\t" '{ print $0, $1+$2+$3 }'
-# done | paste -s -
+# Once merged & LD-pruned, determine number of variants retained per cancer type per gene 
+for cancer in PDAC CRAD LUAD; do
+  while read chrom start end gene; do
+    bcftools query \
+      -f '%ID\n' -r "$chrom:$start-$end" \
+      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
+    | fgrep -wf - \
+      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.pruned.prune.in \
+    | wc -l
+  done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep KRAS )
+done | paste -s - | awk -v OFS="\t" '{ print $0, $1+$2+$3 }'
 
 
 ### Filter germline variant sets for RAS genes to determine which have sufficient 
