@@ -100,7 +100,13 @@ plot.somatic.freq.scatter <- function(data, p1, p2, pair.names, cancer,
 
   # If optioned, label correlation statistics on bottom-right corner of plot
   if(add.cor.stats){
-    cor.test(data[, ])
+    cor.res <- cor.test(x, y)
+    text(x=par("usr")[2]+(0.05*diff(par("usr")[1:2])),
+         y=0.135*diff(par("usr")[3:4]), pos=2, xpd=T,
+         labels=bquote(italic(R) == .(round(cor.res$estimate, 2))))
+    text(x=par("usr")[2]+(0.05*diff(par("usr")[1:2])),
+         y=0.05*diff(par("usr")[3:4]), pos=2, xpd=T,
+         labels=format.pval(cor.res$p.value, max.decimal=1, nsmall=1))
   }
 }
 

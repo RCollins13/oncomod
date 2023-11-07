@@ -116,3 +116,43 @@ yaxis.legend <- function(legend.names, x, y.positions, sep.wex,
   segments(x0=x, x1=x + (1.5*sep.wex), y0=y.positions, y1=leg.at,
            lwd=lwd, col=colors, xpd=T, lend="round")
 }
+
+
+#' Format P-value
+#'
+#' Format P-value for plotting
+#'
+#' @param p P-value
+#' @param nsmall number of digits after the decimal to retain for scientific
+#' notification \[default: 2\]
+#' @param max.decimal convert all P-values requiring more digits after the decimal
+#' to be converted to scientific notation \[default: 3\]
+#' @param equality equality symbol to print after `P` \[default: '='\]
+#' @param min.neg.log10.p minimum order of magnitude to process before considering
+#' P-value to be arbitrarily/meaninglessly small \[default: 100\]
+#'
+#' @details Function borrowed from rCNV2 library (see Collins et al., Cell, 2022)
+#'
+#' @return formatted P-value as character
+#'
+#' @export format.pval
+#' @export
+format.pval <- function(p, nsmall=2, max.decimal=3, equality="=", min.neg.log10.p=100){
+  if(-log10(p)>min.neg.log10.p){
+    bquote(italic(P) %~~% 0)
+  }else if(ceiling(-log10(p)) > max.decimal){
+    parts <- unlist(strsplit(format(p, scientific=T), split="e"))
+    base <- gsub(" ", "", format(round(as.numeric(parts[1]), nsmall), digits=1+nsmall), fixed=T)
+    exp <- gsub(" ", "", as.numeric(parts[2]), fixed=T)
+    if(base %in% c("1", "10")){
+      if(base == "10"){
+        exp <- as.character(as.numeric(exp) - 1)
+      }
+      bquote(italic(P) ~ .(equality) ~ 10 ^ .(exp))
+    }else{
+      bquote(italic(P) ~ .(equality) ~ .(base) ~ "x" ~ 10 ^ .(exp))
+    }
+  }else{
+    bquote(italic(P) ~ .(equality) ~ .(formatC(round(p, max.decimal), digits=max.decimal)))
+  }
+}
