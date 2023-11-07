@@ -55,11 +55,20 @@ def _clean_sift_polyphen(vdf, key, to_numeric=False):
 def eval_criteria(record, key, criterion, vep_map):
     """
     Checks whether a record meets the criteria specified by key & criterion
-    Returns boolean True/False and a list of gene symbols meeting criteria
+    Returns boolean True/False, a list of gene symbols meeting criteria, and 
+    a boolean indicator for whether the gene symbol list is meaningful.
+    If the third return argument is False, the result *should not* be subset
+    based on the second argument (it will always be empty)
     """
 
     # Check for nested keys
     keys = key.split(':')
+
+    # Determine whether criterion has a meaningful gene output
+    if len(keys) > 1 or keys in 'SpliceAI promoter enhancer GTEx_eQTL'.split():
+        genes_are_meaningful = True
+    else:
+        genes_are_meaningful = False
 
     # Load relevant operator
     op = ops[criterion[1]]
@@ -70,7 +79,7 @@ def eval_criteria(record, key, criterion, vep_map):
         # Check if VEP is present in the record's INFO field
         # If not, automatically fails the criterion
         if 'CSQ' not in record.info.keys():
-            return False, []
+            return False, [], genes_are_meaningful
 
         # UTRAnnotator needs to be treated separately
         if keys[1].startswith('UTRAnnotator'):
@@ -157,21 +166,26 @@ def eval_criteria(record, key, criterion, vep_map):
                   '11' : 'HRAS', 'chr11' : 'HRAS',
                   '12' : 'KRAS', 'chr12' : 'KRAS'}[record.chrom]]
 
-    return criteria_met, list(set(genes))
+    return criteria_met, list(set(genes)), genes_are_meaningful
 
 
 def check_single_rule(record, rule_dict, vep_map):
     """
     Check if record meets ALL criteria specified in rule_dict
-    Returns boolean True/False and a list of gene symbols meeting *ALL* criteria
+    Returns boolean True/False and a list of gene symbols meeting criteria
+    See README for how to specify whether certain criteria should be gene-agnostic
+    This may be useful for features like primary sequence conservation, for instance
     """
 
     criteria_res = [eval_criteria(record, key, crit, vep_map) \
                     for key, crit in rule_dict.items()]
 
-    criteria_met = [b for b, g in criteria_res]
+    # gene_keyed_rules = [i for i, rule in enumerate(rule_dict.values()) \
+    #                     if len(rule) < 3 or rule[2] is True]
+
+    criteria_met = [b for b, g, gm in criteria_res]
     if all(criteria_met):
-        glists = [g for b, g in criteria_res]
+        glists = [g for b, g, gm in criteria_res if gm is True]
         genes = set([g for l in glists for g in l])
         for sublist in glists:
             genes = genes.intersection(set(sublist))
