@@ -56,7 +56,7 @@ load.somatic.freqs <- function(tsv.in){
 ######################
 # Scatterplot of mutation frequency correlations between two cohorts
 plot.somatic.freq.scatter <- function(data, p1, p2, pair.names, cancer,
-                                      label.top.n=5){
+                                      label.top.n=5, add.cor.stats=TRUE){
   # Prepare plot area
   max.freq <- max(data[, paste(c(p1, p2), "AF", sep="_")], na.rm=T)
   ax.lims <- c(0, min(c(1.5 * max.freq, 1)))
@@ -70,32 +70,37 @@ plot.somatic.freq.scatter <- function(data, p1, p2, pair.names, cancer,
               cancer.names.short[cancer], ")", sep=""), 3, line=0.25)
   abline(0, 1, col="gray50")
 
+  # Gather plot data
+  x <- data[, paste(p1, "AF", sep="_")]
+  y <- data[, paste(p2, "AF", sep="_")]
+
   # Add confidence intervals then points
-  segments(x0=data[, paste(p1, "AF", sep="_")],
-           x1=data[, paste(p1, "AF", sep="_")],
+  segments(x0=x, x1=x,
            y0=data[, paste(p2, "AF_lower", sep="_")],
            y1=data[, paste(p2, "AF_upper", sep="_")],
            col="gray75")
   segments(x0=data[, paste(p1, "AF_lower", sep="_")],
            x1=data[, paste(p1, "AF_upper", sep="_")],
-           y0=data[, paste(p2, "AF", sep="_")],
-           y1=data[, paste(p2, "AF", sep="_")],
+           y0=y, y1=y,
            col="gray75")
-  points(x=data[, paste(p1, "AF", sep="_")],
-         y=data[, paste(p2, "AF", sep="_")],
-         pch=19, col=cancer.colors[cancer])
+  points(x=x, y=y, pch=19, col=cancer.colors[cancer])
 
   # If optioned, label mutation csq for top N points
-  max.freq.order <- order(apply(data[, paste(c(p1, p2), "AF", sep="_")], 1, max, na.rm=T),
+  max.freq.order <- order(apply(cbind(x, y), 1, max, na.rm=T),
                           decreasing=T)
   if(label.top.n > 0){
     sapply(1:label.top.n, function(i){
-      xpos <- data[max.freq.order[i], paste(p1, "AF", sep="_")]
-      ypos <-data[max.freq.order[i], paste(p2, "AF", sep="_")]
+      xpos <- x[max.freq.order[i]]
+      ypos <- y[max.freq.order[i]]
       lab.pos <- if(xpos > ypos){3}else{1}
       text(x=xpos, y=ypos, pos=lab.pos, cex=5/6,
            labels=rownames(data)[max.freq.order[i]])
     })
+  }
+
+  # If optioned, label correlation statistics on bottom-right corner of plot
+  if(add.cor.stats){
+    cor.test(data[, ])
   }
 }
 

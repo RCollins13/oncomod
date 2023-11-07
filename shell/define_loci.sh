@@ -48,13 +48,14 @@ zcat $GTF | fgrep -wf $WRKDIR/refs/genes.list | fgrep -w MANE_Select \
 wget -O - https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_19/gencode.v19.annotation.gtf.gz \
 | gunzip -c | sort -Vk1,1 -k4,4n -k5,5n | bgzip -c \
 > $WRKDIR/refs/gencode.v19.gtf.gz
-export GTF19=$WRKDIR/refs/MANE.GRCh38.v1.0.ensembl_genomic.gtf.gz
+export GTF19=$WRKDIR/refs/gencode.v19.gtf.gz
 tabix -p gff -f $GTF19
-zcat $GTF19 | fgrep -wf $WRKDIR/refs/other_genes.list | fgrep -w MANE_Select \
+zcat $GTF19 | fgrep -wf $WRKDIR/refs/other_genes.list \
 | awk -v OFS="\t" -v buffer=10000 \
-  '{ if ($3=="transcript") print $1, $4-buffer, $5+buffer, $16 }' \
+  '{ if ($3=="transcript") print $1, $4-buffer, $5+buffer, $18 }' \
+| tr -d '";' | sed 's/\-/\t/g' | awk -v FS="\t" '{ if (NF==4) print }' \
 | awk -v OFS="\t" '{ if ($2<0) $2=0; print $1, $2, $3, $4 }' \
-| tr -d '";' | sort -Vk1,1 -k2,2n -k3,3n -k4,4V \
+| sort -Vk1,1 -k2,2n -k3,3n -k4,4V \
 | bedtools merge -i - -c 4 -o distinct | bgzip -c \
 > $WRKDIR/refs/other_genes.bed.gz
 
