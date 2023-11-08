@@ -55,10 +55,7 @@ def main():
             else:
                 dos = int(np.sum([a for a in GT if a > 0]))
                 outvals.append(str(dos))
-        try:
-            outfile.write('\t'.join(outvals) + '\n')
-        except:
-            import pdb; pdb.set_trace()
+        outfile.write('\t'.join(outvals) + '\n')
 
     # Close connection to output file to clear buffer
     outfile.close()
