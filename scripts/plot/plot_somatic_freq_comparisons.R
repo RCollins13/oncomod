@@ -15,9 +15,9 @@
 # Setup #
 #########
 # Load necessary libraries and constants
-require(OncoModR, quietly=TRUE)
 require(argparse, quietly=TRUE)
 require(Hmisc, quietly=TRUE)
+require(OncoModR, quietly=TRUE)
 OncoModR::load.constants("all")
 
 

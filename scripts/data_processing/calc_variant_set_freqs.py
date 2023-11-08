@@ -39,12 +39,12 @@ def calc_af(var_sets, ad_df, cancer_map, max_an=2):
         # First, check that all constituent variant IDs are present in ad_df
         if not all([v in ad_df.index for v in vids]):
             msg = 'not all variant IDs from {} present in --dosage-tsv'
-            stop(msg.format(sid))
+            exit(msg.format(sid))
 
         # Second, check that variant set doesn't already exist in res_dict
         if sid in res_dict.keys():
             msg = 'variant set {} appears to be duplicated in --sets-tsv'
-            stop(msg.format(sid))
+            exit(msg.format(sid))
 
         # If the above checks pass, then process each cancer type in serial
         res_dict[sid] = {}

@@ -115,7 +115,7 @@ EOF
   chmod a+x $WRKDIR/LSF/scripts/merge_imputed_lohgic_RAS_loci.$contig.sh
   rm $WRKDIR/LSF/logs/merge_imputed_lohgic_RAS_loci.$contig.*
   bsub \
-    -q normal -R 'rusage[mem=6000]' -J TCGA_merge_imputed_lohgic_RAS_loci_$contig \
+    -q normal -R 'rusage[mem=6000]' -J PROFILE_merge_imputed_lohgic_RAS_loci_$contig \
     -o $WRKDIR/LSF/logs/merge_imputed_lohgic_RAS_loci.$contig.log \
     -e $WRKDIR/LSF/logs/merge_imputed_lohgic_RAS_loci.$contig.err \
     $WRKDIR/LSF/scripts/merge_imputed_lohgic_RAS_loci.$contig.sh
