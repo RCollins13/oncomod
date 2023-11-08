@@ -19,8 +19,8 @@ export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
 export HMFDIR=/data/gusev/USERS/rlc47/HMF
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
 export CODEDIR=$WRKDIR/../code/oncomod
-export bonf_sig=0.0000006155892
-export lenient_sig=0.000003658983
+export bonf_sig=$( echo "341095" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
+export lenient_sig=$( echo "72633" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
 cd $WRKDIR
 
 
@@ -36,8 +36,6 @@ for SUBDIR in data data/variant_set_freqs/filtered data/germline_vcfs \
   fi
 done
 
-
-# TODO: update all germline variant filtering below
 
 ### Determine LD-independent number of individual germline variants to test per cancer type
 module load plink/2.0a2.3
@@ -63,7 +61,7 @@ for cancer in PDAC CRAD LUAD; do
     esac
     bcftools view \
       --samples-file $COHORTDIR/data/sample_info/$cohort.$cancer.$sample_name.list \
-      $COHORTDIR/data/$cohort.RAS_loci.vcf.gz \
+      $COHORTDIR/data/$cohort.RAS_loci.anno.clean.vcf.gz \
     | bcftools +fill-tags - -- -t AC,AN,F_MISSING,HWE \
     | bcftools view \
       --include 'AC >= 10 & (AN-AC) >= 10 & F_MISSING < 0.5 & HWE>0.000001' \
@@ -125,6 +123,10 @@ for cohort in PROFILE HMF TCGA; do
 done
 
 # Summarize filtered sets
+cat \
+  $CODEDIR/refs/NCI_RAS_pathway.genes.list \
+  $CODEDIR/refs/protein_coding_genes_near_KRAS_locus.list \
+| sort -V | uniq > $TMPDIR/eligible_germline.genes.list
 $CODEDIR/scripts/germline_somatic_assoc/summarize_germline_burden_sets.py \
   --burden-sets $WRKDIR/data/variant_set_freqs/filtered/TCGA.germline.burden_sets.freq.qc_pass.tsv.gz \
   --burden-sets $WRKDIR/data/variant_set_freqs/filtered/PROFILE.germline.burden_sets.freq.qc_pass.tsv.gz \
@@ -141,28 +143,33 @@ $CODEDIR/scripts/germline_somatic_assoc/summarize_germline_burden_sets.py \
   --memberships $WRKDIR/data/variant_sets/HMF.germline.collapsed_coding_csqs.tsv.gz \
   --memberships $WRKDIR/data/variant_sets/HMF.germline.other_single_variants.tsv.gz \
   --memberships $WRKDIR/data/variant_sets/HMF.germline.recurrently_mutated_codons.tsv.gz \
+  --eligible-genes $TMPDIR/eligible_germline.genes.list \
   --out-prefix $WRKDIR/data/variant_sets/test_sets/
 
-# # Supplement filtered sets with individual variant IDs per gene & cancer type
-# for cancer in PDAC CRAD LUAD SKCM; do
-#   while read chrom start end gene; do
-#     bcftools query \
-#       --format '%ID\n' \
-#       --regions $chrom \
-#       $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
-#     | $CODEDIR/scripts/data_processing/add_variant_set_members.py \
-#       --set-list stdin \
-#       --memberships $WRKDIR/data/variant_sets/PROFILE.germline.burden_sets.tsv.gz \
-#       --memberships $WRKDIR/data/variant_sets/PROFILE.germline.collapsed_coding_csqs.tsv.gz \
-#       --memberships $WRKDIR/data/variant_sets/PROFILE.germline.other_single_variants.tsv.gz \
-#       --memberships $WRKDIR/data/variant_sets/PROFILE.germline.recurrently_mutated_codons.tsv.gz \
-#       --memberships $WRKDIR/data/variant_sets/TCGA.germline.burden_sets.tsv.gz \
-#       --memberships $WRKDIR/data/variant_sets/TCGA.germline.collapsed_coding_csqs.tsv.gz \
-#       --memberships $WRKDIR/data/variant_sets/TCGA.germline.other_single_variants.tsv.gz \
-#       --memberships $WRKDIR/data/variant_sets/TCGA.germline.recurrently_mutated_codons.tsv.gz \
-#     >> $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.germline_sets.tsv
-#   done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
-# done
+# Supplement filtered sets with individual variant IDs per gene & cancer type
+for cancer in PDAC CRAD LUAD; do
+  while read chrom start end gene; do
+    bcftools query \
+      --format '%ID\n' \
+      --regions $chrom \
+      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
+    | $CODEDIR/scripts/data_processing/add_variant_set_members.py \
+      --set-list stdin \
+      --memberships $WRKDIR/data/variant_sets/PROFILE.germline.burden_sets.tsv.gz \
+      --memberships $WRKDIR/data/variant_sets/PROFILE.germline.collapsed_coding_csqs.tsv.gz \
+      --memberships $WRKDIR/data/variant_sets/PROFILE.germline.other_single_variants.tsv.gz \
+      --memberships $WRKDIR/data/variant_sets/PROFILE.germline.recurrently_mutated_codons.tsv.gz \
+      --memberships $WRKDIR/data/variant_sets/TCGA.germline.burden_sets.tsv.gz \
+      --memberships $WRKDIR/data/variant_sets/TCGA.germline.collapsed_coding_csqs.tsv.gz \
+      --memberships $WRKDIR/data/variant_sets/TCGA.germline.other_single_variants.tsv.gz \
+      --memberships $WRKDIR/data/variant_sets/TCGA.germline.recurrently_mutated_codons.tsv.gz \
+      --memberships $WRKDIR/data/variant_sets/HMF.germline.burden_sets.tsv.gz \
+      --memberships $WRKDIR/data/variant_sets/HMF.germline.collapsed_coding_csqs.tsv.gz \
+      --memberships $WRKDIR/data/variant_sets/HMF.germline.other_single_variants.tsv.gz \
+      --memberships $WRKDIR/data/variant_sets/HMF.germline.recurrently_mutated_codons.tsv.gz \
+    >> $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.germline_sets.tsv
+  done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz  | fgrep KRAS )
+done
 
 # # Make lists of PRS to test per cancer type in PROFILE
 # for cancer in PDAC CRAD LUAD SKCM; do
@@ -316,14 +323,14 @@ $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
 
 
 ### Shard germline test sets for improved parallelization
-for cancer in PDAC CRAD LUAD SKCM; do
+for cancer in PDAC CRAD LUAD; do
   while read chrom start end gene; do
     $CODEDIR/../GenomicsToolbox/evenSplitter.R \
       -L 750 \
       --shuffle \
       $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.germline_sets.tsv \
       $WRKDIR/data/variant_sets/test_sets/shards/$cancer.$gene.germline_sets.shard_
-  done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
+  done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz | fgrep -w KRAS )
 done
 
 
