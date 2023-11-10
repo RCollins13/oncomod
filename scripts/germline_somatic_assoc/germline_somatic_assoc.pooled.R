@@ -15,9 +15,9 @@
 # Setup #
 #########
 # Load necessary libraries and constants
-require(OncoModR, quietly=TRUE)
 require(logistf, quietly=TRUE)
 require(argparse, quietly=TRUE)
+require(OncoModR, quietly=TRUE)
 OncoModR::load.constants("names")
 
 
@@ -68,18 +68,22 @@ args <- parser$parse_args()
 
 # # DEV:
 # args <- list("sample_metadata" = c("~/scratch/TCGA.ALL.sample_metadata.tsv.gz",
-#                                    "~/scratch/PROFILE.ALL.sample_metadata.tsv.gz"),
+#                                    "~/scratch/PROFILE.ALL.sample_metadata.tsv.gz",
+#                                    "~/scratch/HMF.ALL.sample_metadata.tsv.gz"),
 #              "somatic_ad" = c("~/scratch/TCGA.somatic_variants.dosage.tsv.gz",
-#                               "~/scratch/PROFILE.somatic_variants.dosage.tsv.gz"),
-#              "germline_ad" = c("~/scratch/TCGA.RAS_loci.dosage.tsv.gz",
-#                                "~/scratch/PROFILE.RAS_loci.dosage.tsv.gz"),
-#              "name" = c("TCGA", "PROFILE"),
-#              "somatic_variant_sets" = "~/scratch/CRAD.KRAS.somatic_endpoints.tsv",
-#              "germline_variant_sets" = "~/scratch/CRAD.KRAS.germline_sets.shard_19",
+#                               "~/scratch/PROFILE.somatic_variants.dosage.tsv.gz",
+#                               "~/scratch/HMF.somatic_variants.dosage.tsv.gz"),
+#              "germline_ad" = c("~/scratch/TCGA.RAS_loci.dosage.sub.tsv.gz",
+#                                "~/scratch/PROFILE.RAS_loci.dosage.sub.tsv.gz",
+#                                "~/scratch/HMF.RAS_loci.dosage.sub.tsv.gz"),
+#              "name" = c("TCGA", "PROFILE", "HMF"),
+#              "somatic_variant_sets" = "~/scratch/PDAC.KRAS.somatic_endpoints.tsv",
+#              "germline_variant_sets" = "~/scratch/PDAC.KRAS.germline_sets.shard_1",
 #              "outfile" = "~/scratch/pooled.assoc.test.tsv",
 #              "eligible_controls" = c("~/scratch/TCGA.ALL.eligible_controls.list",
-#                                      "~/scratch/PROFILE.ALL.eligible_controls.list"),
-#              "cancer_type" = "CRAD",
+#                                      "~/scratch/PROFILE.ALL.eligible_controls.list",
+#                                      "~/scratch/HMF.ALL.eligible_controls.list"),
+#              "cancer_type" = "PDAC",
 #              "normalize_germline_ad" = FALSE,
 #              "multiPop_min_ac" = 10,
 #              "multiPop_min_freq" = 0.01)

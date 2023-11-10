@@ -47,6 +47,9 @@ load.patient.metadata <- function(file, fill.missing=NA, fill.columns=NULL,
     df <- impute.missing.values(df, fill.missing, fill.columns)
   }
 
+  # Coerce metadata to types as needed
+  df$AJCC_STAGE <- as.character(df$AJCC_STAGE)
+
   return(df)
 }
 

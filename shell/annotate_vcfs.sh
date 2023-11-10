@@ -559,22 +559,58 @@ for cohort in TCGA PROFILE HMF; do
 done
 # Annotate in-sample AFs of HMF germline data per chromosome for improved parallelization
 for contig in $( seq 1 22 ) X; do
-  for suf in err log; do
-    if [ -e $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.$suf ]; then
-      rm $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.$suf
-    fi
-  done
-  bsub -q normal -sla miket_sc \
-    -J annotate_AFs_HMF_RAS_loci_$contig \
-    -o $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.log \
-    -e $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.err \
-    "$WRKDIR/LSF/scripts/annotate_AFs.sh \
+  # Contig 12 can take a long time since most germline variants in our study are there.
+  # We can further shard this VCF to speed things up
+  if [ $contig == 12 ]; then
+    bcftools +scatter \
+      -o $TMPDIR/ -Oz -p HMF.RAS_loci.$contig.anno.clean.shard \
+      -n 1000 \
+      $HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.vcf.gz
+    n_chr12_shards=$( find $TMPDIR/ -name "HMF.RAS_loci.$contig.anno.clean.shard*vcf.gz" | wc -l )
+    for i in $( seq 0 $(( $n_chr12_shards - 1 )) ); do
+      tabix -p vcf -f $TMPDIR/HMF.RAS_loci.$contig.anno.clean.shard$i.vcf.gz
+      for suf in err log; do
+        if [ -e $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.${contig}_$i.$suf ]; then
+          rm $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.${contig}_$i.$suf
+        fi
+      done
+      bsub -q short -sla miket_sc \
+        -J annotate_AFs_HMF_RAS_loci_${contig}_$i \
+        -o $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.${contig}_$i.log \
+        -e $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.${contig}_$i.err \
+        "$WRKDIR/LSF/scripts/annotate_AFs.sh \
+           $TMPDIR/HMF.RAS_loci.$contig.anno.clean.shard$i.vcf.gz \
+           $HMFDIR/data/sample_info/HMF.ALL.sample_metadata.tsv.gz \
+           SAMPLE_ID \
+           $TMPDIR/HMF.RAS_loci.$contig.anno.clean.wAF.shard$i.vcf.gz"
+    done
+  else
+    for suf in err log; do
+      if [ -e $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.$suf ]; then
+        rm $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.$suf
+      fi
+    done
+    bsub -q normal -sla miket_sc \
+      -J annotate_AFs_HMF_RAS_loci_$contig \
+      -o $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.log \
+      -e $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.err \
+      "$WRKDIR/LSF/scripts/annotate_AFs.sh \
          $HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.vcf.gz \
          $HMFDIR/data/sample_info/HMF.ALL.sample_metadata.tsv.gz \
          SAMPLE_ID \
          $HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.wAF.vcf.gz"
+  fi
 done
 # Concatenate HMF germline data across all chromosomes
+# Note: since chr12 was sharded to speed up this step, we need to 
+# first concatenate chr12 on its own
+find $TMPDIR/ -name "HMF.RAS_loci.12.anno.clean.wAF.shard*vcf.gz" \
+> $TMPDIR/HMF.RAS_loci.12.anno.clean.wAF.shards.list
+bcftools concat \
+  --file-list $TMPDIR/HMF.RAS_loci.12.anno.clean.wAF.shards.list \
+| bcftools sort \
+  -Oz -o $HMFDIR/data/HMF.RAS_loci.12.anno.clean.wAF.vcf.gz
+tabix -p vcf -f $HMFDIR/data/HMF.RAS_loci.12.anno.clean.wAF.vcf.gz
 # Note: downstream steps can still use the per-chromosome VCFs for better parallelization
 for contig in $( seq 1 22 ) X; do
   echo "$HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.wAF.vcf.gz"
