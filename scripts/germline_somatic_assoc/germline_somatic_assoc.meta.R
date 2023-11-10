@@ -15,9 +15,9 @@
 # Setup #
 #########
 # Load necessary libraries and constants
-require(OncoModR, quietly=TRUE)
 require(metafor, quietly=TRUE)
 require(argparse, quietly=TRUE)
+require(OncoModR, quietly=TRUE)
 OncoModR::load.constants("names")
 
 
@@ -41,9 +41,11 @@ parser$add_argument("--outfile", metavar="path", type="character", required=TRUE
 args <- parser$parse_args()
 
 # # DEV
-# args <- list("stats"=c("~/scratch/PROFILE.SKCM.sumstats.tsv.gz",
-#                        "~/scratch/TCGA.SKCM.sumstats.tsv.gz"),
-#              "name"=c("PROFILE", "TCGA"),
+# args <- list("stats"=c("~/scratch/PROFILE.PDAC.sumstats.tsv.gz",
+#                        "~/scratch/TCGA.PDAC.sumstats.tsv.gz",
+#                        "~/scratch/HMF.PDAC.sumstats.tsv.gz"),
+#              "name"=c("PROFILE", "TCGA", "HMF"),
+#              "model"="FE",
 #              "drop_frequencies"=FALSE,
 #              "outfile"="~/scratch/meta.test.tsv")
 

@@ -661,6 +661,68 @@ for cancer in PDAC CRAD LUAD; do
 done
 
 
+### Submit meta-analyses for overlapping variants between cohorts
+# One submission per cancer type
+for cancer in PDAC CRAD LUAD; do
+  TCGA_stats=$WRKDIR/results/assoc_stats/merged/TCGA.$cancer.sumstats.tsv.gz
+  PROFILE_stats=$WRKDIR/results/assoc_stats/merged/PROFILE.$cancer.sumstats.tsv.gz
+  HMF_stats=$WRKDIR/results/assoc_stats/merged/HMF.$cancer.sumstats.tsv.gz
+  if [ -s $TCGA_stats ] && \
+     [ -s $PROFILE_stats ] && \
+     [ -s $HMF_stats ]; then
+    cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_meta_$cancer.sh
+$CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.meta.R \
+  --stats $TCGA_stats \
+  --name TCGA \
+  --stats $PROFILE_stats \
+  --name DFCI \
+  --stats $HMF_stats \
+  --name HMF \
+  --outfile $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv
+gzip -f $WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv
+EOF
+    chmod a+x $WRKDIR/LSF/scripts/germline_somatic_meta_$cancer.sh
+    for suf in err log; do
+      logfile=$WRKDIR/LSF/logs/germline_somatic_meta_$cancer.$suf
+      if [ -e $logfile ]; then rm $logfile; fi
+    done
+    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+      -J germline_somatic_meta_$cancer \
+      -o $WRKDIR/LSF/logs/germline_somatic_meta_$cancer.log \
+      -e $WRKDIR/LSF/logs/germline_somatic_meta_$cancer.err \
+      $WRKDIR/LSF/scripts/germline_somatic_meta_$cancer.sh
+  fi
+done
+# Once complete, plot one QQ for each cancer type
+for cancer in PDAC CRAD LUAD; do
+  stats=$WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz
+  if [ -s $stats ]; then
+    # Plot one QQ of all sumstats
+    bsub -q short -sla miket_sc -J plot_qq_all_$cancer \
+      -o $WRKDIR/LSF/logs/plot_qq_all_$cancer.log \
+      -e $WRKDIR/LSF/logs/plot_qq_all_$cancer.err \
+      "$CODEDIR/utils/plot_qq.R \
+         --stats $stats \
+         --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cancer.meta_plus_single.qq.png \
+         --cancer $cancer \
+         --cohort \"All Results\" \
+         --p-threshold $bonf_sig"
+    # Plot a second QQ of only meta-analyzed sumstats
+    zcat $stats | awk -v FS="\t" '{ if ($6>1) print }' | gzip -c \
+    > $TMPDIR/$cancer.meta.sumstats.meta_only.tsv.gz
+    bsub -q short -sla miket_sc -J plot_qq_meta_$cancer \
+      -o $WRKDIR/LSF/logs/plot_qq_meta_$cancer.log \
+      -e $WRKDIR/LSF/logs/plot_qq_meta_$cancer.err \
+      "$CODEDIR/utils/plot_qq.R \
+        --stats $TMPDIR/$cancer.meta.sumstats.meta_only.tsv.gz \
+        --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cancer.meta_only.qq.png \
+        --cancer $cancer \
+        --cohort "Meta-analysis" \
+        --p-threshold $bonf_sig"
+  fi
+done
+
+
 ### Gather significant hits in any individual cohort or pooled analysis
 for cancer in PDAC CRAD LUAD; do
   echo -e "\n\n$cancer:"
@@ -671,6 +733,8 @@ for cancer in PDAC CRAD LUAD; do
     --cohort-name PROFILE \
     --sumstats $WRKDIR/results/assoc_stats/merged/TCGA.$cancer.sumstats.tsv.gz \
     --cohort-name TCGA \
+    --sumstats $WRKDIR/results/assoc_stats/merged/HMF.$cancer.sumstats.tsv.gz \
+    --cohort-name HMF \
     --p-cutoff $lenient_sig
 done
 
