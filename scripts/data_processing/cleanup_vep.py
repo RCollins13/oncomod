@@ -6,7 +6,7 @@
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
 """
-Clean up verbose VEP output for RASMod VCFs
+Clean up verbose VEP output for OncoMod VCFs
 """
 
 
@@ -108,7 +108,8 @@ clinvar_remap = {'Pathogenic' : 'P',
                 'Conflicting_interpretations_of_pathogenicity' : 'CONFLICTING',
                 'Likely_benign' : 'LB',
                 'Benign' : 'B'}
-ras_genes = 'KRAS NRAS HRAS'.split()
+ras_genes = ['KRAS']
+vep_coding_csqs = [k for k, v in vep_severity.items() if v <= 23]
 
 
 def reformat_header(invcf):
@@ -222,12 +223,12 @@ def reformat_header(invcf):
 
 def load_ras_bt(gtf_in):
     """
-    Extract start/stop coordinates for KRAS/NRAS/HRAS
+    Extract start/stop coordinates for KRAS
     """
 
     return pbt.BedTool(gtf_in).\
                filter(lambda x: x[2] == 'gene').\
-               filter(lambda x: x.attrs.get('gene_name') in 'HRAS NRAS KRAS'.split()).\
+               filter(lambda x: x.attrs.get('gene_name') == 'KRAS').\
                saveas()
 
 
@@ -315,8 +316,6 @@ def _clean_gtex(record, vdf, tx_map):
     """
 
     gtex_tissue_map = {'Pancreas' : 'pancreas',
-                       'Skin_Sun_Exposed_Lower_leg' : 'skin',
-                       'Skin_Not_Sun_Exposed_Suprapubic' : 'skin',
                        'Colon_Sigmoid' : 'colon',
                        'Colon_Transverse' : 'colon',
                        'Lung' : 'lung'}
@@ -398,6 +397,52 @@ def _clean_regulatory(record, vdf, tx_map):
     return record, vdf
 
 
+def keep_in_output(record, mode, keep_genes, vep_map, kras_window_start=24520649,
+                   kras_window_stop=29688980):
+    """
+    Determine whether the record meets the criteria for being retained in output
+
+    Behavior depends on the value of the "mode" argument, as follows:
+    - "somatic_variants" will keep all coding variants in KRAS only
+    - "RAS_loci" will keep all variants in the KRAS-proximal region as well as
+      any coding variaints in any of the genes in keep_genes
+    """
+
+    vdf = vep2df(record, vep_map, vep_pop)
+
+    if mode == 'somatic_variants':
+        # Always pass CNAs
+        if record.info.get('SVTYPE') in 'AMP DUP DEL'.split():
+            return True
+
+        # If no VEP CSQ is annotated, skip variant
+        if len(vdf) == 0:
+            return False
+
+        # If there are no annotated consequences on KRAS mRNA (protein-coding 
+        # or UTR), skip this variant
+        if ((vdf.SYMBOL == 'KRAS') & (vdf.Consequence.isin(vep_coding_csqs))).any():
+            return True
+        else:
+            return False
+
+    else:
+        # Keep all variants in cis of KRAS
+        if record.chrom in '12 chr12'.split() \
+        and record.pos >= kras_window_start \
+        and record.pos <= kras_window_stop:
+            return True
+
+        # Otherwise, only keep variants with a coding/UTR consequence in a gene 
+        # of interest (keep_genes)
+        if len(vdf) == 0:
+            return False
+        if ((vdf.SYMBOL.isin(keep_genes)) & (vdf.Consequence.isin(vep_coding_csqs))).any():
+            return True
+        else:
+            return False
+
+
 def cleanup_cnv(record, vep_fields, gtf_tabix):
     """
     Add simple gene overlap CSQ entry to CNVs
@@ -455,7 +500,7 @@ def cleanup_cnv(record, vep_fields, gtf_tabix):
     return record
 
 
-def cleanup(record, vep_map, tx_map, ras_bt, spliceai_cutoff=0.5):
+def cleanup(record, vep_map, tx_map, ras_bt, keep_genes, spliceai_cutoff=0.5):
     """
     Simplify VEP entry for a single record
     """
@@ -464,28 +509,67 @@ def cleanup(record, vep_map, tx_map, ras_bt, spliceai_cutoff=0.5):
     # (Excluding keys in vep_pop, defined above)
     vdf = vep2df(record, vep_map, vep_pop)
 
-    # Don't process records lacking CSQ INFO field
+    # If absolutely nothing is annotated by VEP, return record as-is
     if len(vdf) == 0:
         return record
 
-    # Pre-filter VEP entries to ignore all intergenic entries if any genic entries are present
+    # First, we process some universal features in CSQ before cleaning VEP annotations
+
+    # Relocate values defined at a site level to INFO (and out of CSQ)
+    for oldkey, newkey in vep_reloc_map.items():
+        oldvals = vdf.loc[vdf[oldkey] != '', oldkey]
+        if any(oldvals.str.contains('&')):
+            oldvals = oldvals.str.split('&', expand=True).max(axis=1)
+        newval = oldvals.astype(float).mean()
+        if not pd.isna(newval):
+            record.info[newkey] = newval
+    vdf.drop(vep_reloc_map.keys(), axis=1, inplace=True)
+
+    # Harmonize gnomAD frequencies between exomes and genomes
+    record, vdf = _harmonize_gnomad(record, vdf)
+
+    # Extract top ClinVar significance, if any reported
+    if any(vdf.ClinVar_CLNSIG != ''):
+        best_clinvar_idx = vdf.ClinVar_CLNSIG.map(clinvar_sig).sort_values().index.values[0]
+        best_clinvar_label = clinvar_remap.get(vdf.ClinVar_CLNSIG[best_clinvar_idx])
+        record.info['ClinVar'] = best_clinvar_label
+
+    # Extract top COSMIC significance, if any reported
+    if any(vdf.COSMIC_COSMIC_MUT_SIG != ''):
+        best_cosmic = int(vdf.COSMIC_COSMIC_MUT_SIG.str.split('&', expand=True).\
+                          max(axis=1).sort_values().head(1).values[0])
+        record.info['COSMIC_mutation_tier'] = best_cosmic
+        
+    # Clean up values that have multiple scores per variant (MPC, FATHMM)
+    def _multiMax(x, fx=np.nanmax):
+        return fx([pd.to_numeric(k, errors='coerce') for k in x.split('&')])
+    if any(vdf.MPC_score.str.contains('&')):
+        vdf['MPC_score'] = vdf.MPC_score.map(_multiMax)
+    if any(vdf.FATHMM_score.str.contains('&')):
+        vdf['FATHMM_score'] = vdf.FATHMM_score.map(lambda x: _multiMax(x, fx=np.nanmin))
+
+    # Second, we filter VEP annotations to keep just one consequence per gene per variant
+    # Priority:
+    #   1. Always choose protein-coding over non-coding transcripts
+    #   2. Take most severe consequence, if multiple are present
+    #   3a. Take canonical transcript, if most severe consequence present on multiple
+    #   3b. Take longest transcript, if most severe consequence present on multiple
+
+    # Pre-filter VEP entries to ignore all intergenic entries if any genic 
+    # entries are present in genes of interest (keep_genes)
     genic_csqs = [k for k, v in vep_severity.items() if v <= 27]
-    genic_hits = vdf.Consequence.isin(genic_csqs)
+    genic_hits = (vdf.Consequence.isin(genic_csqs)) & (vdf.SYMBOL.isin(keep_genes))
     intergenic_csqs = [k for k, v in vep_severity.items() if v > 27]
     intergenic_hits = vdf.Consequence.isin(intergenic_csqs)
     if genic_hits.any():
         vdf = vdf[genic_hits]
 
     # Select single VEP entry to retain per gene per variant
-    # Priority:
-    #   1. Always choose protein-coding over non-coding transcripts
-    #   2. Take most severe consequence, if multiple are present
-    #   3a. Take canonical transcript, if most severe consequence present on multiple
-    #   3b. Take longest transcript, if most severe consequence present on multiple
+    # Only keep annotations involving genes of interest
     keep_idxs = set()
-    for gene in set(vdf.Gene.values):
+    for gene in set(vdf.SYMBOL.values):
 
-        gdf = vdf.loc[vdf.Gene == gene]
+        gdf = vdf.loc[vdf.SYMBOL == gene]
 
         # Subset to protein-coding transcripts, if multiple entries are present
         coding = (gdf.BIOTYPE == 'protein_coding')
@@ -513,90 +597,68 @@ def cleanup(record, vep_map, tx_map, ras_bt, spliceai_cutoff=0.5):
     # Subset VEP entries to only those retained by the above criteria
     vdf = vdf.loc[keep_idxs, :]
 
-    # Relocate values defined at a site level to INFO (and out of CSQ)
-    for oldkey, newkey in vep_reloc_map.items():
-        oldvals = vdf.loc[vdf[oldkey] != '', oldkey]
-        if any(oldvals.str.contains('&')):
-            oldvals = oldvals.str.split('&', expand=True).max(axis=1)
-        newval = oldvals.astype(float).mean()
-        if not pd.isna(newval):
-            record.info[newkey] = newval
-    vdf.drop(vep_reloc_map.keys(), axis=1, inplace=True)
+    # Finally, we update those annotations that depend on whether a variant
+    # has any qualifying genic annotations or not. I.e., we don't care about
+    # eQTL status, promoter variants, or enhancer variants if the gene has a
+    # coding consequence in a gene of interest
 
-    # Harmonize gnomAD frequencies between exomes and genomes
-    record, vdf = _harmonize_gnomad(record, vdf)
+    if genic_hits.any():
 
-    # Annotate distance to nearest RAS gene for purely intergenic variants
-    if vdf.Consequence.isin(intergenic_csqs).all():
-        record.info['intergenic'] = True
-        chrom = record.chrom
-        if 'chr' not in chrom:
-            chrom = 'chr' + chrom
-        rec_bt = pbt.BedTool('{}\t{}\t{}\n'.\
-                     format(chrom, record.pos, record.pos+1), 
-                     from_string=True)
-        try:
-            dists = [int(f[-1]) for f in ras_bt.closest(rec_bt, d=True) if int(f[-1]) > -1]
-            if len(dists) > 0:
-                record.info['RAS_distance'] = int(np.nanmin(dists))
-        except:
-            msg = 'RAS_distance computation failed for record {}; skipping\n'
-            stderr.write(msg.format(record.id))
+        # Clean up SpliceAI (store in CSQ record matching gene)
+        if any(vdf.SpliceAI_pred_SYMBOL != ''):
+            record, vdf = _clean_spliceai(record, vdf, spliceai_cutoff)
 
-    # Extract top ClinVar significance, if any reported
-    if any(vdf.ClinVar_CLNSIG != ''):
-        best_clinvar_idx = vdf.ClinVar_CLNSIG.map(clinvar_sig).sort_values().index.values[0]
-        best_clinvar_label = clinvar_remap.get(vdf.ClinVar_CLNSIG[best_clinvar_idx])
-        record.info['ClinVar'] = best_clinvar_label
+        # Clean up CCR and regional constraint (store in CSQ record matching gene)
+        if any(vdf.CCR != ''):
+            ccr = '&'.join(vdf.CCR[~vdf.CCR.duplicated()].values)
+            ccr_dict = {x.split(':')[0] : float(x.split(':')[1]) for x in ccr.split('&')}
+            vdf['CCR'] = vdf.SYMBOL.map(ccr_dict)
+        if any(vdf.ExAC_regional_constraint != ''):
+            rc = '&'.join(vdf.ExAC_regional_constraint[~vdf.ExAC_regional_constraint.duplicated()].values)
+            rc_dict = {x.split(':')[1] : float(x.split(':')[3]) for x in rc.split('&')}
+            vdf['ExAC_regional_constraint'] = vdf.SYMBOL.map(rc_dict)
 
-    # Extract top COSMIC significance, if any reported
-    if any(vdf.COSMIC_COSMIC_MUT_SIG != ''):
-        best_cosmic = int(vdf.COSMIC_COSMIC_MUT_SIG.str.split('&', expand=True).\
-                          max(axis=1).sort_values().head(1).values[0])
-        record.info['COSMIC_mutation_tier'] = best_cosmic
+    else:
 
-    # Mve promoter annotations to INFO
-    if any(vdf.promoters != ''):
-        prom_genes = set(vdf.promoters.str.split(':', expand=True)[0])
-        record.info['promoter'] = ','.join(prom_genes)
+        # Annotate distance to nearest RAS gene for purely intergenic variants
+        if vdf.Consequence.isin(intergenic_csqs).all():
+            record.info['intergenic'] = True
+            chrom = record.chrom
+            if 'chr' not in chrom:
+                chrom = 'chr' + chrom
+            rec_bt = pbt.BedTool('{}\t{}\t{}\n'.\
+                         format(chrom, record.pos, record.pos+1), 
+                         from_string=True)
+            try:
+                dists = [int(f[-1]) for f in ras_bt.closest(rec_bt, d=True) if int(f[-1]) > -1]
+                if len(dists) > 0:
+                    record.info['RAS_distance'] = int(np.nanmin(dists))
+            except:
+                msg = 'RAS_distance computation failed for record {}; skipping\n'
+                stderr.write(msg.format(record.id))
 
-    # Move ABC enhancer annotations to INFO
-    if any(vdf.ABC_enhancers != ''):
-        record, vdf = _clean_abc(record, vdf)
+        # Move promoter annotations to INFO
+        if any(vdf.promoters != ''):
+            prom_genes = set(vdf.promoters.str.split(':', expand=True)[0])
+            record.info['promoter'] = ','.join(prom_genes)
 
-    # Clean up SpliceAI (store in CSQ record matching gene)
-    if any(vdf.SpliceAI_pred_SYMBOL != ''):
-        record, vdf = _clean_spliceai(record, vdf, spliceai_cutoff)
-        
-    # Clean up values that have multiple scores per variant (MPC, FATHMM)
-    def _multiMax(x, fx=np.nanmax):
-        return fx([pd.to_numeric(k, errors='coerce') for k in x.split('&')])
-    if any(vdf.MPC_score.str.contains('&')):
-        vdf['MPC_score'] = vdf.MPC_score.map(_multiMax)
-    if any(vdf.FATHMM_score.str.contains('&')):
-        vdf['FATHMM_score'] = vdf.FATHMM_score.map(lambda x: _multiMax(x, fx=np.nanmin))
+        # Move ABC enhancer annotations to INFO
+        if any(vdf.ABC_enhancers != ''):
+            record, vdf = _clean_abc(record, vdf)
 
-    # Clean up CCR and regional constraint (store in CSQ record matching gene)
-    if any(vdf.CCR != ''):
-        ccr = '&'.join(vdf.CCR[~vdf.CCR.duplicated()].values)
-        ccr_dict = {x.split(':')[0] : float(x.split(':')[1]) for x in ccr.split('&')}
-        vdf['CCR'] = vdf.SYMBOL.map(ccr_dict)
-    if any(vdf.ExAC_regional_constraint != ''):
-        rc = '&'.join(vdf.ExAC_regional_constraint[~vdf.ExAC_regional_constraint.duplicated()].values)
-        rc_dict = {x.split(':')[1] : float(x.split(':')[3]) for x in rc.split('&')}
-        vdf['ExAC_regional_constraint'] = vdf.SYMBOL.map(rc_dict)
+        # Move GTEx eQTL information to INFO
+        if any(vdf.GTEx != ''):
+            record, vdf = _clean_gtex(record, vdf, tx_map)
 
-    # Move GTEx eQTL information to INFO
-    if any(vdf.GTEx != ''):
-        record, vdf = _clean_gtex(record, vdf, tx_map)
-
-    # Clean up Ensembl regulatory annotations
-    if 'CELL_TYPE' in vdf.columns:
-        record, vdf = _clean_regulatory(record, vdf, tx_map)
+        # Clean up Ensembl regulatory annotations
+        if 'CELL_TYPE' in vdf.columns:
+            record, vdf = _clean_regulatory(record, vdf, tx_map)
 
     # Overwrite CSQ INFO field with cleaned VEP info
+    # Note that CSQ should only be retained if there is at least one genic hit
     record.info.pop('CSQ')
-    record.info['CSQ'] = tuple(['|'.join(vals.astype(str)) for i, vals in vdf.iterrows()])
+    if genic_hits.any():
+        record.info['CSQ'] = tuple(['|'.join(vals.astype(str)) for i, vals in vdf.iterrows()])
     
     # Return cleaned record
     return record
@@ -614,6 +676,11 @@ def main():
     parser.add_argument('--gtf', help='GTF for annotating CNVs', required=True)
     parser.add_argument('-t', '--transcript-info', required=True, help='.tsv ' + \
                         'mapping ENST:ENSG:symbol:length')
+    parser.add_argument('--mode', help='Indicate whether variants should be ' + \
+                        'filtered according to germline or somatic logic', 
+                        required=True)
+    parser.add_argument('--priority-genes', help='List of genes to retain in ' + \
+                        'output; behavior depends on --mode.')
     args = parser.parse_args()
 
     # Open connection to input vcf
@@ -625,6 +692,11 @@ def main():
     # Parse mapping of VEP fields and transcript info
     vep_map = parse_vep_map(invcf)
     tx_map = load_tx_map(args.transcript_info)
+    if args.mode == 'somatic_variants':
+        keep_genes = ras_genes
+    else:
+        with open(args.priority_genes) as fin:
+            keep_genes = set([g.rstrip() for g in fin.readlines()])
     gtf_tabix = pysam.TabixFile(args.gtf)
     ras_bt = load_ras_bt(args.gtf)    
     
@@ -636,12 +708,18 @@ def main():
         outvcf = pysam.VariantFile(args.vcf_out, 'w', header=out_header)
     out_vep_map = parse_vep_map(outvcf)
 
-    # Iterate over records in invcf, clean up each, and write to outvcf
+    # Iterate over records in invcf, clean up each, and write keepers to output VCF
     for record in invcf.fetch():
+        # Determine whether the record meets criteria for being retained in output
+        # If not, don't bother cleaning the record and continue to the next record
+        if not keep_in_output(record, args.mode, keep_genes, vep_map):
+            continue
+
         if 'SVTYPE' in record.info.keys():
             record = cleanup_cnv(record, out_vep_map.values(), gtf_tabix)
         else:
-            record = cleanup(record, vep_map, tx_map, ras_bt)
+            record = cleanup(record, vep_map, tx_map, ras_bt, keep_genes)
+
         outvcf.write(record)
 
     # Close connection to output VCF to clear buffer

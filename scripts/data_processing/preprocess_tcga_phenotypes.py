@@ -27,7 +27,7 @@ def load_id_map(tsv_in):
     return id_df.set_index('ARRAY_TYPED_ID')['#DONOR_ID'].to_dict()
 
 
-def load_clinical(cdr_in, tcga_study_table_in, bmi_in, id_map):
+def load_clinical(cdr_in, tcga_study_table_in, id_map):
     """
     Load & clean TCGA clinical data resource
     """
@@ -62,15 +62,6 @@ def load_clinical(cdr_in, tcga_study_table_in, bmi_in, id_map):
     study_map = pd.read_csv(tcga_study_table_in, sep='\t', header=None).\
                    set_index(0, drop=True).to_dict()[1]
     main_df['PRIMARY_CANCER_DIAGNOSIS'] = main_df.type.map(study_map)
-    bmi_df = pd.read_csv(bmi_in, sep='\t', header=None)
-    bmi_df[0] = bmi_df[0].apply(_parse_donor)
-    # Assume any BMIs > 100 were miscoded by a single decimal
-    # In practice, we only found a single instance where this was the case
-    # (BMI reported as 271, when 27.1 would be a perfectly reasonable value)
-    bad_bmis = bmi_df[1] > 100
-    bmi_df.loc[bad_bmis, 1] = bmi_df.loc[bad_bmis, 1] / 10 
-    bmi_map = bmi_df.set_index(0, drop=True).to_dict()[1]
-    main_df['BMI'] = main_df.bcr_patient_barcode.map(bmi_map)
 
     return main_df
 
@@ -133,7 +124,10 @@ def clean_output_df(main_df):
     for col in missing_columns.split():
         main_df[col] = pd.NA
 
-    col_order = 'DONOR_ID SEX BMI POPULATION CANCER_TYPE PRIMARY_CANCER_DIAGNOSIS ' + \
+    # Deduplicate by donor ID
+    main_df.drop_duplicates('DONOR_ID', inplace=True)
+
+    col_order = 'DONOR_ID SEX POPULATION CANCER_TYPE PRIMARY_CANCER_DIAGNOSIS ' + \
                 'AJCC_STAGE APPROX_STAGE DIAGNOSIS_DATE AGE_AT_DIAGNOSIS ' + \
                 'DIAGNOSIS_YEAR IS_ALIVE LAST_ALIVE_DATE DAYS_SURVIVED ' + \
                 'CAUSE_OF_DEATH PC1 PC2 PC3 PC4 PC5 PC6 PC7 PC8 PC9 PC10 ' + \
@@ -153,7 +147,6 @@ def main():
     parser.add_argument('--id-map-tsv', help='.tsv mapping between various IDs', required=True)
     parser.add_argument('--cdr-csv', help='TCGA CDR .csv', required=True)
     parser.add_argument('--tcga-study-table', help='TCGA study code table', required=True)
-    parser.add_argument('--bmi-tsv', help='TCGA BMI .tsv', required=True)
     parser.add_argument('--ancestry-tsv', help='Ancestry .tsv', required=True)
     parser.add_argument('--pcs-txt', help='Principal components .txt', required=True)
     parser.add_argument('--purity-tsv', help='Tumor purity .tsv', required=True)
@@ -164,8 +157,7 @@ def main():
     id_map = load_id_map(args.id_map_tsv)
 
     # Load & clean CDR and subset to samples of interest
-    main_df = load_clinical(args.cdr_csv, args.tcga_study_table, 
-                            args.bmi_tsv, id_map)
+    main_df = load_clinical(args.cdr_csv, args.tcga_study_table, id_map)
 
     # Add ancestry information
     main_df = add_ancestry_info(main_df, args.ancestry_tsv, args.pcs_txt, id_map)

@@ -1,18 +1,18 @@
-Package: RASMod
+Package: OncoModR
 Type: Package
-Title: R Functions for the Study of Germline Modifiers of RAS
-Version: 0.1
+Title: R Functions for the Study of Germline Modifiers of Oncogenes in Adult Solid Tumors
+Version: 0.2
 Author: Ryan Collins <Ryan_Collins@dfci.harvard.edu>
 Maintainer: Ryan Collins <Ryan_Collins@dfci.harvard.edu>
-Description: This package contains various utility functions used in the DFCI study of germline modifiers of RAS oncogenes.
-    Please refer to the project's GitHub repository for additional information: https://github.com/RCollins13/ras_modifiers
+Description: This package contains various utility functions used in the DFCI study of germline modifiers of oncogenes.
+    Please refer to the project's GitHub repository for additional information: https://github.com/RCollins13/oncomod
     All code herein distributed under terms of the GNU GPL v2.0
     Copyright: Ryan Collins and the Van Allen/Gusev/Haigis Laboratories at Dana-Farber Cancer Institute
 License: GNU GPL v2.0
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-URL: https://github.com/RCollins13/ras_modifiers
+URL: https://github.com/RCollins13/oncomod
 RoxygenNote: 7.2.3
 Imports: 
   beeswarm,

@@ -30,7 +30,7 @@
 #' `group.names` unless `group.names` is explicitly specified. Otherwise, `group.names`
 #' will be set to the ordinal value of each group in `values`.
 #'
-#' @seealso [RASMod::scaled.swarm], [RASMod::clean.axis]
+#' @seealso [OncoModR::scaled.swarm], [OncoModR::clean.axis]
 #'
 #' @export scaled.bars
 #' @export
@@ -62,7 +62,7 @@ scaled.bars <- function(values, colors, group.names=NULL, sep.wex=0.05,
 
   # Get plot dimensions
   group.widths <- group.size / sum(group.size)
-  group.lefts <- c(0, group.widths[-n.groups]) + (sep.wex * (0:(n.groups-1)))
+  group.lefts <- c(0, cumsum(group.widths)[-n.groups]) + (sep.wex * (0:(n.groups-1)))
   group.rights <- group.widths + group.lefts
   group.mids <- (group.lefts + group.rights) / 2
   xlims <- c(-sep.wex, max(group.rights))
@@ -142,7 +142,7 @@ scaled.bars <- function(values, colors, group.names=NULL, sep.wex=0.05,
 #' `group.names` unless `group.names` is explicitly specified. Otherwise, `group.names`
 #' will be set to the ordinal value of each group in `values`.
 #'
-#' @seealso [RASMod::scaled.bars], [RASMod::clean.axis]
+#' @seealso [OncoModR::scaled.bars], [OncoModR::clean.axis]
 #'
 #' @export scaled.swarm
 #' @export
@@ -170,7 +170,7 @@ scaled.swarm <- function(values, colors, group.names=NULL, sep.wex=0.05,
 
   # Get plot dimensions
   group.widths <- group.size / sum(group.size)
-  group.lefts <- c(0, group.widths[-n.groups]) + (sep.wex * (0:(n.groups-1)))
+  group.lefts <- c(0, cumsum(group.widths)[-n.groups]) + (sep.wex * (0:(n.groups-1)))
   group.rights <- group.widths + group.lefts
   group.mids <- (group.lefts + group.rights) / 2
   xlims <- c(-sep.wex, max(group.rights))
@@ -237,9 +237,9 @@ scaled.swarm <- function(values, colors, group.names=NULL, sep.wex=0.05,
 km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
                      legend=TRUE, legend.names=NULL, legend.label.spacing=0.075,
                      title=NULL, xlims=NULL, parmar=c(2, 3, 0.25, 4)){
-  # Ensure survival library and RASMod scale constants are loaded within function scope
+  # Ensure survival library and OncoModR scale constants are loaded within function scope
   require(survival, quietly=TRUE)
-  RASMod::load.constants("scales", envir=environment())
+  OncoModR::load.constants("scales", envir=environment())
 
   # Get plotting values
   if(is.null(group.names)){
@@ -264,10 +264,10 @@ km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
     sapply(1:n.groups, function(i){
       n.times <- length(surv.models[[i]]$time)
       if(n.times > 1){
-        x.bottom <- c(0, RASMod::stretch.vector(surv.models[[i]]$time, 2)[-2*n.times])
+        x.bottom <- c(0, OncoModR::stretch.vector(surv.models[[i]]$time, 2)[-2*n.times])
         x.top <- rev(x.bottom)
-        y.bottom <- c(1, 1, RASMod::stretch.vector(surv.models[[i]]$lower, 2)[-c(2*n.times-c(0, 1))])
-        y.top <- rev(c(1, 1, RASMod::stretch.vector(surv.models[[i]]$upper, 2)[-c(2*n.times-c(0, 1))]))
+        y.bottom <- c(1, 1, OncoModR::stretch.vector(surv.models[[i]]$lower, 2)[-c(2*n.times-c(0, 1))])
+        y.top <- rev(c(1, 1, OncoModR::stretch.vector(surv.models[[i]]$upper, 2)[-c(2*n.times-c(0, 1))]))
         polygon(x=c(x.bottom, x.top), y=c(y.bottom, y.top), border=NA, bty="n",
                 col=if(layer == "white"){"white"}else{adjustcolor(colors[[i]], alpha=ci.alpha)})
       }
@@ -285,8 +285,8 @@ km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
         x <- c(0, surv.models[[i]]$rmean.endtime)
         y <- c(1, 1)
       }else{
-        x <- c(0, RASMod::stretch.vector(surv.models[[i]]$time, 2))
-        y <- c(1, 1, RASMod::stretch.vector(surv.models[[i]]$surv, 2))[1:length(x)]
+        x <- c(0, OncoModR::stretch.vector(surv.models[[i]]$time, 2))
+        y <- c(1, 1, OncoModR::stretch.vector(surv.models[[i]]$surv, 2))[1:length(x)]
       }
       points(x, y, type="l", col=colors[[i]], lwd=3)
     }

@@ -15,10 +15,10 @@
 # Setup #
 #########
 # Load necessary libraries and constants
-require(RASMod, quietly=TRUE)
+require(OncoModR, quietly=TRUE)
 require(rCNV2, quietly=TRUE)
 require(argparse, quietly=TRUE)
-RASMod::load.constants("all")
+OncoModR::load.constants("all")
 
 
 ##################
@@ -59,7 +59,8 @@ plot.AF.scatter <- function(x, y, pair.names, pop){
 # RScript #
 ###########
 # Parse command line arguments and options
-parser <- ArgumentParser(description="Summarize cohort and patient phenotype metadata")
+parser <- ArgumentParser(description=paste("Plot comparisons of germline allele",
+                                           "frequencies between all cohorts"))
 parser$add_argument("--bed", metavar="BED", type="character", action="append",
                     help="single-cohort vcf2bed output", required=TRUE)
 parser$add_argument("--name", metavar="string", type="character", action="append",
@@ -121,11 +122,12 @@ apply(combn(args$name, 2), 2, function(pair.names){
 ##########################
 sapply(args$name, function(cohort){
   # One plot per ancestry
-  sapply(setdiff(names(pop.names.short), "SAS"), function(pop){
+  sapply(names(pop.names.short), function(pop){
     col.name <- paste(pop, "_AF.", cohort, sep="")
     if(!(col.name %in% colnames(dat))){return()}
     gpop <- if(pop == "EUR"){"NFE"}else{pop}
     gcol.name <- paste("gnomAD_AF_", gpop, sep="")
+    if(!(gcol.name %in% colnames(dat))){return()}
     sub.dat <- dat[, c(col.name, gcol.name)]
     sub.dat <- sub.dat[complete.cases(sub.dat), ]
     if(nrow(sub.dat) == 0){return()}

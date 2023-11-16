@@ -42,10 +42,10 @@ parser$add_argument("--outfile", metavar="path", type="character", required=TRUE
 args <- parser$parse_args()
 
 # Load necessary libraries and constants
-require(RASMod, quietly=TRUE)
+require(OncoModR, quietly=TRUE)
 require(bedr, quietly=TRUE)
 require(GenomicRanges, quietly=TRUE)
-RASMod::load.constants("all")
+OncoModR::load.constants("all")
 
 # # DEV:
 # args <- list("stats" = "~/scratch/pooled.CRAD.sumstats.tsv.gz",

@@ -154,7 +154,7 @@ def main():
     if args.regions is not None:
         regions = pbt.BedTool(args.regions)
     else:
-        regions = []
+        regions = ['']
 
     # Iterate over records in VCF
     for region in regions:

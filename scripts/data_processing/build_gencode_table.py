@@ -6,7 +6,7 @@
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
 """
-Clean up verbose VEP output for RASMod VCFs
+Clean up verbose VEP output for OncoMod VCFs
 """
 
 

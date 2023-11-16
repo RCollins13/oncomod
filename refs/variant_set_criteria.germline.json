@@ -3,7 +3,7 @@
 	[
 		{
 			"CSQ:Consequence" : ["transcript_ablation", "=="],
-		 	"SVTYPE" : ["DEL", "!="]
+			"SVTYPE" : ["DEL", "!="]
 		},
 		{"CSQ:Consequence" : ["splice_acceptor_variant", "=="]},
 		{"CSQ:Consequence" : ["splice_donor_variant", "=="]},
@@ -34,15 +34,15 @@
 	[
 		{
 			"CSQ:Consequence" : ["start_retained_variant", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		},
 		{
 			"CSQ:Consequence" : ["stop_retained_variant", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		 },
 		{
 			"CSQ:Consequence" : ["synonymous_variant", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		 }
 	],
 
@@ -51,7 +51,7 @@
 	[
 		{
 			"CSQ:Consequence" : ["transcript_ablation", "=="],
-		 	"SVTYPE" : ["DEL", "!="]
+			"SVTYPE" : ["DEL", "!="]
 		},
 		{"CSQ:Consequence" : ["splice_acceptor_variant", "=="]},
 		{"CSQ:Consequence" : ["splice_donor_variant", "=="]},
@@ -70,48 +70,48 @@
 	[
 		{
 			"CSQ:Consequence" : ["transcript_ablation", "=="],
-		 	"SVTYPE" : ["DEL", "!="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"SVTYPE" : ["DEL", "!="],
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		},
 		{
 			"CSQ:Consequence" : ["splice_acceptor_variant", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		},
 		{
 			"CSQ:Consequence" : ["splice_donor_variant", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		},
 		{
 			"CSQ:Consequence" : ["stop_gained", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		},
 		{
 			"CSQ:Consequence" : ["frameshift_variant", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		},
 		{
 			"CSQ:Consequence" : ["stop_lost", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		},
 		{
 			"CSQ:Consequence" : ["start_lost", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		},
 		{
 			"CSQ:Consequence" : ["inframe_insertion", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		},
 		{
 			"CSQ:Consequence" : ["inframe_deletion", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		},
 		{
 			"CSQ:Consequence" : ["missense_variant", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		},
 		{
 			"CSQ:Consequence" : ["protein_altering_variant", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
 	],
 
@@ -206,7 +206,7 @@
 	[
 		{
 			"CSQ:Consequence" : ["intron_variant", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
 	],
 
@@ -238,7 +238,7 @@
 	[
 		{
 			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
 	],
 
@@ -253,95 +253,96 @@
 	[
 		{
 			"CSQ:Consequence" : ["3_prime_UTR_variant", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
 	],
 
 
 	"all_promoter":
 	[
-		{"promoter" : ["", "!="]}
+		{"promoter" : ["KRAS", "=="]}
 	],
 
 
 	"conserved_promoter":
 	[
 		{
-			"promoter" : ["", "!="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"promoter" : ["KRAS", "=="],
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
 	],
 
 
 	"all_pancreas_enhancer":
 	[
-		{"enhancer:tissue" : ["pancreas", "=="]}
+		{
+			"enhancer:gene" : ["KRAS", "=="],
+			"enhancer:tissue" : ["pancreas", "=="]
+		 }
 	],
 
 
 	"conserved_pancreas_enhancer":
 	[
 		{
+			"enhancer:gene" : ["KRAS", "=="],
 			"enhancer:tissue" : ["pancreas", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
 	],
 
 
 	"all_colon_enhancer":
 	[
-		{"enhancer:tissue" : ["colon", "=="]}
+		{
+			"enhancer:gene" : ["KRAS", "=="],
+			"enhancer:tissue" : ["colon", "=="]
+		}
 	],
 
 
 	"conserved_colon_enhancer":
 	[
 		{
+			"enhancer:gene" : ["KRAS", "=="],
 			"enhancer:tissue" : ["colon", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
-		}
-	],
-
-
-	"all_skin_enhancer":
-	[
-		{"enhancer:tissue" : ["skin", "=="]}
-	],
-
-
-	"conserved_skin_enhancer":
-	[
-		{
-			"enhancer:tissue" : ["skin", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
 	],
 
 
 	"all_lung_enhancer":
 	[
-		{"enhancer:tissue" : ["lung", "=="]}
+		{
+			"enhancer:gene" : ["KRAS", "=="],
+			"enhancer:tissue" : ["lung", "=="]
+		}
 	],
 
 
 	"conserved_lung_enhancer":
 	[
 		{
+			"enhancer:gene" : ["KRAS", "=="],
 			"enhancer:tissue" : ["lung", "=="],
-		 	"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
+			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
 	],
 
 
 	"all_pancreas_eqtls":
 	[
-		{"GTEx_eQTL:tissue" : ["pancreas", "=="]}
+		{
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
+			"GTEx_eQTL:tissue" : ["pancreas", "=="]
+		}
 	],
 
 
 	"positive_pancreas_eqtls":
 	[
 		{
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["pancreas", "=="],
 			"GTEx_eQTL:beta" : [0, ">"]
 		}
@@ -351,6 +352,7 @@
 	"negative_pancreas_eqtls":
 	[
 		{
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["pancreas", "=="],
 			"GTEx_eQTL:beta" : [0, "<"]
 		}
@@ -359,13 +361,17 @@
 
 	"all_colon_eqtls":
 	[
-		{"GTEx_eQTL:tissue" : ["colon", "=="]}
+		{
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
+			"GTEx_eQTL:tissue" : ["colon", "=="]
+		}
 	],
 
 
 	"positive_colon_eqtls":
 	[
 		{
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["colon", "=="],
 			"GTEx_eQTL:beta" : [0, ">"]
 		}
@@ -375,31 +381,8 @@
 	"negative_colon_eqtls":
 	[
 		{
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["colon", "=="],
-			"GTEx_eQTL:beta" : [0, "<"]
-		}
-	],
-
-
-	"all_skin_eqtls":
-	[
-		{"GTEx_eQTL:tissue" : ["skin", "=="]}
-	],
-
-
-	"positive_skin_eqtls":
-	[
-		{
-			"GTEx_eQTL:tissue" : ["skin", "=="],
-			"GTEx_eQTL:beta" : [0, ">"]
-		}
-	],
-
-
-	"negative_skin_eqtls":
-	[
-		{
-			"GTEx_eQTL:tissue" : ["skin", "=="],
 			"GTEx_eQTL:beta" : [0, "<"]
 		}
 	],
@@ -407,13 +390,17 @@
 
 	"all_lung_eqtls":
 	[
-		{"GTEx_eQTL:tissue" : ["lung", "=="]}
+		{
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
+			"GTEx_eQTL:tissue" : ["lung", "=="]
+		}
 	],
 
 
 	"positive_lung_eqtls":
 	[
 		{
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["lung", "=="],
 			"GTEx_eQTL:beta" : [0, ">"]
 		}
@@ -423,6 +410,7 @@
 	"negative_lung_eqtls":
 	[
 		{
+			"GTEx_eQTL:gene" : ["KRAS", "=="],
 			"GTEx_eQTL:tissue" : ["lung", "=="],
 			"GTEx_eQTL:beta" : [0, "<"]
 		}

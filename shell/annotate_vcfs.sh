@@ -20,8 +20,9 @@
 ### Set local parameters
 export TCGADIR=/data/gusev/USERS/rlc47/TCGA
 export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
+export HMFDIR=/data/gusev/USERS/rlc47/HMF
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
-export CODEDIR=$WRKDIR/../code/ras_modifiers
+export CODEDIR=$WRKDIR/../code/oncomod
 export VEP_CACHE=$WRKDIR/../refs/vep_cache
 export VEP_PLUGINS=$WRKDIR/../code/vep_plugins
 cd $WRKDIR
@@ -244,11 +245,9 @@ bsub \
 tar -xzf $TMPDIR/GTEx_Analysis_v7_eQTL.tar.gz -C $TMPDIR/
 $CODEDIR/scripts/data_processing/gtex_eqtl_to_vcf.py \
   --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Pancreas.v7.signif_variant_gene_pairs.txt.gz \
-  --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Skin_Sun_Exposed_Lower_leg.v7.signif_variant_gene_pairs.txt.gz \
-  --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Skin_Not_Sun_Exposed_Suprapubic.v7.signif_variant_gene_pairs.txt.gz \
   --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Colon_Sigmoid.v7.signif_variant_gene_pairs.txt.gz \
   --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Colon_Transverse.v7.signif_variant_gene_pairs.txt.gz \
-  --gtex-tsv Lung.v7.signif_variant_gene_pairs.txt.gz \
+  --gtex-tsv $TMPDIR/GTEx_Analysis_v7_eQTL/Lung.v7.signif_variant_gene_pairs.txt.gz \
   --header $WRKDIR/../refs/simple_hg19_header.somatic.vcf.gz \
 | bcftools sort -O z -o $VEP_CACHE/GTEx_eQTLs.vcf.gz
 tabix -p vcf -f $VEP_CACHE/GTEx_eQTLs.vcf.gz
@@ -351,7 +350,8 @@ chmod a+x $WRKDIR/LSF/scripts/run_VEP.sh
 
 
 ### Annotate VCFs
-for cohort in TCGA PROFILE; do
+# Note: given the large size of HMF germline data, all annotation and downstream steps are done per chromosome
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
@@ -359,22 +359,61 @@ for cohort in TCGA PROFILE; do
     PROFILE)
       COHORTDIR=$PROFILEDIR
       ;;
+    HMF)
+      COHORTDIR=$HMFDIR
+      ;;
   esac
   for subset in somatic_variants RAS_loci; do
-    for suf in err log; do
-      if [ -e $WRKDIR/LSF/logs/VEP_${cohort}_$subset.$suf ]; then
-        rm $WRKDIR/LSF/logs/VEP_${cohort}_$subset.$suf
-      fi
-    done
-    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
-      -J VEP_${cohort}_$subset \
-      -o $WRKDIR/LSF/logs/VEP_${cohort}_$subset.log \
-      -e $WRKDIR/LSF/logs/VEP_${cohort}_$subset.err \
-      "$WRKDIR/LSF/scripts/run_VEP.sh \
-         $COHORTDIR/data/$cohort.$subset.vcf.gz \
-         $COHORTDIR/data/$cohort.$subset.anno.vcf.gz"
+    if [ $cohort == "HMF" ] && [ $subset == "RAS_loci" ]; then
+      continue
+    fi
+    invcf=$COHORTDIR/data/$cohort.$subset.vcf.gz
+    if [ -e $invcf ]; then
+      for suf in err log; do
+        if [ -e $WRKDIR/LSF/logs/VEP_${cohort}_$subset.$suf ]; then
+          rm $WRKDIR/LSF/logs/VEP_${cohort}_$subset.$suf
+        fi
+      done
+      bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+        -J VEP_${cohort}_$subset \
+        -o $WRKDIR/LSF/logs/VEP_${cohort}_$subset.log \
+        -e $WRKDIR/LSF/logs/VEP_${cohort}_$subset.err \
+        "$WRKDIR/LSF/scripts/run_VEP.sh \
+           $COHORTDIR/data/$cohort.$subset.vcf.gz \
+           $COHORTDIR/data/$cohort.$subset.anno.vcf.gz"
+    fi
   done
 done
+# Annotate HMF germline data per chromosome for improved parallelization
+for contig in $( seq 1 22 ) X; do
+  for suf in err log; do
+    if [ -e $WRKDIR/LSF/logs/VEP_HMF_RAS_loci.$contig.$suf ]; then
+      rm $WRKDIR/LSF/logs/VEP_HMF_RAS_loci.$contig.$suf
+    fi
+  done
+  bsub -q normal -sla miket_sc -R "rusage[mem=6000]" -n 2 \
+    -J VEP_HMF_RAS_loci_$contig \
+    -o $WRKDIR/LSF/logs/VEP_HMF_RAS_loci.$contig.log \
+    -e $WRKDIR/LSF/logs/VEP_HMF_RAS_loci.$contig.err \
+    "bcftools view \
+      --regions $contig \
+      -Oz -o $HMFDIR/data/HMF.RAS_loci.$contig.vcf.gz \
+      $HMFDIR/data/HMF.RAS_loci.vcf.gz
+    tabix -p vcf -f $HMFDIR/data/HMF.RAS_loci.$contig.vcf.gz
+    $WRKDIR/LSF/scripts/run_VEP.sh \
+       $HMFDIR/data/HMF.RAS_loci.$contig.vcf.gz \
+       $HMFDIR/data/HMF.RAS_loci.$contig.anno.vcf.gz"
+done
+# Concatenate HMF germline data across all chromosomes
+# Note: downstream steps can still use the per-chromosome VCFs for better parallelization
+for contig in $( seq 1 22 ) X; do
+  echo "$HMFDIR/data/HMF.RAS_loci.$contig.anno.vcf.gz"
+done > $HMFDIR/data/HMF.RAS_loci.anno.vcfs_per_chrom.list
+bcftools concat \
+  --naive \
+  --file-list $HMFDIR/data/HMF.RAS_loci.anno.vcfs_per_chrom.list \
+  -Oz -o $HMFDIR/data/HMF.RAS_loci.anno.vcf.gz
+tabix -p vcf -f $HMFDIR/data/HMF.RAS_loci.anno.vcf.gz
 
 
 #########################
@@ -389,18 +428,21 @@ set -eu -o pipefail
 $CODEDIR/scripts/data_processing/cleanup_vep.py \
   --gtf $WRKDIR/../refs/gencode.v19.annotation.gtf.gz \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
-  \$1 stdout \
+  --mode \$1 \
+  --priority-genes $CODEDIR/refs/NCI_RAS_pathway.genes.list \
+  \$2 stdout \
 | grep -ve "^##bcftools" | grep -ve "^##CADD_" | grep -ve "^##UTRAnnotator_" \
 | grep -ve "^##LoF_" | grep -ve "^##SpliceAI_" | grep -ve "^##VEP-command-line" \
 | bgzip -c \
-> \$2
-tabix -f -p vcf \$2
+> \$3
+tabix -f -p vcf \$3
 EOF
 chmod a+x $WRKDIR/LSF/scripts/clean_VEP.sh
 
 
 ### Clean up VCFs
-for cohort in TCGA PROFILE; do
+# Note: given the large size of HMF germline data, all annotation and downstream steps are done per chromosome
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
@@ -408,8 +450,14 @@ for cohort in TCGA PROFILE; do
     PROFILE)
       COHORTDIR=$PROFILEDIR
       ;;
+    HMF)
+      COHORTDIR=$HMFDIR
+      ;;
   esac
   for subset in somatic_variants RAS_loci; do
+    if [ $cohort == "HMF" ] && [ $subset == "RAS_loci" ]; then
+      continue
+    fi
     for suf in err log; do
       if [ -e $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.$suf ]; then
         rm $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.$suf
@@ -420,10 +468,37 @@ for cohort in TCGA PROFILE; do
       -o $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.log \
       -e $WRKDIR/LSF/logs/VEP_cleanup_${cohort}_$subset.err \
       "$WRKDIR/LSF/scripts/clean_VEP.sh \
+         $subset \
          $COHORTDIR/data/$cohort.$subset.anno.vcf.gz \
          $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz"
   done
 done
+# Clean up HMF germline data per chromosome for improved parallelization
+for contig in $( seq 1 22 ) X; do
+  for suf in err log; do
+    if [ -e $WRKDIR/LSF/logs/VEP_cleanup_HMF_RAS_loci.$contig.$suf ]; then
+      rm $WRKDIR/LSF/logs/VEP_cleanup_HMF_RAS_loci.$contig.$suf
+    fi
+  done
+  bsub -q normal -sla miket_sc -R "rusage[mem=6000]" -n 2 \
+    -J VEP_cleanup_HMF_RAS_loci_$contig \
+    -o $WRKDIR/LSF/logs/VEP_cleanup_HMF_RAS_loci.$contig.log \
+    -e $WRKDIR/LSF/logs/VEP_cleanup_HMF_RAS_loci.$contig.err \
+    "$WRKDIR/LSF/scripts/clean_VEP.sh \
+         RAS_loci \
+         $HMFDIR/data/HMF.RAS_loci.$contig.anno.vcf.gz \
+         $HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.vcf.gz"
+done
+# Concatenate HMF germline data across all chromosomes
+# Note: downstream steps can still use the per-chromosome VCFs for better parallelization
+for contig in $( seq 1 22 ) X; do
+  echo "$HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.vcf.gz"
+done > $HMFDIR/data/HMF.RAS_loci.anno.clean.vcfs_per_chrom.list
+bcftools concat \
+  --naive \
+  --file-list $HMFDIR/data/HMF.RAS_loci.anno.clean.vcfs_per_chrom.list \
+  -Oz -o $HMFDIR/data/HMF.RAS_loci.anno.clean.vcf.gz
+tabix -p vcf -f $HMFDIR/data/HMF.RAS_loci.anno.clean.vcf.gz
 
 
 ##############################
@@ -446,7 +521,8 @@ chmod a+x $WRKDIR/LSF/scripts/annotate_AFs.sh
 
 
 ### Annotate AFs for all VCFs
-for cohort in TCGA PROFILE; do
+# Note: given the large size of HMF germline data, all annotation and downstream steps are done per chromosome
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
@@ -456,8 +532,15 @@ for cohort in TCGA PROFILE; do
       COHORTDIR=$PROFILEDIR
       sample_field=PBP
       ;;
+    HMF)
+      COHORTDIR=$HMFDIR
+      sample_field=SAMPLE_ID
+      ;;
   esac
   for subset in somatic_variants RAS_loci; do
+    if [ $cohort == "HMF" ] && [ $subset == "RAS_loci" ]; then
+      continue
+    fi
     for suf in err log; do
       if [ -e $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.$suf ]; then
         rm $WRKDIR/LSF/logs/annotate_AFs_${cohort}_$subset.$suf
@@ -474,12 +557,74 @@ for cohort in TCGA PROFILE; do
          $COHORTDIR/data/$cohort.$subset.anno.clean.wAF.vcf.gz"
   done
 done
+# Annotate in-sample AFs of HMF germline data per chromosome for improved parallelization
+for contig in $( seq 1 22 ) X; do
+  # Contig 12 can take a long time since most germline variants in our study are there.
+  # We can further shard this VCF to speed things up
+  if [ $contig == 12 ]; then
+    bcftools +scatter \
+      -o $TMPDIR/ -Oz -p HMF.RAS_loci.$contig.anno.clean.shard \
+      -n 1000 \
+      $HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.vcf.gz
+    n_chr12_shards=$( find $TMPDIR/ -name "HMF.RAS_loci.$contig.anno.clean.shard*vcf.gz" | wc -l )
+    for i in $( seq 0 $(( $n_chr12_shards - 1 )) ); do
+      tabix -p vcf -f $TMPDIR/HMF.RAS_loci.$contig.anno.clean.shard$i.vcf.gz
+      for suf in err log; do
+        if [ -e $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.${contig}_$i.$suf ]; then
+          rm $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.${contig}_$i.$suf
+        fi
+      done
+      bsub -q short -sla miket_sc \
+        -J annotate_AFs_HMF_RAS_loci_${contig}_$i \
+        -o $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.${contig}_$i.log \
+        -e $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.${contig}_$i.err \
+        "$WRKDIR/LSF/scripts/annotate_AFs.sh \
+           $TMPDIR/HMF.RAS_loci.$contig.anno.clean.shard$i.vcf.gz \
+           $HMFDIR/data/sample_info/HMF.ALL.sample_metadata.tsv.gz \
+           SAMPLE_ID \
+           $TMPDIR/HMF.RAS_loci.$contig.anno.clean.wAF.shard$i.vcf.gz"
+    done
+  else
+    for suf in err log; do
+      if [ -e $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.$suf ]; then
+        rm $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.$suf
+      fi
+    done
+    bsub -q normal -sla miket_sc \
+      -J annotate_AFs_HMF_RAS_loci_$contig \
+      -o $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.log \
+      -e $WRKDIR/LSF/logs/annotate_AFs_HMF_RAS_loci.$contig.err \
+      "$WRKDIR/LSF/scripts/annotate_AFs.sh \
+         $HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.vcf.gz \
+         $HMFDIR/data/sample_info/HMF.ALL.sample_metadata.tsv.gz \
+         SAMPLE_ID \
+         $HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.wAF.vcf.gz"
+  fi
+done
+# Concatenate HMF germline data across all chromosomes
+# Note: since chr12 was sharded to speed up this step, we need to 
+# first concatenate chr12 on its own
+find $TMPDIR/ -name "HMF.RAS_loci.12.anno.clean.wAF.shard*vcf.gz" \
+> $TMPDIR/HMF.RAS_loci.12.anno.clean.wAF.shards.list
+bcftools concat \
+  --file-list $TMPDIR/HMF.RAS_loci.12.anno.clean.wAF.shards.list \
+| bcftools sort \
+  -Oz -o $HMFDIR/data/HMF.RAS_loci.12.anno.clean.wAF.vcf.gz
+tabix -p vcf -f $HMFDIR/data/HMF.RAS_loci.12.anno.clean.wAF.vcf.gz
+# Note: downstream steps can still use the per-chromosome VCFs for better parallelization
+for contig in $( seq 1 22 ) X; do
+  echo "$HMFDIR/data/HMF.RAS_loci.$contig.anno.clean.wAF.vcf.gz"
+done > $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcfs_per_chrom.list
+bcftools concat \
+  --file-list $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcfs_per_chrom.list \
+  -Oz -o $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcf.gz
+tabix -p vcf -f $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcf.gz
 
 
 ######################################
 ### Build simple genotype matrixes ###
 ######################################
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
@@ -488,6 +633,10 @@ for cohort in TCGA PROFILE; do
     PROFILE)
       COHORTDIR=$PROFILEDIR
       sample_field=PBP
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
+      sample_field=SAMPLE_ID
       ;;
   esac
   for subset in somatic_variants RAS_loci; do
@@ -510,43 +659,51 @@ done
 ################################################################
 ### Define sets of samples lacking DFCI/BWH Tier 1 mutations ###
 ################################################################
+# Get complete list of all tier 1 KRAS mutations ever reported in our PROFILE samples
+for cancer in PDAC CRAD LUAD; do
+  $CODEDIR/scripts/data_processing/get_tier1_kras_muts.R \
+    --mutations-csv /data/gusev/PROFILE/CLINICAL/OncDRS/ALL_2022_11/GENOMIC_MUTATION_RESULTS.csv \
+    --sample-ids $PROFILEDIR/data/sample_info/PROFILE.$cancer.samples.list \
+    --id-map /data/gusev/PROFILE/CLINICAL/PROFILE_MRN_BL_PANEL.PBP.tab \
+    --outfile $WRKDIR/data/$cancer.tier1_kras_mutations.list
+
+  echo -e "\n\n${cancer} tier 1 KRAS mutations:\n==========================="
+  cat $WRKDIR/data/$cancer.tier1_kras_mutations.list
+
+  $CODEDIR/scripts/data_processing/format_control_exclusion_json.py \
+    $WRKDIR/data/$cancer.tier1_kras_mutations.list \
+    $WRKDIR/data/$cancer.control_exclusion_criteria.json
+done
 # Extract lists of samples
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
-      sample_field="donors"
+      sample_field=donors
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
-      sample_field="samples"
+      sample_field=samples
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
+      sample_field=samples
       ;;
   esac
-  $CODEDIR/scripts/data_processing/define_control_samples.py \
-    --vcf $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
-    --criteria $CODEDIR/refs/RAS_control_sample_criteria.json \
-    --regions $CODEDIR/refs/RAS_loci.GRCh37.bed.gz \
-    --eligible-samples $COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.list \
-    --exclude-samples $COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.missing_somatic.list \
-    --outfile $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list
+  # Define cancer type-specific lists of eligible controls
+  for cancer in PDAC CRAD LUAD; do
+    $CODEDIR/scripts/data_processing/define_control_samples.py \
+      --vcf $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
+      --criteria $WRKDIR/data/$cancer.control_exclusion_criteria.json \
+      --regions $WRKDIR/../refs/RAS_genes.bed.gz \
+      --eligible-samples $COHORTDIR/data/sample_info/$cohort.$cancer.$sample_field.list \
+      --exclude-samples $COHORTDIR/data/sample_info/$cohort.ALL.$sample_field.missing_somatic.list \
+      --outfile $COHORTDIR/data/sample_info/$cohort.$cancer.eligible_controls.list
+  done
+  # Concatenate all cancer type-specific control lists
+  for cancer in PDAC CRAD LUAD; do
+    cat $COHORTDIR/data/sample_info/$cohort.$cancer.eligible_controls.list
+  done | sort -V | uniq \
+  > $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list
 done
-# Summarize as table
-for cancer in PDAC CRAD LUAD SKCM; do
-  echo $cancer
-  for cohort in TCGA PROFILE; do
-    case $cohort in
-      TCGA)
-        COHORTDIR=$TCGADIR
-        sample_field="donors"
-        ;;
-      PROFILE)
-        COHORTDIR=$PROFILEDIR
-        sample_field="samples"
-        ;;
-    esac
-    elig_samps=$COHORTDIR/data/sample_info/$cohort.$cancer.$sample_field.list
-    fgrep -wf $elig_samps \
-      $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list \
-    | wc -l | addcom
-  done | paste -s -
-done | paste - -
+

@@ -16,7 +16,7 @@
 ### Set local parameters
 export BASEDIR=/broad/VanAllenLab/xchip/cga_home/rcollins
 export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers
-export CODEDIR=$WRKDIR/code/ras_modifiers
+export CODEDIR=$WRKDIR/code/oncomod
 cd $WRKDIR
 
 
@@ -29,18 +29,35 @@ done
 
 
 ### Write simple reference files
-echo -e "NRAS\nHRAS\nKRAS" > $WRKDIR/refs/genes.list
+echo -e "KRAS" > $WRKDIR/refs/genes.list
+sed '1d' refs/NCI_RAS_pathway_2.0.genes.info.tsv \
+| cut -f2 | sort -V | uniq > $WRKDIR/refs/other_genes.list
 
 
 ### Extract gene bodies from MANE-Select GTF
 wget -O - https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/current/MANE.GRCh38.v1.0.ensembl_genomic.gtf.gz \
 | gunzip -c | sort -Vk1,1 -k4,4n -k5,5n | bgzip -c \
 > $WRKDIR/refs/MANE.GRCh38.v1.0.ensembl_genomic.gtf.gz
-tabix -p gff -f $WRKDIR/refs/MANE.GRCh38.v1.0.ensembl_genomic.gtf.gz
 export GTF=$WRKDIR/refs/MANE.GRCh38.v1.0.ensembl_genomic.gtf.gz
+tabix -p gff -f $GTF
 zcat $GTF | fgrep -wf $WRKDIR/refs/genes.list | fgrep -w MANE_Select \
 | awk -v OFS="\t" '{ if ($3=="transcript") print $1, $4, $5, $16 }' \
 | tr -d '";' | bgzip -c > $WRKDIR/refs/genes.bed.gz
+
+# Extract gene coordinates for RAS pathway genes from Gencode v19 GTF to avoid liftover
+wget -O - https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_19/gencode.v19.annotation.gtf.gz \
+| gunzip -c | sort -Vk1,1 -k4,4n -k5,5n | bgzip -c \
+> $WRKDIR/refs/gencode.v19.gtf.gz
+export GTF19=$WRKDIR/refs/gencode.v19.gtf.gz
+tabix -p gff -f $GTF19
+zcat $GTF19 | fgrep -wf $WRKDIR/refs/other_genes.list \
+| awk -v OFS="\t" -v buffer=10000 \
+  '{ if ($3=="transcript") print $1, $4-buffer, $5+buffer, $18 }' \
+| tr -d '";' | sed 's/\-/\t/g' | awk -v FS="\t" '{ if (NF==4) print }' \
+| awk -v OFS="\t" '{ if ($2<0) $2=0; print $1, $2, $3, $4 }' \
+| sort -Vk1,1 -k2,2n -k3,3n -k4,4V \
+| bedtools merge -i - -c 4 -o distinct | bgzip -c \
+> $WRKDIR/refs/other_genes.bed.gz
 
 
 ### Extract ENSG-to-symbol mappings for genes of interest
@@ -143,8 +160,8 @@ contig=\$2
 echo -e "Running contig \$contig for population \$pop"
 
 export BASEDIR=/broad/VanAllenLab/xchip/cga_home/rcollins
-export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers
-export CODEDIR=$WRKDIR/code/ras_modifiers
+export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/oncomod
+export CODEDIR=$WRKDIR/code/oncomod
 
 source /broad/software/scripts/useuse
 source /home/unix/rcollins/.bashrc
@@ -180,10 +197,10 @@ cat << EOF > $WRKDIR/UGER/submit_1000G_LD.batch.sh
 #$ -t 1-15
 #$ -l h_vmem=4G
 #$ -l h_rt=01:00:00
-#$ -o /broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers/UGER/logs/
-#$ -e /broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers/UGER/logs/
+#$ -o /broad/VanAllenLab/xchip/cga_home/rcollins/oncomod/UGER/logs/
+#$ -e /broad/VanAllenLab/xchip/cga_home/rcollins/oncomod/UGER/logs/
 
-export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/ras_modifiers
+export WRKDIR=/broad/VanAllenLab/xchip/cga_home/rcollins/oncomod
 
 pop=\$( sed -n "\${SGE_TASK_ID}p" $WRKDIR/UGER/1000G_LD.inputs.tsv | cut -f1 )
 contig=\$( sed -n "\${SGE_TASK_ID}p" $WRKDIR/UGER/1000G_LD.inputs.tsv | cut -f2 )

@@ -59,10 +59,11 @@ merge.assoc.stats <- function(stats.list){
                    stats.list)
 
   # Gather information on non-NA cohorts
-  cohort.info <- as.data.frame(t(apply(merged[, grep("^z\\.|^chisq\\.", colnames(merged))], 1,
-                                       function(zscores){
+  test.stat.columns <- grep("^z\\.|^chisq\\.", colnames(merged))
+  cohort.info <- as.data.frame(t(apply(merged[, test.stat.columns], 1, function(zscores){
                                          idxs <- which(!is.na(zscores) & !is.infinite(zscores))
-                                         cohorts <- names(stats.list)[idxs]
+                                         nonna.colnames <- colnames(merged)[test.stat.columns[idxs]]
+                                         cohorts <- unique(gsub('^z\\.|^chisq\\.', '', nonna.colnames))
                                          c(length(cohorts), paste(sort(cohorts), collapse=","))
                                        })))
   colnames(cohort.info) <- c("N_cohorts", "cohorts")
@@ -149,7 +150,7 @@ germline.somatic.meta.analysis <- function(df, model="FE"){
   meta.stats <- as.data.frame(t(apply(df, 1, function(rvals){
     betas <- as.numeric(rvals[grep("^beta\\.", names(rvals))])
     ses <- as.numeric(rvals[grep("^beta_SE\\.", names(rvals))])
-    meta <- tryCatch(nested.meta.helper,
+    meta <- tryCatch(nested.meta.helper(betas, ses, model),
                      error=function(e){list("beta" = NA, "se" = NA, "zval" = NA, "pval" = NA)})
     c(meta$beta, meta$se, meta$zval, meta$pval)
   })))

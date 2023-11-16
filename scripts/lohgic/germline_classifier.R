@@ -52,7 +52,7 @@ parser$add_argument("--outfile", metavar="path", type="character", required=TRUE
 args <- parser$parse_args()
 
 # Load necessary libraries
-require(RASMod, quietly=TRUE)
+require(OncoModR, quietly=TRUE)
 require(caret, quietly=TRUE)
 # require(randomForest, quietly=TRUE) # required for model = "rf"
 # require(adabag, quietly=TRUE) # required for model = "AdaBag"

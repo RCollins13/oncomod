@@ -137,8 +137,9 @@ load.constants <- function(subset, envir=.GlobalEnv){
                        "2" = "#FFCC66",
                        "3" = "#FE8002",
                        "4" = "#ED3823"),
-    "cohort.color.prefixes" = c("TCGA" = "light1",
-                                "DFCI" = "dark1"),
+    "cohort.color.prefixes" = c("HMF" = "light2",
+                                "DFCI" = "main",
+                                "TCGA" = "dark2"),
     "exon.color" = "#027831",
     "gene.color" = "#235020")
 
@@ -172,12 +173,14 @@ load.constants <- function(subset, envir=.GlobalEnv){
                             "CRAD" = "Colorectal Adenocarcinoma",
                             "LUAD" = "Lung Adenocarcinoma",
                             "SKCM" = "Skin Cutaneous Melanoma"),
-    "cohort.names.long" = c("TCGA" = "The Cancer Genome Atlas",
+    "cohort.names.long" = c("HMF" = "Hartwig Medical Foundation",
                             "DFCI" = "Dana-Farber PROFILE",
-                            "PROFILE" = "Dana-Farber PROFILE"),
-    "cohort.names.short" = c("TCGA" = "TCGA",
+                            "PROFILE" = "Dana-Farber PROFILE",
+                            "TCGA" = "The Cancer Genome Atlas"),
+    "cohort.names.short" = c("HMF" = "HMF",
                              "DFCI" = "DFCI",
-                             "PROFILE" = "DFCI"),
+                             "PROFILE" = "DFCI",
+                             "TCGA" = "TCGA"),
     "pop.names.short" = c("AFR" = "African",
                           "AMR" = "American",
                           "EAS" = "E. Asian",
@@ -225,7 +228,7 @@ load.constants <- function(subset, envir=.GlobalEnv){
 #' load.constants("colors")
 #' get.cohort.palette(PDAC.colors, c("DFCI", "TCGA"))
 #'
-#' @seealso [RASMod::load.constants]
+#' @seealso [OncoModR::load.constants]
 #'
 #' @export get.cohort.palette
 #' @export

@@ -8,7 +8,7 @@
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
-# Actions to perform upon loading the RASMod package
+# Actions to perform upon loading the OncoModR package
 
 .onLoad <- function(libname, pkgname){
   options(scipen=1000, stringsAsFactors=F, family="sans")

@@ -11,8 +11,10 @@ clean.axis(
   title = NULL,
   tck = -0.025,
   cex.axis = 5/6,
+  col.axis = "black",
   label.line = -0.65,
   title.line = 0.5,
+  cex.title = 1,
   infinite = FALSE
 )
 }
@@ -29,9 +31,13 @@ clean.axis(
 
 \item{cex.axis}{Value passed to \code{axis()}. See \code{?axis} for details. [default: 5/6]}
 
+\item{col.axis}{Value passed as \code{col} and \code{col.ticks} to \code{axis()}. See \code{?axis} for details. [default: black]}
+
 \item{label.line}{\code{line} parameter for axis labels [default: -0.65]}
 
 \item{title.line}{\code{line} parameter for axis title [default: 0.5]}
+
+\item{cex.title}{\code{cex} parameter for axis title [default: 1]}
 
 \item{infinite}{Indicator for the axis to be extended infinitely (without ticks) [default: FALSE]}
 }

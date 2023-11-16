@@ -20,8 +20,9 @@
 ### Set local parameters
 export TCGADIR=/data/gusev/USERS/rlc47/TCGA
 export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
+export HMFDIR=/data/gusev/USERS/rlc47/HMF
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
-export CODEDIR=$WRKDIR/../code/ras_modifiers
+export CODEDIR=$WRKDIR/../code/oncomod
 cd $WRKDIR
 
 
@@ -33,14 +34,17 @@ for SUBDIR in data data/variant_sets data/variant_set_freqs; do
 done
 
 
-### Generate maps of somatic variants with the same protein consequence
-for cohort in TCGA PROFILE; do
+### Generate maps of variants with the same protein consequence
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
       ;;
   esac
   for context in germline somatic; do
@@ -68,13 +72,16 @@ done
 
 
 ### Identify recurrently mutated codons from the output of collapsed coding csqs, above
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
       ;;
   esac
   for context in germline somatic; do
@@ -94,13 +101,16 @@ done
 
 
 ## Identify recurrently mutated exons from the output of collapsed codons, above
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
       ;;
   esac
   for context in germline somatic; do
@@ -120,13 +130,22 @@ done
 
 
 ### Generate somatic and germline variant sets for burden testing
-for cohort in TCGA PROFILE; do
+# First, must make lists of eligible genes for somatic & germline criteria
+echo "KRAS" > $TMPDIR/eligible_somatic.genes.list
+cat \
+  $CODEDIR/refs/NCI_RAS_pathway.genes.list \
+  $CODEDIR/refs/protein_coding_genes_near_KRAS_locus.list \
+| sort -V | uniq > $TMPDIR/eligible_germline.genes.list
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
       ;;
   esac
   for context in somatic germline; do
@@ -149,6 +168,7 @@ for cohort in TCGA PROFILE; do
       "$CODEDIR/scripts/data_processing/populate_variant_sets.py \
          --vcf $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz \
          --sets-json $CODEDIR/refs/variant_set_criteria.$context.json \
+         --eligible-genes $TMPDIR/eligible_$context.genes.list \
        | gzip -c > $WRKDIR/data/variant_sets/$cohort.$context.burden_sets.tsv.gz"
   done
 done
@@ -156,13 +176,16 @@ done
 
 ### Compute AC and AF matrixes by cancer type for all variants & variant sets in each cohort
 # 1a. Coding variants by protein consequence
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
       ;;
   esac
   for context in germline somatic; do
@@ -194,13 +217,16 @@ for cohort in TCGA PROFILE; do
 done
 
 # 1b. All other single variants after excluding coding variants above
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
       ;;
   esac
   for context in germline somatic; do
@@ -244,13 +270,16 @@ for cohort in TCGA PROFILE; do
 done
 
 # 2. Recurrently mutated codons
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
       ;;
   esac
   for context in germline somatic; do
@@ -282,13 +311,16 @@ for cohort in TCGA PROFILE; do
 done
 
 # 3. Recurrently mutated exons
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
       ;;
   esac
   for context in germline somatic; do
@@ -320,13 +352,16 @@ for cohort in TCGA PROFILE; do
 done
 
 # 4. All variant sets
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
       ;;
   esac
   for context in germline somatic; do
@@ -359,7 +394,7 @@ done
 
 # 5. Intra-gene somatic comutation pairs
 # TODO: finish implementing intra-gene restriction here
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
@@ -367,52 +402,46 @@ for cohort in TCGA PROFILE; do
     PROFILE)
       COHORTDIR=$PROFILEDIR
       ;;
+    HMF)
+      COHORTDIR=$HMFDIR
+      ;;
   esac
   # By definition, both mutations must each appear at ≥1% frequency for the pair
   # to appear at ≥1% frequency
   # We can use this definition to dramatically reduce the search space for computing
   # pairwise comutation frequencies
   # This requires pre-computed frequency info (generated above)
-  while read chrom start end gene; do
-    # Step 1. Build a list of all candidate mutations to consider for comutation
-    tabix \
-      -R <( echo -e "$chrom\t$start\t$end" ) \
-      $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
-    | cut -f3 > $TMPDIR/ras_vids.$gene.list
-    for subset in coding other; do
-      $CODEDIR/scripts/data_processing/filter_freq_table.py \
-        --freq-tsv $WRKDIR/data/variant_set_freqs/$cohort.somatic.${subset}_variants.freq.tsv.gz  \
-        --min-freq 0.01 \
-      | cut -f1 | sed '1d'
-    done | sort | uniq \
-    | fgrep -wf - \
-      <( zcat $WRKDIR/data/variant_sets/$cohort.somatic.collapsed_coding_csqs.tsv.gz \
-              $WRKDIR/data/variant_sets/$cohort.somatic.other_single_variants.tsv.gz ) \
-    | fgrep -wf $TMPDIR/ras_vids.$gene.list \
-    | awk -v OFS="\t" '{ print $1, $NF }' | cat <( echo -e "set_id\tvids" ) - \
-    > $TMPDIR/$cohort.all_comut_candidates.$gene.tsv
-    # Step 2. Compute comutation frequency for all candidates
-    for suf in err log; do
-      logfile=$WRKDIR/LSF/logs/get_somatic_comutation_freqs_${cohort}_$gene.$suf
-      if [ -e $logfile ]; then rm $logfile; fi
-    done
-    bsub -q big-multi -sla miket_sc -R "rusage[mem=24000]" \
-      -J get_somatic_comutation_freqs_${cohort}_$gene \
-      -o $WRKDIR/LSF/logs/get_somatic_comutation_freqs_${cohort}_$gene.log \
-      -e $WRKDIR/LSF/logs/get_somatic_comutation_freqs_${cohort}_$gene.err \
-      "$CODEDIR/scripts/data_processing/calc_comutation_freqs.py \
-         --sets-tsv $TMPDIR/$cohort.all_comut_candidates.$gene.tsv \
-         --dosage-tsv $COHORTDIR/data/$cohort.somatic_variants.dosage.tsv.gz \
-         --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
-         --max-an 1 \
-         --outfile $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.$gene.freq.tsv.gz"
-  done < <( zcat $WRKDIR/../refs/RAS_genes.bed.gz )
+  # Step 1. Build a list of all candidate mutations to consider for comutation
+  bcftools query \
+    -f '%ID\n' \
+    --regions-file <( zcat $WRKDIR/../refs/RAS_genes.bed.gz | fgrep -w KRAS ) \
+    $COHORTDIR/data/$cohort.somatic_variants.anno.clean.vcf.gz \
+  > $TMPDIR/ras_vids.KRAS.list
+  for subset in coding other; do
+    $CODEDIR/scripts/data_processing/filter_freq_table.py \
+      --freq-tsv $WRKDIR/data/variant_set_freqs/$cohort.somatic.${subset}_variants.freq.tsv.gz  \
+      --min-freq 0.01 \
+    | cut -f1 | sed '1d'
+  done | sort | uniq \
+  | fgrep -wf - \
+    <( zcat $WRKDIR/data/variant_sets/$cohort.somatic.collapsed_coding_csqs.tsv.gz \
+            $WRKDIR/data/variant_sets/$cohort.somatic.other_single_variants.tsv.gz ) \
+  | fgrep -wf $TMPDIR/ras_vids.KRAS.list \
+  | awk -v OFS="\t" '{ print $1, $NF }' | cat <( echo -e "set_id\tvids" ) - \
+  > $TMPDIR/$cohort.all_comut_candidates.KRAS.tsv
+  # Step 2. Compute comutation frequency for all candidates
+  $CODEDIR/scripts/data_processing/calc_comutation_freqs.py \
+    --sets-tsv $TMPDIR/$cohort.all_comut_candidates.KRAS.tsv \
+    --dosage-tsv $COHORTDIR/data/$cohort.somatic_variants.dosage.tsv.gz \
+    --sample-metadata $COHORTDIR/data/sample_info/$cohort.ALL.sample_metadata.tsv.gz \
+    --max-an 1 \
+    --outfile $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.KRAS.freq.tsv.gz
 done
 # Collapse results across genes per cohort once complete
-for cohort in TCGA PROFILE; do
+for cohort in TCGA PROFILE HMF; do
   zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.*.freq.tsv.gz \
   | grep -ve '^set_id' | sort -Vk1,1 \
-  | cat <( zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.NRAS.freq.tsv.gz | head -n1 ) - \
+  | cat <( zcat $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.KRAS.freq.tsv.gz | head -n1 ) - \
   | bgzip -c > $WRKDIR/data/variant_set_freqs/$cohort.somatic.gene_comutations.freq.tsv.gz
 done
 

@@ -6,7 +6,7 @@
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
 """
-Subset DFCI-Profile somatic data to relevant tumors
+Merge genotyped SNPs, imputed SNPs, and exome variants for TCGA
 """
 
 
@@ -198,6 +198,11 @@ def map_genotypes(old_rec, new_rec, id_mappings, rec_fmt):
     AN, AC, AF = [0] * 3
 
     for sample in old_rec.samples:
+
+        # Skip samples not slated for inclusion in merged VCF
+        new_sample = id_mappings.get(sample)
+        if new_sample is None:
+            continue
 
         # Get old genotype
         # Note: DeepVariant (used on exomes) does not call ref GTs

@@ -21,11 +21,10 @@ from general_utils import load_tx_map
 
 
 # Define various variables used throughout the below functions
-cancers = 'PDAC CRAD SKCM LUAD'.split()
-ras_genes = 'NRAS HRAS KRAS'.split()
+cancers = 'PDAC CRAD LUAD'.split()
+ras_genes = ['KRAS']
 tissue_map = {'PDAC' : 'pancreas',
               'CRAD' : 'colon',
-              'SKCM' : 'skin',
               'LUAD' : 'lung'}
 
 
@@ -83,11 +82,14 @@ def main():
     parser = argparse.ArgumentParser(
              description=__doc__,
              formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--burden-sets', action='append', 
+    parser.add_argument('--burden-sets', action='append', required=True,
                         help='frequencies corresponding to burden sets')
     parser.add_argument('--memberships', action='append', help='.tsv mapping ' +
                         'set IDs (first column) to constituent variant IDs ' +
-                        '(final column). Can be specified multiple times.')
+                        '(final column). Can be specified multiple times.',
+                        required=True)
+    parser.add_argument('--eligible-genes', required=True, help='list of eligible ' +
+                        'genes.')
     parser.add_argument('-m', '--min-ac', default=10, type=int, help='Minimum ' + \
                         'AC for a category to be retained per cancer type.')
     parser.add_argument('-o', '--outfile', help='output .tsv [default: stdout]', 
@@ -98,7 +100,9 @@ def main():
     args = parser.parse_args()
 
     # Build dict for collecting results
-    res = {cncr : {gene : set() for gene in ras_genes} for cncr in cancers}
+    with open(args.eligible_genes) as fin:
+        eligible_genes = sorted(list(set([g.rstrip() for g in fin.readlines()])))
+    res = {cncr : {gene : set() for gene in eligible_genes} for cncr in cancers}
 
     # Load mapping of set ID to constitutent variant IDs
     members = load_members(args.memberships)
@@ -109,11 +113,12 @@ def main():
 
     # Output lists of somatic endpoints per gene & cancer type
     for cancer in cancers:
-        for gene in ras_genes:
-            fout = open('{}{}.{}.germline_sets.tsv'.format(args.out_prefix, cancer, gene), 'w')
-            for val in res[cancer][gene]:
-                mems = get_members(val, members)
-                fout.write('{}\t{}\n'.format(val, mems))
+        for ras_gene in ras_genes:
+            fout = open('{}{}.{}.germline_sets.tsv'.format(args.out_prefix, cancer, ras_gene), 'w')
+            for gene in eligible_genes:
+                for val in res[cancer][gene]:
+                    mems = get_members(val, members)
+                    fout.write('{}\t{}\n'.format(val, mems))
             fout.close()
 
     # Open connection to --outfile
@@ -125,18 +130,23 @@ def main():
     for cancer in cancers:
         for gene in ras_genes:
             header_vals.append('_'.join([cancer, gene]))
-        header_vals.append(cancer + '_Union')
+        if len(ras_genes) > 1:
+            header_vals.append(cancer + '_Union')
     outfile.write('\t'.join(header_vals + ['Total']) + '\n')
 
     # Summarize as table
     total = 0
     outvals = []
     for cancer, vals in res.items():
-        sub_union = set()
-        for gene in ras_genes:
-            outvals.append(len(vals[gene]))
-            sub_union.update(vals[gene])
-        outvals.append(len(sub_union))
+        intracancer_union = set()
+        for ras_gene in ras_genes:
+            sub_union = set()
+            for gene in eligible_genes:
+                sub_union.update(vals[gene])
+            outvals.append(len(sub_union))
+            intracancer_union.update(sub_union)
+        if len(ras_genes) > 1:
+            outvals.append(len(sub_union))
         total += len(sub_union)
     outfile.write('\t'.join([str(x) for x in outvals + [total]]) + '\n')
 

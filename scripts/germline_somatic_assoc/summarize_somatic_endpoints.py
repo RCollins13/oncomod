@@ -23,9 +23,9 @@ from general_utils import load_tx_map
 
 
 # Define various variables used throughout the below functions
-cancers = 'PDAC CRAD SKCM LUAD'.split()
-ras_genes = 'NRAS HRAS KRAS'.split()
-ras_chroms = {'1' : 'NRAS', '11' : 'HRAS', '12' : 'KRAS'}
+cancers = 'PDAC CRAD LUAD'.split()
+ras_genes = ['KRAS']
+ras_chroms = {'12' : 'KRAS'}
 category_descriptions = \
     {'mutations'        : '1. Frequent RAS alterations',
      'codons'           : '2. Recurrently mutated RAS codons',
@@ -35,7 +35,6 @@ category_descriptions = \
      'ras_nonras_comut' : '6. Frequent RAS + non-RAS comutations'}
 tissue_map = {'PDAC' : 'pancreas',
               'CRAD' : 'colon',
-              'SKCM' : 'skin',
               'LUAD' : 'lung'}
 
 
@@ -215,7 +214,8 @@ def main():
     for cancer in cancers:
         for gene in ras_genes:
             header_vals.append('_'.join([cancer, gene]))
-        header_vals.append(cancer + '_Union')
+        if len(ras_genes) > 1:
+            header_vals.append(cancer + '_Union')
     outfile.write('\t'.join(header_vals + ['Total']) + '\n')
 
     # Summarize as table
@@ -227,7 +227,8 @@ def main():
             for gene in ras_genes:
                 outvals.append(len(vals[cancer][gene]))
                 sub_union.update(vals[cancer][gene])
-            outvals.append(len(sub_union))
+            if len(ras_genes) > 1:
+                outvals.append(len(sub_union))
             total += len(sub_union)
         outfile.write('\t'.join([str(x) for x in outvals + [total]]) + '\n')
 

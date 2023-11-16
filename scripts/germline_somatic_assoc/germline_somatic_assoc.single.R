@@ -15,10 +15,10 @@
 # Setup #
 #########
 # Load necessary libraries and constants
-require(RASMod, quietly=TRUE)
 require(logistf, quietly=TRUE)
 require(argparse, quietly=TRUE)
-RASMod::load.constants("names")
+require(OncoModR, quietly=TRUE)
+OncoModR::load.constants("names")
 
 
 ##################
@@ -93,6 +93,19 @@ args <- parser$parse_args()
 #              "somatic_ad" = "~/scratch/PROFILE.somatic_variants.dosage.tsv.gz",
 #              "somatic_variant_sets" = "~/scratch/PDAC.NRAS.somatic_endpoints.tsv",
 #              "eligible_controls" = "~/scratch/PROFILE.ALL.eligible_controls.list",
+#              "normalize_germline_ad" = FALSE,
+#              "multiPop_min_ac" = 10,
+#              "multiPop_min_freq" = 0.01)
+
+# # DEV - HMF
+# args <- list("sample_metadata" = "~/scratch/HMF.ALL.sample_metadata.tsv.gz",
+#              "cancer_type" = "PDAC",
+#              "germline_ad" = "~/scratch/HMF.RAS_loci.dosage.sub.tsv.gz",
+#              "germline_variant_sets" = "~/scratch/PDAC.KRAS.germline_sets.tsv",
+#              "outfile" = "~/scratch/HMF.PDAC.KRAS.sumstats.tsv",
+#              "somatic_ad" = "~/scratch/HMF.somatic_variants.dosage.tsv.gz",
+#              "somatic_variant_sets" = "~/scratch/PDAC.KRAS.somatic_endpoints.tsv",
+#              "eligible_controls" = "~/scratch/HMF.ALL.eligible_controls.list",
 #              "normalize_germline_ad" = FALSE,
 #              "multiPop_min_ac" = 10,
 #              "multiPop_min_freq" = 0.01)

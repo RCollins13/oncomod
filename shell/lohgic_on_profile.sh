@@ -46,7 +46,7 @@ cd $WRKDIR
 
 # Step 1: unify mutation and copy number data for each biopsy to extract
 # information required by All-FIT
-$CODEDIR/ras_modifiers/scripts/lohgic/get_allfit_inputs.py \
+$CODEDIR/oncomod/scripts/lohgic/get_allfit_inputs.py \
   --mutations $BASEDIR/CLINICAL/OncDRS/ALL_2022_11/GENOMIC_MUTATION_RESULTS.csv \
   --cnas $BASEDIR/CLINICAL/OncDRS/ALL_2022_11/GENOMIC_CNV_RESULTS.csv \
   --outdir $WRKDIR/LOHGIC/AllFIT/inputs
@@ -144,7 +144,7 @@ for i in $( seq 1 120 ); do
   echo -e "file_in = '$WRKDIR/LOHGIC/LOHGIC/inputs/LOHGIC.input.$i.tsv';" > $WRKDIR/LSF/scripts/LOHGIC_shard_$i.m
   echo -e "file_out = '$WRKDIR/LOHGIC/LOHGIC/outputs/LOHGIC.output.$i.tsv';" >> $WRKDIR/LSF/scripts/LOHGIC_shard_$i.m
   echo "" >> $WRKDIR/LSF/scripts/LOHGIC_shard_$i.m
-  cat $CODEDIR/ras_modifiers/scripts/lohgic/LOHGIC_List.m >> $WRKDIR/LSF/scripts/LOHGIC_shard_$i.m
+  cat $CODEDIR/oncomod/scripts/lohgic/LOHGIC_List.m >> $WRKDIR/LSF/scripts/LOHGIC_shard_$i.m
   chmod ag+wrx $WRKDIR/LSF/scripts/LOHGIC_shard_$i.m
 
   # Write LSF script for this shard
@@ -185,7 +185,7 @@ done \
 > $WRKDIR/LOHGIC/LOHGIC/PROFILE.LOHGIC.tsv.gz
 
 # Step 7. Merge LOHGIC info back into profile annotation
-$CODEDIR/ras_modifiers/scripts/lohgic/annotate_LOHGIC_results.py \
+$CODEDIR/oncomod/scripts/lohgic/annotate_LOHGIC_results.py \
   --lohgic-tsv $WRKDIR/LOHGIC/LOHGIC/PROFILE.LOHGIC.tsv.gz \
   --oncdrs-csv $BASEDIR/CLINICAL/OncDRS/ALL_2022_11/GENOMIC_MUTATION_RESULTS.csv \
   --outfile $WRKDIR/LOHGIC/LOHGIC/PROFILE.LOHGIC.annotated.tsv.gz

@@ -70,7 +70,19 @@ def _infer_cancer(donor_id, cancer_map):
     return cancer_map.get(donor_id.split('-')[1])
 
 
-def format_outputs(ex_df, ar_df, tss_table_in, study_table_in, out_prefix):
+def get_msi_ids(msi_tsv):
+    """
+    Return list of sample IDs corresponding to MSI+ tumors to be excluded
+    """
+
+    mantis = pd.read_csv(msi_tsv, sep='\t', header=None)
+    mantis.columns = 'DONOR_ID SCORE'.split()
+    
+    return mantis.loc[mantis.SCORE > 0.4, 'DONOR_ID'].values.tolist()
+
+
+def format_outputs(ex_df, ar_df, msi_ids, cdr_ids, 
+                   tss_table_in, study_table_in, out_prefix):
     """
     Merges exome & array sample tables
     Infers cancer type for each donor
@@ -98,16 +110,21 @@ def format_outputs(ex_df, ar_df, tss_table_in, study_table_in, out_prefix):
 
     # Remap cancer types to abbreviations used in our study
     out_df.CANCER = out_df.CANCER.map({'PAAD' : 'PDAC', 'COAD' : 'CRAD',
-                                       'READ' : 'CRAD', 'LUAD' : 'LUAD',
-                                       'SKCM' : 'SKCM'})
+                                       'READ' : 'CRAD', 'LUAD' : 'LUAD'})
 
     # Restrict to samples that have both exomes and typed arrays
     out_df = out_df[((~out_df.WES_BAM_ID.isna()) & (~out_df.ARRAY_TYPED_ID.isna()))]
 
+    # Exclude MSI+ samples
+    out_df = out_df[~out_df.DONOR_ID.isin(msi_ids)]
+
+    # Restrict to samples present in TCGA CDR
+    out_df = out_df[out_df.DONOR_ID.isin(cdr_ids)]
+
     # Write various files for each cancer type
-    for cancer in 'ALL PDAC CRAD LUAD SKCM'.split():
+    for cancer in 'ALL PDAC CRAD LUAD'.split():
         if cancer == 'ALL':
-            keepers = out_df.CANCER.isin('PDAC CRAD LUAD SKCM'.split())
+            keepers = out_df.CANCER.isin('PDAC CRAD LUAD'.split())
         else:
             keepers = (out_df.CANCER == cancer)
 
@@ -146,6 +163,8 @@ def main():
                         'samples', required=True)
     parser.add_argument('--array-imputed-ids', help='List of array-imputed ' + 
                         'samples', required=True)
+    parser.add_argument('--msi-tsv', help='.tsv of Mantis scores', required=True)
+    parser.add_argument('--cdr-csv', help='TCGA CDR .csv', required=True)
     parser.add_argument('--tcga-tss-table', help='TCGA TSS code table', required=True)
     parser.add_argument('--tcga-study-table', help='TCGA study code table', required=True)
     parser.add_argument('--out-prefix', help='Prefix for all output files', 
@@ -158,9 +177,15 @@ def main():
     # Load array samples
     ar_df = load_array_samples(args.array_typed_ids, args.array_imputed_ids)
 
+    # Define MSI+ samples
+    msi_ids = get_msi_ids(args.msi_tsv)
+
+    # Enumerate list of donors present in TCGA CDR (necessary for association testing)
+    cdr_ids = pd.read_csv(args.cdr_csv, sep=',').iloc[:, 1].tolist()
+
     # Merge exome & array data and write to output files
-    format_outputs(ex_df, ar_df, args.tcga_tss_table, args.tcga_study_table, 
-                   args.out_prefix)
+    format_outputs(ex_df, ar_df, msi_ids, cdr_ids, args.tcga_tss_table, 
+                   args.tcga_study_table, args.out_prefix)
 
 
 if __name__ == '__main__':
