@@ -657,6 +657,40 @@ for cancer in PDAC CRAD LUAD; do
          --cancer $cancer \
          --cohort \"Pooled Analysis\" \
          --p-threshold $bonf_sig"
+    # Also generate separate QQ for KRAS cis modifier SNPs
+    cat \
+      $CODEDIR/refs/NCI_RAS_pathway.genes.list \
+    | fgrep -vf - \
+      $WRKDIR/data/variant_sets/test_sets/$cancer.KRAS.germline_sets.tsv \
+    | cut -f1 | fgrep -wf - <( zcat $stats ) | cat <( zcat $stats | head -n1 ) - \
+    | gzip -c > $WRKDIR/results/assoc_stats/merged/pooled.$cancer.sumstats.cis_SNPs.tsv.gz
+    bsub -q short -sla miket_sc -J plot_qq_single_pooled_${cancer}_cis_SNPs \
+      -o $WRKDIR/LSF/logs/plot_qq_single_pooled_${cancer}_cis_SNPs.log \
+      -e $WRKDIR/LSF/logs/plot_qq_single_pooled_${cancer}_cis_SNPs.err \
+      "$CODEDIR/utils/plot_qq.R \
+         --stats $WRKDIR/results/assoc_stats/merged/pooled.$cancer.sumstats.cis_SNPs.tsv.gz \
+         --outfile $WRKDIR/plots/germline_somatic_assoc/qq/pooled.$cancer.cis_SNPs.qq.png \
+         --cancer $cancer \
+         --title \"$cancer (Pooled): cis SNPs\" \
+         --cohort \"Pooled Analysis\" \
+         --p-threshold $bonf_sig"
+    # Also generate separate QQ for RAS pathway gene set tests
+    cat \
+      $CODEDIR/refs/NCI_RAS_pathway.genes.list \
+    | fgrep -vf - \
+      $WRKDIR/data/variant_sets/test_sets/$cancer.KRAS.germline_sets.tsv \
+    | cut -f1 | fgrep -wvf - <( zcat $stats ) \
+    | gzip -c > $WRKDIR/results/assoc_stats/merged/pooled.$cancer.sumstats.ras_pathway.tsv.gz
+    bsub -q short -sla miket_sc -J plot_qq_single_pooled_${cancer}_ras_pathway \
+      -o $WRKDIR/LSF/logs/plot_qq_single_pooled_${cancer}_ras_pathway.log \
+      -e $WRKDIR/LSF/logs/plot_qq_single_pooled_${cancer}_ras_pathway.err \
+      "$CODEDIR/utils/plot_qq.R \
+         --stats $WRKDIR/results/assoc_stats/merged/pooled.$cancer.sumstats.ras_pathway.tsv.gz \
+         --outfile $WRKDIR/plots/germline_somatic_assoc/qq/pooled.$cancer.ras_pathway.qq.png \
+         --cancer $cancer \
+         --title \"$cancer (Pooled): RAS Pathway\" \
+         --cohort \"Pooled Analysis\" \
+         --p-threshold $bonf_sig"
   fi
 done
 
