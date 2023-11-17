@@ -198,13 +198,17 @@
 
 	"all_intronic":
 	[
-		{"CSQ:Consequence" : ["intron_variant", "=="]}
+		{
+			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"CSQ:Consequence" : ["intron_variant", "=="]
+		}
 	],
 
 
 	"conserved_intronic":
 	[
 		{
+			"CSQ:SYMBOL" : ["KRAS", "=="],
 			"CSQ:Consequence" : ["intron_variant", "=="],
 			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
@@ -213,21 +217,27 @@
 
 	"all_5prime_UTR":
 	[
-		{"CSQ:Consequence" : ["5_prime_UTR_variant", "=="]}
+		{
+			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="]
+		}
 	],
 
 
 	"damaging_5prime_UTR":
 	[
 		{
+			"CSQ:SYMBOL" : ["KRAS", "=="],
 			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="],
 			"CSQ:UTRAnnotator_five_prime_UTR_variant_annotation:uAUG_gained_type" : ["inframe_oORF", "=="]
 		},
 		{
+			"CSQ:SYMBOL" : ["KRAS", "=="],
 			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="],
 			"CSQ:UTRAnnotator_five_prime_UTR_variant_annotation:uAUG_gained_type" : ["OutOfFrame_oORF", "=="]
 		},
 		{
+			"CSQ:SYMBOL" : ["KRAS", "=="],
 			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="],
 			"CSQ:UTRAnnotator_five_prime_UTR_variant_annotation:uSTOP_lost_FrameWithCDS" : ["OutOfFrame_oORF", "=="]
 		}
@@ -237,6 +247,7 @@
 	"conserved_5prime_UTR":
 	[
 		{
+			"CSQ:SYMBOL" : ["KRAS", "=="],
 			"CSQ:Consequence" : ["5_prime_UTR_variant", "=="],
 			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
@@ -245,13 +256,17 @@
 
 	"all_3prime_UTR":
 	[
-		{"CSQ:Consequence" : ["3_prime_UTR_variant", "=="]}
+		{
+			"CSQ:SYMBOL" : ["KRAS", "=="],
+			"CSQ:Consequence" : ["3_prime_UTR_variant", "=="]
+		}
 	],
 
 
 	"conserved_3prime_UTR":
 	[
 		{
+			"CSQ:SYMBOL" : ["KRAS", "=="],
 			"CSQ:Consequence" : ["3_prime_UTR_variant", "=="],
 			"GERP" : [2.0, ">"], "CADD" : [15, ">"], "phastCons" : [0.9, ">"], "phyloP" : [2, ">"]
 		}
