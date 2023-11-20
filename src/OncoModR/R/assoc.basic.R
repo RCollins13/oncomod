@@ -20,6 +20,8 @@
 #' @param vids Variant IDs to query
 #' @param elig.controls Sample IDs eligible to be reported as 0 \[default: all samples\]
 #' @param action Action to apply to query rows; see `Details`
+#' @param missing.vid.fill Value to fill for all samples if a specified variant
+#' ID from `vids` is not present in `ad` \[default: NA\]
 #'
 #' @details The `ad` argument accepts either a single data.frame or a list
 #' of data.frames. If a list is provided, each matrix will be queried individually
@@ -37,13 +39,15 @@
 #'
 #' @export query.ad.matrix
 #' @export
-query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose"){
+query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose",
+                            missing.vid.fill=NA){
 
   # If ad is a list, call this function recursively on each separately and
   # return the combined query results
   if(inherits(ad, "list")){
     res <- lapply(ad, query.ad.matrix, vids=vids,
-                  elig.controls=elig.controls, action=action)
+                  elig.controls=elig.controls, action=action,
+                  missing.vid.fill=missing.vid.fill)
     if(is.data.frame(res[[1]])){
       return(as.data.frame(do.call("rbind", res)))
     }else{
@@ -51,8 +55,11 @@ query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose"){
     }
   }
 
-  # Subset to variants of interest and return directly if optioned
+  # Subset to variants of interest, fill missing variants, and return directly if optioned
   sub.df <- ad[which(rownames(ad) %in% vids), ]
+  for(vid in setdiff(vids, rownames(sub.df))){
+    sub.df[vid, ] <- missing.vid.fill
+  }
   if(action == "verbose"){
     return(sub.df)
   }
@@ -97,6 +104,12 @@ query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose"){
 #' as covariates in the regression model. See `Details`.
 #' @param multiPop.min.ac Minimum allele count to include non-European populations
 #' @param multiPop.min.freq Minimum variant frequency to include non-European populations
+#' @param logistf.maxiter Maximum number of iterations for `logistf()` \[default: 1000\]
+#' @param model.suffix String to append to the end of the "model" indicator in
+#' the returned vector of results \[default: append nothing\]
+#' @param only.return.freqs If set to `TRUE`, no association will be conducted
+#' and only frequencies will be reported. All association statistics will be
+#' reported as `NA` in the returned vector.
 #'
 #' @details By default, the following covariates will be included:
 #' * Age, sex, and an interaction term for age by sex
@@ -105,7 +118,7 @@ query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose"){
 #'
 #' Any other covariates to be included must be specified in `custom.covariates`
 #'
-#' @seealso [load.patient.metadata]
+#' @seealso [load.patient.metadata], [logistf::logistf]
 #'
 #' @return Vector of test results
 #' @export germline.somatic.assoc
@@ -115,7 +128,10 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta,
                                    nonstrict.se.tolerance=10,
                                    firth.always=FALSE, custom.covariates=c(),
                                    multiPop.min.ac=10,
-                                   multiPop.min.freq=0.01){
+                                   multiPop.min.freq=0.01,
+                                   logistf.maxiter=1000,
+                                   model.suffix="",
+                                   only.return.freqs=FALSE){
   # Ensure Firth package is loaded
   require(logistf, quietly=TRUE)
 
@@ -174,6 +190,20 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta,
     germline.ac <- sum(x.vals, na.rm=T)
     yes_somatic.germline.ac <- sum(x.vals[which(y.vals > 0)], na.rm=T)
     no_somatic.germline.ac <- sum(x.vals[which(y.vals == 0)], na.rm=T)
+    empty.result <- c("samples"=n.samples,
+                      "somatic_AC"=somatic.ac,
+                      "yes_somatic.germline_AC"=yes_somatic.germline.ac,
+                      "no_somatic.germline_AC"=no_somatic.germline.ac,
+                      "beta"=NA,
+                      "beta_SE"=NA,
+                      "z"=NA,
+                      "chisq"=NA,
+                      "model"=NA,
+                      "p"=NA,
+                      "EUR_only"=eur.only)
+    if(only.return.freqs){
+      return(empty.result)
+    }
     if(firth.always){
       firth <- TRUE
     }else if(firth.fallback){
@@ -190,17 +220,7 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta,
         firth <- if(any(x.by.y < 2)){TRUE}else{FALSE}
       }
     }else if(any(c(n.samples, somatic.ac, germline.ac) == 0)){
-      return(c("samples"=n.samples,
-               "somatic_AC"=somatic.ac,
-               "yes_somatic.germline_AC"=yes_somatic.germline.ac,
-               "no_somatic.germline_AC"=no_somatic.germline.ac,
-               "beta"=NA,
-               "beta_SE"=NA,
-               "z"=NA,
-               "chisq"=NA,
-               "model"=NA,
-               "p"=NA,
-               "EUR_only"=eur.only))
+      return(empty.result)
     }else{
       firth <- FALSE
     }
@@ -219,17 +239,7 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta,
 
   # Check to ensure number of samples is greater than number of features
   if(nrow(test.df) <= ncol(test.df) - 1){
-    return(c("samples"=n.samples,
-             "somatic_AC"=somatic.ac,
-             "yes_somatic.germline_AC"=yes_somatic.germline.ac,
-             "no_somatic.germline_AC"=no_somatic.germline.ac,
-             "beta"=NA,
-             "beta_SE"=NA,
-             "z"=NA,
-             "chisq"=NA,
-             "model"=NA,
-             "p"=NA,
-             "EUR_only"=eur.only))
+    return(empty.result)
   }
 
   # Run association model
@@ -237,7 +247,7 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta,
     glm(Y ~ ., data=data, family="binomial")
   }
   firth.regression <- function(data){
-    logistf(Y ~ ., data=data, control=logistf.control(maxit=100), flic=TRUE)
+    logistf(Y ~ ., data=data, control=logistf.control(maxit=logistf.maxiter), flic=TRUE)
   }
   if(firth){
     fit <- tryCatch(firth.regression(test.df),
@@ -277,12 +287,12 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta,
                                 fit$prob["X"]))
       chisq <- assoc.res[3]
       z <- NA
-      model <- "flic"
+      model <- paste("flic", model.suffix, sep="")
     }else{
       assoc.res <- as.numeric(summary(fit)$coefficients["X", ])
       z <- assoc.res[3]
       chisq <- NA
-      model <- "logit"
+      model <- paste("logit", model.suffix, sep="")
     }
   }
   # Return summary vector

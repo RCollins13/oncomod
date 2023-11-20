@@ -19,8 +19,8 @@ export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
 export HMFDIR=/data/gusev/USERS/rlc47/HMF
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
 export CODEDIR=$WRKDIR/../code/oncomod
-export bonf_sig=$( echo "341095" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
-export lenient_sig=$( echo "72633" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
+export bonf_sig=$( echo "305977" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
+export lenient_sig=$( echo "61814" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
 cd $WRKDIR
 
 
@@ -323,6 +323,10 @@ $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
 
 
 ### Shard germline test sets for improved parallelization
+if [ -e $WRKDIR/data/variant_sets/test_sets/shards/ ]; then
+  rm -rf $WRKDIR/data/variant_sets/test_sets/shards/
+fi
+mkdir $WRKDIR/data/variant_sets/test_sets/shards/
 for cancer in PDAC CRAD LUAD; do
   while read chrom start end gene; do
     $CODEDIR/../GenomicsToolbox/evenSplitter.R \

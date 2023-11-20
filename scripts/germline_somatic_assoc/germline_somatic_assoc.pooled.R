@@ -88,6 +88,28 @@ args <- parser$parse_args()
 #              "multiPop_min_ac" = 10,
 #              "multiPop_min_freq" = 0.01)
 
+# # Firth fallback debug DEV:
+# args <- list("sample_metadata" = c("~/scratch/TCGA.ALL.sample_metadata.tsv.gz",
+#                                    "~/scratch/PROFILE.ALL.sample_metadata.tsv.gz",
+#                                    "~/scratch/HMF.ALL.sample_metadata.tsv.gz"),
+#              "somatic_ad" = c("~/scratch/TCGA.somatic_variants.dosage.dbg_sub.tsv.gz",
+#                               "~/scratch/PROFILE.somatic_variants.dosage.dbg_sub.tsv.gz",
+#                               "~/scratch/HMF.somatic_variants.dosage.dbg_sub.tsv.gz"),
+#              "germline_ad" = c("~/scratch/TCGA.RAS_loci.dosage.dbg_sub.tsv.gz",
+#                                "~/scratch/PROFILE.RAS_loci.dosage.dbg_sub.tsv.gz",
+#                                "~/scratch/HMF.RAS_loci.dosage.dbg_sub.tsv.gz"),
+#              "name" = c("TCGA", "PROFILE", "HMF"),
+#              "somatic_variant_sets" = "~/scratch/dbg.somatic_variants.tsv",
+#              "germline_variant_sets" = "~/scratch/dbg.RAS_loci.tsv",
+#              "outfile" = "~/scratch/pooled.assoc.test.dbg.tsv",
+#              "eligible_controls" = c("~/scratch/TCGA.ALL.eligible_controls.list",
+#                                      "~/scratch/PROFILE.ALL.eligible_controls.list",
+#                                      "~/scratch/HMF.ALL.eligible_controls.list"),
+#              "cancer_type" = "PDAC",
+#              "normalize_germline_ad" = FALSE,
+#              "multiPop_min_ac" = 10,
+#              "multiPop_min_freq" = 0.01)
+
 
 # Sanity check to make sure all cohorts have the same number of inputs
 if(is.null(args$name)){
@@ -139,12 +161,19 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
   }
 
   # Require at least one each of somatic carriers and reference to proceed
+  # Note that we use missing.vid.fill=0 here for somatic mutations because it is
+  # safe to assume that (most of the time) effectively all coding KRAS mutations
+  # should theoretically be detectable for all samples in all cohorts, and the
+  # lack of a reported mutation is not due to lack of data but because no samples
+  # carried that mutation (and thus all samples should be reported as AC=0)
   if(is.list(som.vids) & length(som.vids) > 1){
     y.parts <- sapply(som.vids, query.ad.matrix, ad=somatic.ad,
-                      elig.controls=elig.controls, action="any")
+                      elig.controls=elig.controls, action="any",
+                      missing.vid.fill=0)
     y.vals <- apply(y.parts, 1, min)
   }else{
-    y.vals <- query.ad.matrix(somatic.ad, unlist(som.vids), elig.controls, action="any")
+    y.vals <- query.ad.matrix(somatic.ad, unlist(som.vids), elig.controls,
+                              action="any", missing.vid.fill=0)
   }
   if(length(table(y.vals)) < 2){
     return(NULL)
@@ -166,11 +195,25 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
                                            multiPop.min.ac=args$multiPop_min_ac,
                                            multiPop.min.freq=args$multiPop_min_freq),
                     error=function(e){
-                      germline.somatic.assoc(y.vals, x.vals, meta,
+                      # If model fails to converge, try again with a simpler model
+                      # by dropping lower-rank PCs below PCs 1-3
+                      tryCatch(germline.somatic.assoc(y.vals, x.vals,
+                                             meta[, grep("^PC[4-9].|^PC[1-9][0-9].", colnames(meta), invert=TRUE)],
+                                             strict.fallback=F,
                                              custom.covariates=colnames(meta)[grep("^cohort\\.", colnames(meta))],
                                              multiPop.min.ac=args$multiPop_min_ac,
                                              multiPop.min.freq=args$multiPop_min_freq,
-                                             firth.fallback=F)
+                                             model.suffix=".simple_PCs"),
+                               error=function(e){
+                                 # If model with fewer PCs fails to converge, then return null vector
+                                 germline.somatic.assoc(y.vals, x.vals,
+                                                        meta[, grep("^PC[4-9].|^PC[1-9][0-9].", colnames(meta), invert=TRUE)],
+                                                        strict.fallback=F,
+                                                        custom.covariates=colnames(meta)[grep("^cohort\\.", colnames(meta))],
+                                                        multiPop.min.ac=args$multiPop_min_ac,
+                                                        multiPop.min.freq=args$multiPop_min_freq,
+                                                        only.return.freqs=TRUE)
+                               })
                     })
     if(!is.null(res)){
       return(c("germline"=germ.sid, res))
