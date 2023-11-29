@@ -546,32 +546,6 @@ for cohort in TCGA PROFILE HMF; do
            --title \"$cancer ($alt_cohort): RAS Pathway\" \
            --cohort $alt_cohort \
            --p-threshold $bonf_sig"
-      # # Also generate separate QQ for synonymous variants in RAS pathway genes
-      # zcat $stats | awk '{ if ($1 ~ "#" || $2 ~ "_synonymous") print }' \
-      # | gzip -c > $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.ras_pathway.syn.tsv.gz
-      # bsub -q short -sla miket_sc -J plot_qq_single_${cohort}_${cancer}_ras_pathway_syn \
-      #   -o $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_ras_pathway_syn.log \
-      #   -e $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_ras_pathway_syn.err \
-      #   "$CODEDIR/utils/plot_qq.R \
-      #      --stats $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.ras_pathway.syn.tsv.gz \
-      #      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.$cancer.ras_pathway.syn.qq.png \
-      #      --cancer $cancer \
-      #      --title \"$cancer ($alt_cohort): Syn. in Path.\" \
-      #      --cohort $alt_cohort \
-      #      --p-threshold $bonf_sig"
-      # # Also generate separate QQ for nonsynonymous variants in RAS pathway genes
-      # zcat $stats | awk '{ if ($1 ~ "#" || $2 ~ "_nonsynonymous") print }' \
-      # | gzip -c > $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.ras_pathway.nonsyn.tsv.gz
-      # bsub -q short -sla miket_sc -J plot_qq_single_${cohort}_${cancer}_ras_pathway_nonsyn \
-      #   -o $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_ras_pathway_nonsyn.log \
-      #   -e $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_ras_pathway_nonsyn.err \
-      #   "$CODEDIR/utils/plot_qq.R \
-      #      --stats $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.ras_pathway.nonsyn.tsv.gz \
-      #      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.$cancer.ras_pathway.nonsyn.qq.png \
-      #      --cancer $cancer \
-      #      --title \"$cancer ($alt_cohort): Nonsyn. in Path.\" \
-      #      --cohort $alt_cohort \
-      #      --p-threshold $bonf_sig"
     fi
   done
 done

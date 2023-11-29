@@ -209,7 +209,7 @@ bcftools merge \
 | bcftools view \
   --samples-file $WRKDIR/data/sample_info/HMF.ALL.samples.list \
 | bcftools annotate \
-  -x FORMAT/AD,FORMAT/DP,FORMAT/GQ,FORMAT/PL,FORMAT/MIN_DP,FORMAT/PGT,FORMAT/PID,FORMAT/RGQ,FORMAT/SB,INFO/AF,INFO/BaseQRankSum,INFO/ClippingRankSum,INFO/DB,INFO/DP,INFO/FS,INFO/MQ,INFO/MQRankSum,INFO/QD,INFO/ReadPosRankSum,INFO/SOR,INFO/ExcessHet \
+  -x FORMAT/AD,FORMAT/DP,FORMAT/PL,FORMAT/MIN_DP,FORMAT/PGT,FORMAT/PID,FORMAT/RGQ,FORMAT/SB,INFO/AF,INFO/BaseQRankSum,INFO/ClippingRankSum,INFO/DB,INFO/DP,INFO/FS,INFO/MQ,INFO/MQRankSum,INFO/QD,INFO/ReadPosRankSum,INFO/SOR,INFO/ExcessHet \
 | bcftools norm \
   --check-ref x \
   -m - \
@@ -232,7 +232,33 @@ EOF
     -e $WRKDIR/LSF/logs/merge_sample_vcfs.$contig.err \
     $WRKDIR/LSF/scripts/merge_sample_vcfs.$contig.sh
 done
-# 2. Merge cohort-wide VCFs across all chromosomes
+# 2. Collect median GQ of autosomal homalt biallelic SNP GTs per sample
+for contig in $( seq 1 22 ); do
+  cat << EOF > $WRKDIR/LSF/scripts/get_median_homalt_snp_GQs.$contig.sh
+#!/usr/bin/env bash
+. /PHShome/rlc47/.bashrc
+cd $WRKDIR
+bcftools view \
+  -m 2 -M 2 --types snps \
+  $WRKDIR/data/HMF.RAS_loci.$contig.vcf.gz \
+| bcftools query \
+  -f '[%SAMPLE\t%GQ\n]' \
+  -i 'GT="AA"' \
+| gzip -c \
+> $WRKDIR/data/sample_info/HMF.median_homalt_snp_gq.all_data.$contig.tsv.gz
+EOF
+  chmod a+x $WRKDIR/LSF/scripts/get_median_homalt_snp_GQs.$contig.sh
+  rm $WRKDIR/LSF/logs/get_median_homalt_snp_GQs.$contig.*
+  bsub \
+    -q big -sla miket_sc \
+    -n 4 -R 'rusage[mem=16000]' -J HMF_get_median_homalt_snp_GQs_$contig \
+    -o $WRKDIR/LSF/logs/get_median_homalt_snp_GQs.$contig.log \
+    -e $WRKDIR/LSF/logs/get_median_homalt_snp_GQs.$contig.err \
+    $WRKDIR/LSF/scripts/get_median_homalt_snp_GQs.$contig.sh
+done
+# 3. Fill reference GQs per sample with sample-specific median homalt GQ
+# TODO: implement this
+# 4. Merge cohort-wide VCFs across all chromosomes
 for contig in $( seq 1 22 ) X Y; do
   echo $WRKDIR/data/HMF.RAS_loci.$contig.vcf.gz
 done > $WRKDIR/data/HMF.combined_vcf_shards.list
