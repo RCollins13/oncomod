@@ -250,14 +250,37 @@ EOF
   chmod a+x $WRKDIR/LSF/scripts/get_median_homalt_snp_GQs.$contig.sh
   rm $WRKDIR/LSF/logs/get_median_homalt_snp_GQs.$contig.*
   bsub \
-    -q big -sla miket_sc \
-    -n 4 -R 'rusage[mem=16000]' -J HMF_get_median_homalt_snp_GQs_$contig \
+    -q short -sla miket_sc -J HMF_get_median_homalt_snp_GQs_$contig \
     -o $WRKDIR/LSF/logs/get_median_homalt_snp_GQs.$contig.log \
     -e $WRKDIR/LSF/logs/get_median_homalt_snp_GQs.$contig.err \
     $WRKDIR/LSF/scripts/get_median_homalt_snp_GQs.$contig.sh
 done
+cat $WRKDIR/data/sample_info/HMF.median_homalt_snp_gq.all_data.*.tsv.gz \
+> $WRKDIR/data/sample_info/HMF.median_homalt_snp_gq.all_data.tsv.gz
+$CODEDIR/utils/calc_sample_medians.R \
+  $WRKDIR/data/sample_info/HMF.median_homalt_snp_gq.all_data.tsv.gz \
+| gzip -c > $WRKDIR/data/sample_info/HMF.median_homalt_gqs.tsv.gz
 # 3. Fill reference GQs per sample with sample-specific median homalt GQ
-# TODO: implement this
+for contig in $( seq 1 22 ) X Y; do
+    cat << EOF > $WRKDIR/LSF/scripts/fill_missing_gqs.$contig.sh
+#!/usr/bin/env bash
+. /PHShome/rlc47/.bashrc
+cd $WRKDIR
+$CODEDIR/scripts/data_processing/fill_missing_vcf_format_values.py \
+  $WRKDIR/data/HMF.RAS_loci.$contig.vcf.gz \
+  $WRKDIR/data/sample_info/HMF.median_homalt_gqs.tsv.gz \
+  $WRKDIR/data/HMF.RAS_loci.$contig.GQs_filled.vcf.gz
+tabix -p vcf -f $WRKDIR/data/HMF.RAS_loci.$contig.GQs_filled.vcf.gz
+EOF
+  chmod a+x $WRKDIR/LSF/scripts/fill_missing_gqs.$contig.sh
+  rm $WRKDIR/LSF/logs/fill_missing_gqs.$contig.*
+  bsub \
+    -q big -sla miket_sc \
+    -n 4 -R 'rusage[mem=16000]' -J HMF_fill_missing_gqs_$contig \
+    -o $WRKDIR/LSF/logs/fill_missing_gqs.$contig.log \
+    -e $WRKDIR/LSF/logs/fill_missing_gqs.$contig.err \
+    $WRKDIR/LSF/scripts/fill_missing_gqs.$contig.sh
+done
 # 4. Merge cohort-wide VCFs across all chromosomes
 for contig in $( seq 1 22 ) X Y; do
   echo $WRKDIR/data/HMF.RAS_loci.$contig.vcf.gz
