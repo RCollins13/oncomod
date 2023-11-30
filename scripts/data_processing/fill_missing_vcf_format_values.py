@@ -16,7 +16,8 @@ import pysam
 from sys import stdin, stdout
 
 
-type_map = {'Integer' : int, 'Float' : float, 'Character' : str, 'String' : str}
+type_map = {'Integer' : lambda x: int(round(x, 0)), 
+            'Float' : float, 'Character' : str, 'String' : str}
 
 
 def main():
@@ -31,6 +32,8 @@ def main():
                         'indicating values to be filled')
     parser.add_argument('-f', '--field', default='GQ', help='Field to fill ' +
                         '[default: GQ]')
+    parser.add_argument('--overwrite', default=False, action='store_true',
+                        help='Overwrite existing values [default: only fill missing values]')
     parser.add_argument('vcf_out', help='output .vcf')
     args = parser.parse_args()
 
@@ -62,8 +65,8 @@ def main():
     for record in invcf.fetch():
         for sid, val in lt.items():
             GT = record.samples[sid].get('GT', (None, None, ))
-            if not all([a is None for a in GT]):
-                if record.samples[sid][args.field] is None:
+            if args.overwrite or not all([a is None for a in GT]):
+                if args.overwrite or record.samples[sid][args.field] is None:
                     record.samples[sid][args.field] = type_map[vtype](val)
         outvcf.write(record)
 

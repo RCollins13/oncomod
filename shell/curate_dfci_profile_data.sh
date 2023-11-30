@@ -75,7 +75,7 @@ bcftools view \
   -O z -o $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz \
   --min-ac 1 \
   --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
-  --regions-file $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz \
+  --regions-file $CODEDIR/refs/RAS_loci.plus_pathway.plus_GWAS.GRCh37.bed.gz \
   $GTDIR/PROFILE_COMB.$contig.HQ.vcf.gz
 tabix -p vcf -f $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz
 EOF
@@ -94,7 +94,7 @@ for contig in $( seq 1 22 ); do
     --min-ac 1 \
     --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
     --force-samples \
-    --regions-file <( zcat $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz \
+    --regions-file <( zcat $CODEDIR/refs/RAS_loci.plus_pathway.plus_GWAS.GRCh37.bed.gz \
                       | awk -v contig=$contig '{ if ($1==contig) print }' ) \
     $WRKDIR/LOHGIC/data/PROFILE.LOHGIC.predicted_germline_coding_variants.vcf.gz
   tabix -p vcf -f $WRKDIR/data/PROFILE.oncopanel_lohgic.$contig.vcf.gz
