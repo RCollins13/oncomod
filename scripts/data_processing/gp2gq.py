@@ -12,7 +12,7 @@ Convert genotype prior likelihoods (GP) to genotype qualities (GQ)
 
 import argparse
 import pysam
-from numpy import log10
+from numpy import log10, nansum
 from sys import stdin, stdout
 
 
@@ -46,16 +46,22 @@ def main():
         # Iterate over all samples per record
         for sid in samples:
             GT = record.samples[sid].get('GT', (None, None, ))
-            AC = sum(GT)
-            if not all([a is None for a in GT]):
-                GP = record.samples[sid].get('GP', (None, None, None))[AC]
-                if GP is None:
-                    continue
-                if GP == 1:
-                    GQ = 99
-                else:
-                    GQ = int(round(-10 * log10(1 - GP), 0))
-                record.samples[sid]['GQ'] = GQ
+
+            # If GT is missing, GQ should also be missing
+            if all([a is None for a in GT]):
+                record.samples[sid]['GQ'] = None
+                continue
+
+            # Otherwise, compute GQ
+            AC = nansum(GT)
+            GP = record.samples[sid].get('GP', (None, None, None))[AC]
+            if GP is None:
+                continue
+            if GP == 1:
+                GQ = 99
+            else:
+                GQ = int(round(-10 * log10(1 - GP), 0))
+            record.samples[sid]['GQ'] = GQ
 
         # Write record to output VCF
         outvcf.write(record)
