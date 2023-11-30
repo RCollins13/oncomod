@@ -156,12 +156,24 @@ while read contig; do
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
 bcftools view \
-  -O z -o $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.vcf.gz \
   --min-ac 1 --exclude 'INFO/INFO < 0.8' \
   --samples-file $WRKDIR/data/sample_info/TCGA.ALL.$tech.samples.list \
   --regions-file $CODEDIR/refs/RAS_loci.plus_pathway.plus_GWAS.GRCh37.bed.gz \
-  $GTDIR/IMPUTED/$contig.vcf.gz
+  $GTDIR/IMPUTED/$contig.vcf.gz \
+| bcftools annotate -x FORMAT/ADS,FORMAT/DS \
+| bcftools +fill-tags - \
+  -Oz -o $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.noGQs.vcf.gz \
+  -- -t 'FORMAT/GQ:1=int(".")'
+$CODEDIR/scripts/data_processing/gp2gq.py \
+  $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.noGQs.vcf.gz \
+  $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.wGQs.vcf.gz
+bcftools annotate -x FORMAT/GP \
+  -O z -o $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.vcf.gz \
+  $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.wGQs.vcf.gz
 tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.vcf.gz
+rm \
+  $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.noGQs.vcf.gz \
+  $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.wGQs.vcf.gz
 EOF
   chmod a+x $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.${contig}.sh
   rm $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.${contig}.*
