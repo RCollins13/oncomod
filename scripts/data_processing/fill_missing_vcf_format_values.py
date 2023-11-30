@@ -61,8 +61,10 @@ def main():
     # Iterate over records in invcf, fill missing values, and write to vcf_out
     for record in invcf.fetch():
         for sid, val in lt.items():
-            if record.samples[sid][args.field] is None:
-                record.samples[sid][args.field] = type_map[vtype](val)
+            GT = record.samples[sid].get('GT', (None, None, ))
+            if not all([a is None for a in GT]):
+                if record.samples[sid][args.field] is None:
+                    record.samples[sid][args.field] = type_map[vtype](val)
         outvcf.write(record)
 
     # Close connection to output file to clear buffer

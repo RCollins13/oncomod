@@ -275,15 +275,14 @@ EOF
   chmod a+x $WRKDIR/LSF/scripts/fill_missing_gqs.$contig.sh
   rm $WRKDIR/LSF/logs/fill_missing_gqs.$contig.*
   bsub \
-    -q big -sla miket_sc \
-    -n 4 -R 'rusage[mem=16000]' -J HMF_fill_missing_gqs_$contig \
+    -q short -sla miket_sc -J HMF_fill_missing_gqs_$contig \
     -o $WRKDIR/LSF/logs/fill_missing_gqs.$contig.log \
     -e $WRKDIR/LSF/logs/fill_missing_gqs.$contig.err \
     $WRKDIR/LSF/scripts/fill_missing_gqs.$contig.sh
 done
 # 4. Merge cohort-wide VCFs across all chromosomes
 for contig in $( seq 1 22 ) X Y; do
-  echo $WRKDIR/data/HMF.RAS_loci.$contig.vcf.gz
+  echo $WRKDIR/data/HMF.RAS_loci.$contig.GQs_filled.vcf.gz
 done > $WRKDIR/data/HMF.combined_vcf_shards.list
 bcftools concat \
   --file-list $WRKDIR/data/HMF.combined_vcf_shards.list \
