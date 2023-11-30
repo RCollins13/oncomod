@@ -257,7 +257,7 @@ EOF
 done
 cat $WRKDIR/data/sample_info/HMF.median_homalt_snp_gq.all_data.*.tsv.gz \
 > $WRKDIR/data/sample_info/HMF.median_homalt_snp_gq.all_data.tsv.gz
-$CODEDIR/utils/calc_sample_medians.R \
+$CODEDIR/utils/calc_sample_medians.py \
   $WRKDIR/data/sample_info/HMF.median_homalt_snp_gq.all_data.tsv.gz \
 | gzip -c > $WRKDIR/data/sample_info/HMF.median_homalt_gqs.tsv.gz
 # 3. Fill reference GQs per sample with sample-specific median homalt GQ
