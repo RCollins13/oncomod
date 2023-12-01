@@ -101,27 +101,36 @@ def calc_gt_correlation(rec1, rec2):
     return np.corrcoef(ad1, ad2)[0, 1]
 
 
-def invert_genotypes(record, gt_cor, verbose=False):
+def invert_genotypes(record, gt_cor, verbose=False, update_alleles=True, 
+                     update_vid=True):
     """
     Inverts ref/alt and all genotypes for a single record
     """
 
     nt_map = {'A' : 'T', 'T' : 'A', 'C' : 'G', 'G' : 'C'}
-    new_alleles = tuple([nt_map[a] for a in record.alleles])
-
+    if update_alleles:
+        new_alleles = tuple([nt_map[a] for a in record.alleles])
 
     if verbose:
-        fmt = '  ** Detected inverted record at {:,} (typed as {} / {} but should be {} / {}; r={:.2f})\n'
-        stderr.write(fmt.format(record.pos, *record.alleles, *new_alleles, gt_cor))
+        if update_alleles:
+            fmt = '  ** Detected inverted record at {:,} (typed as {} / {} but should be {} / {}; r={:.2f})\n'
+            stderr.write(fmt.format(record.pos, *record.alleles, *new_alleles, gt_cor))
+        else:
+            fmt = '  ** Detected inverted record at {:,} (alleles match but GT r={:.2f})\n'
+            stderr.write(fmt.format(record.pos, gt_cor))
 
-    record.alleles = new_alleles
+    if update_alleles:
+        record.alleles = new_alleles
 
     for sample in record.samples.keys():
         old_gt = record.samples[sample]['GT']
         if old_gt != (None, None):
             record.samples[sample]['GT'] = tuple([abs(a - 1) for a in old_gt])
 
-    vid = '{}_{}_{}_{}'.format(record.chrom, record.pos, *record.alleles)
+    if update_vid:
+        vid = '{}_{}_{}_{}'.format(record.chrom, record.pos, *record.alleles)
+    else:
+        vid = record.id
 
     return record, vid
 
@@ -131,7 +140,7 @@ def resolve_array_discrepancies(current_records, current_ids, in_vcfs, next_tech
     """
     Main wrapper for handling discrepancies between typed and imputed array records
     """
-
+    
     # First, assess GT correlation between typed and imputed samples
     if current_ids['array-typed'] != current_ids['array-imputed']:
         gt_cor = calc_gt_correlation(current_records['array-typed'],
@@ -208,7 +217,10 @@ def map_genotypes(old_rec, new_rec, id_mappings, rec_fmt):
         # Note: DeepVariant (used on exomes) does not call ref GTs
         # We have already pre-filtered for well-captured exome intervals,
         # so any no-call GT from exomes should be treated as 0/0
+        # The GQs for these no-call GTs should be pre-filled by
+        # fill_missing_vcf_format_values.py
         GT = old_rec.samples[sample]['GT']
+        GQ = old_rec.samples[sample]['GQ']
         if GT == (None, None):
             if rec_fmt == 'exome':
                 GT = (0, 0)
@@ -220,6 +232,7 @@ def map_genotypes(old_rec, new_rec, id_mappings, rec_fmt):
 
         # Assign genotype to new record
         new_rec.samples[id_mappings[sample]]['GT'] = GT
+        new_rec.samples[id_mappings[sample]]['GQ'] = GQ
 
         # Update AC/AN
         AC += len([a for a in GT if a is not None and a > 0])
@@ -344,11 +357,23 @@ def main():
 
         # Resolve discrepancies between genotyped & imputed data
         if 'array-typed' in next_techs \
-        and 'array-imputed' in next_techs \
-        and current_ids['array-typed'] != current_ids['array-imputed']:
-            current_records, current_ids, in_vcfs, next_techs = \
-                resolve_array_discrepancies(current_records, current_ids, in_vcfs, 
-                                            next_techs, ref_fa, args.verbose)
+        and 'array-imputed' in next_techs:
+            if current_ids['array-typed'] != current_ids['array-imputed']:
+                current_records, current_ids, in_vcfs, next_techs = \
+                    resolve_array_discrepancies(current_records, current_ids, in_vcfs, 
+                                                next_techs, ref_fa, args.verbose)
+            # For a very small number (~dozens) of sites, the typed ref/alt alleles
+            # appear to be reported correctly but the genotypes are nearly perfectly
+            # anticorrelated with the imputed GTs. In this case, we want to invert
+            # the genotypes of the typed data but retain the original ref/alt
+            else:
+                gt_cor = calc_gt_correlation(current_records['array-typed'],
+                                             current_records['array-imputed'])
+                if gt_cor <= -0.5:
+                    current_records['array-typed'], current_ids['array-typed'] = \
+                        invert_genotypes(current_records['array-typed'], 
+                                         gt_cor, verbose=args.verbose, 
+                                         update_alleles=False, update_vid=False)
 
         # Process current file pointer(s) that have the left-most position
         for tech in next_techs:

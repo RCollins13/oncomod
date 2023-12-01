@@ -234,6 +234,7 @@ $CODEDIR/utils/calc_sample_medians.py \
 | gzip -c > $WRKDIR/data/sample_info/TCGA.median_homalt_gqs.tsv.gz
 # 3. Fill reference GQs per sample with sample-specific median homalt GQ
 $CODEDIR/scripts/data_processing/fill_missing_vcf_format_values.py \
+  --ignore-genotype \
   $WRKDIR/data/TCGA.RAS_loci.exome.noGQs.vcf.gz \
   $WRKDIR/data/sample_info/TCGA.median_homalt_gqs.tsv.gz \
   $WRKDIR/data/TCGA.RAS_loci.exome.vcf.gz
