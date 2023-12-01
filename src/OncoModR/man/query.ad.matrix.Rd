@@ -44,5 +44,9 @@ for each sample
 \item \code{"all"} : return numeric indicator if all of the query rows are non-zero
 for each sample
 \item \code{"sum"} : return the sum of allele dosages for all query rows per sample
+\item \code{"max"} : return the max of allele dosages for all query rows per sample
 }
+}
+\seealso{
+\link{load.ad.matrix}, \link{compress.ad.matrix}
 }

@@ -79,6 +79,57 @@ for cancer in PDAC CRAD LUAD ALL; do
   done | sort -V | uniq | wc -l
 done | paste <( echo "Union" ) - - - -
 
+# Variants in RAS-driven cancer-associated GWAS loci by cohort
+for cohort in PROFILE HMF TCGA; do
+  case $cohort in
+    TCGA)
+      COHORTDIR=$TCGADIR
+      ;;
+    PROFILE)
+      COHORTDIR=$PROFILEDIR
+      ;;
+    HMF)
+      COHORTDIR=$HMFDIR
+      ;;
+  esac
+
+  echo $cohort
+  
+  for cancer in PDAC CRAD LUAD; do
+    bcftools query \
+      -f '%CHROM\_%POS\_%REF\_%ALT\n' \
+      --include "INFO/${cancer}_AC > 0" \
+      --regions-file <( zcat $CODEDIR/refs/GWAS_catalog_loci.CRAD_PDAC_LUAD.GRCh37.bed.gz ) \
+      $COHORTDIR/data/$cohort.RAS_loci.anno.clean.wAF.vcf.gz \
+    > $TMPDIR/$cohort.$cancer.GWAS_loci.vids.list
+    cat $TMPDIR/$cohort.$cancer.GWAS_loci.vids.list | wc -l
+  done
+
+  bcftools query \
+    -f '%CHROM\_%POS\_%REF\_%ALT\n' \
+      --include "AC > 0" \
+      --regions-file <( zcat $CODEDIR/refs/GWAS_catalog_loci.CRAD_PDAC_LUAD.GRCh37.bed.gz ) \
+      $COHORTDIR/data/$cohort.RAS_loci.anno.clean.wAF.vcf.gz \
+  > $TMPDIR/$cohort.ALL.GWAS_loci.vids.list
+  cat $TMPDIR/$cohort.ALL.GWAS_loci.vids.list | wc -l
+done | paste - - - - -
+
+# KRAS locus, intersection of all cohorts
+# Note: must have run the code block directly above
+for cancer in PDAC CRAD LUAD ALL; do
+  for cohort in PROFILE HMF TCGA; do
+    cat $TMPDIR/$cohort.$cancer.KRAS_cis_alleles.vids.list
+  done | sort -V | uniq -c | awk '{ if ($1==3) print }' | wc -l
+done | paste <( echo "Intersection" ) - - - -
+
+# KRAS locus, union of all cohorts
+# Note: must have run the code block directly above
+for cancer in PDAC CRAD LUAD ALL; do
+  for cohort in PROFILE HMF TCGA; do
+    cat $TMPDIR/$cohort.$cancer.KRAS_cis_alleles.vids.list
+  done | sort -V | uniq | wc -l
+done | paste <( echo "Union" ) - - - -
+
 # All KRAS pathway genes, any coding consequence
 # 1. Collect variant IDs corresponding to nonsynonymous variants in each gene
 #    KRAS locus by cohort and cancer type

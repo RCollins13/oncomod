@@ -2,7 +2,18 @@
 % Please edit documentation in R/assoc.basic.R
 \name{germline.somatic.assoc}
 \alias{germline.somatic.assoc}
-\title{Germline-somatic association test}
+\title{#' Query genotype quality matrix
+#'
+#' Extract and compress signed GQ values from a genotype quality matrix
+#'
+#' @param gq.matrix Matrix of genotype qualities imported by \link{load.ad.matrix}
+#'
+#'
+#' @seealso \code{\link[=load.ad.matrix]{load.ad.matrix()}}
+#' @export query.gq.matrix
+#' @export
+query.gq.matrix <- function(gq.matrix)
+Germline-somatic association test}
 \usage{
 germline.somatic.assoc(
   y.vals,

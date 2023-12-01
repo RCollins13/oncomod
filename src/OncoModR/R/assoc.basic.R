@@ -34,8 +34,11 @@
 #' * `"all"` : return numeric indicator if all of the query rows are non-zero
 #' for each sample
 #' * `"sum"` : return the sum of allele dosages for all query rows per sample
+#' * `"max"` : return the max of allele dosages for all query rows per sample
 #'
 #' @return numeric vector or data.frame, depending on `action`
+#'
+#' @seealso [load.ad.matrix], [compress.ad.matrix]
 #'
 #' @export query.ad.matrix
 #' @export
@@ -65,20 +68,89 @@ query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose",
   }
 
   # Otherwise, apply various compression strategies prior to returning
-  col.all.na <- apply(sub.df, 2, function(vals){all(is.na(vals))})
+  return(compress.ad.matrix(sub.df, action=action, elig.controls=elig.controls))
+}
+
+
+#' Compress allele dosage matrix
+#'
+#' Compress an allele dosage matrix based on a specified compression function
+#'
+#' @param ad.df An allele dosage matrix imported by [load.ad.matrix]
+#' @param action Action to apply to query rows; see `Details`. Required.
+#' @param elig.controls Sample IDs eligible to be reported as 0 \[default: all samples\]
+#'
+#' @details Recognized values for `action` include:
+#' * `"verbose"` : return the full query matrix \[default\]
+#' * `"any"` : return numeric indicator if any of the query rows are non-zero
+#' for each sample
+#' * `"all"` : return numeric indicator if all of the query rows are non-zero
+#' for each sample
+#' * `"sum"` : return the sum of allele dosages for all query rows per sample
+#' * `"max"` : return the max of allele dosages for all query rows per sample
+#'
+#' @return numeric or logical vector, depending on `action`
+#'
+#' @seealso [load.ad.matrix], [query.ad.matrix]
+#'
+#' @export compress.ad.matrix
+#' @export
+compress.ad.matrix <- function(ad.df, action, elig.controls=NULL){
+  col.all.na <- apply(ad.df, 2, function(vals){all(is.na(vals))})
   if(action == "any"){
-    query.res <- as.numeric(apply(sub.df, 2, function(vals){any(as.logical(vals), na.rm=T)}))
+    query.res <- as.numeric(apply(ad.df, 2, function(vals){any(as.logical(vals), na.rm=T)}))
   }else if(action == "all"){
-    query.res <- as.numeric(apply(sub.df, 2, function(vals){all(as.logical(vals), na.rm=T)}))
+    query.res <- as.numeric(apply(ad.df, 2, function(vals){all(as.logical(vals), na.rm=T)}))
   }else if(action == "sum"){
-    query.res <- apply(sub.df, 2, sum, na.rm=T)
+    query.res <- apply(ad.df, 2, sum, na.rm=T)
+  }else if(action == "max"){
+    query.res <- apply(ad.df, 2, max, na.rm=T)
   }
   query.res[col.all.na] <- NA
-  names(query.res) <- colnames(sub.df)
+  names(query.res) <- colnames(ad.df)
   if(!is.null(elig.controls)){
     query.res[which(query.res == 0 & !(names(query.res) %in% elig.controls))] <- NA
   }
   return(query.res)
+}
+
+
+#' Query genotype quality matrix
+#'
+#' Extract and format signed GQ values from a genotype quality matrix
+#'
+#' @param gq.matrix Matrix of genotype qualities imported by [load.ad.matrix]
+#' @param ad.matrix Allele dosage matrix imported by [load.ad.matrix]
+#' @param vids Variant IDs to query \[default: use all VIDs in `ad.matrix`\]
+#' @param fill.missing Value to use in place of missing GQs \[default: 0\]
+#'
+#' @details If multiple variants are specified, the maximum of signed GQ values
+#' will be returned per sample
+#'
+#' @seealso [load.ad.matrix], [query.ad.matrix]
+#' @export query.gq.matrix
+#' @export
+query.gq.matrix <- function(gq.matrix, ad.matrix, vids=NULL, fill.missing=0){
+  # Subset AD and GQ matrixes to variants of interest
+  if(is.null(vids)){
+    vids <- rownames(ad.matrix)
+  }
+  gq.matrix <- gq.matrix[intersect(rownames(gq.matrix), vids), ]
+  ad.matrix <- ad.matrix[intersect(rownames(ad.matrix), rownames(gq.matrix)), ]
+
+  # If no overlapping variants are found, exit
+  if(nrow(gq.matrix) == 0){
+    stop("No overlapping variant IDs found between gq.matrix and ad.matrix")
+  }
+
+  # Fill missing values
+  gq.matrix[which(is.na(gq.matrix))] <- fill.missing
+
+  # Negate GQs for reference variants
+  # This is necessary for GQ to be an informative covariate in germ:som association testing
+  # TODO: implement this
+
+
 }
 
 

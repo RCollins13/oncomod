@@ -397,8 +397,8 @@ def _clean_regulatory(record, vdf, tx_map):
     return record, vdf
 
 
-def keep_in_output(record, mode, keep_genes, vep_map, kras_window_start=24520649,
-                   kras_window_stop=29688980):
+def keep_in_output(record, mode, keep_genes, vep_map, pass_regions=None,
+                   kras_window_start=24520649, kras_window_stop=29688980):
     """
     Determine whether the record meets the criteria for being retained in output
 
@@ -432,6 +432,14 @@ def keep_in_output(record, mode, keep_genes, vep_map, kras_window_start=24520649
         and record.pos >= kras_window_start \
         and record.pos <= kras_window_stop:
             return True
+
+        # Keep any variant overlapping other "hard pass" regions
+        if pass_regions is not None:
+            hits = (record.chrom == pass_regions.chrom) & \
+                   (record.pos >= pass_regions.start) & \
+                   (record.pos <= pass_regions.end)
+            if hits.sum() > 0:
+                return True
 
         # Otherwise, only keep variants with a coding/UTR consequence in a gene 
         # of interest (keep_genes)
@@ -681,6 +689,10 @@ def main():
                         required=True)
     parser.add_argument('--priority-genes', help='List of genes to retain in ' + \
                         'output; behavior depends on --mode.')
+    parser.add_argument('--hard-pass-regions', help='Optional BED of regions in ' + \
+                        'which variants should be automatically included in ' + \
+                        'output VCF irrespective of other criteria. Behavior ' + \
+                        'depends on --mode.')
     args = parser.parse_args()
 
     # Open connection to input vcf
@@ -688,6 +700,13 @@ def main():
         invcf = pysam.VariantFile('-', 'r')
     else:
         invcf = pysam.VariantFile(args.vcf_in)
+
+    # Load pd.DataFrame of "hard pass" regions
+    if args.hard_pass_regions is not None:
+        pass_regions = pd.read_csv(args.hard_pass_regions, sep='\t', 
+                                   names='chrom start end'.split())
+    else:
+        pass_regions = pd.DataFrame(columns='chrom start end'.split())
 
     # Parse mapping of VEP fields and transcript info
     vep_map = parse_vep_map(invcf)
@@ -698,7 +717,7 @@ def main():
         with open(args.priority_genes) as fin:
             keep_genes = set([g.rstrip() for g in fin.readlines()])
     gtf_tabix = pysam.TabixFile(args.gtf)
-    ras_bt = load_ras_bt(args.gtf)    
+    ras_bt = load_ras_bt(args.gtf)
     
     # Open connection to output file
     out_header = reformat_header(invcf)
@@ -712,7 +731,7 @@ def main():
     for record in invcf.fetch():
         # Determine whether the record meets criteria for being retained in output
         # If not, don't bother cleaning the record and continue to the next record
-        if not keep_in_output(record, args.mode, keep_genes, vep_map):
+        if not keep_in_output(record, args.mode, keep_genes, vep_map, pass_regions):
             continue
 
         if 'SVTYPE' in record.info.keys():
