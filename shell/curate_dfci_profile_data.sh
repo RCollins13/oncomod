@@ -82,9 +82,14 @@ bcftools view \
   -- -t 'FORMAT/GQ:1=int(".")'
 $CODEDIR/scripts/data_processing/gp2gq.py \
   $WRKDIR/data/PROFILE.imputed_snps.$contig.noGQs.vcf.gz \
-  $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz
+  $WRKDIR/data/PROFILE.imputed_snps.$contig.wGQs.vcf.gz
+bcftools annotate -x FORMAT/GP \
+  -O z -o $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz \
+  $WRKDIR/data/PROFILE.imputed_snps.$contig.wGQs.vcf.gz
 tabix -p vcf -f $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz
-rm $WRKDIR/data/PROFILE.imputed_snps.$contig.noGQs.vcf.gz
+rm \
+  $WRKDIR/data/PROFILE.imputed_snps.$contig.noGQs.vcf.gz \
+  $WRKDIR/data/PROFILE.imputed_snps.$contig.wGQs.vcf.gz
 EOF
   chmod a+x $WRKDIR/LSF/scripts/extract_${contig}_imputed_snps.sh
   rm $WRKDIR/LSF/logs/extract_${contig}_imputed_snps.*
@@ -115,7 +120,7 @@ cd $WRKDIR
 $CODEDIR/scripts/data_processing/merge_profile_snps_lohgic.py \
   --lohgic-vcf $WRKDIR/data/PROFILE.oncopanel_lohgic.$contig.vcf.gz \
   --imputed-vcf $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz \
-  --header $WRKDIR/refs/simple_hg19_header.vcf.gz \
+  --header $WRKDIR/refs/simple_hg19_header.wGQ.vcf.gz \
   --outfile $WRKDIR/data/PROFILE.RAS_loci.$contig.vcf.gz
 tabix -p vcf -f $WRKDIR/data/PROFILE.RAS_loci.$contig.vcf.gz
 EOF
