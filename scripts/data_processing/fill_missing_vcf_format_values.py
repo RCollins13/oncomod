@@ -34,6 +34,9 @@ def main():
                         '[default: GQ]')
     parser.add_argument('--overwrite', default=False, action='store_true',
                         help='Overwrite existing values [default: only fill missing values]')
+    parser.add_argument('--ignore-genotype', default=False, action='store_true',
+                        help='Fill missing --field irrespective of whether GT ' +
+                        'is missing [default: only update values for called GTs]')
     parser.add_argument('vcf_out', help='output .vcf')
     args = parser.parse_args()
 
@@ -65,7 +68,9 @@ def main():
     for record in invcf.fetch():
         for sid, val in lt.items():
             GT = record.samples[sid].get('GT', (None, None, ))
-            if args.overwrite or not all([a is None for a in GT]):
+            if args.overwrite \
+            or args.ignore_genotype \
+            or not all([a is None for a in GT]):
                 if args.overwrite or record.samples[sid][args.field] is None:
                     record.samples[sid][args.field] = type_map[vtype](val)
         outvcf.write(record)

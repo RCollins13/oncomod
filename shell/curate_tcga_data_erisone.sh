@@ -216,11 +216,27 @@ gcloud auth application-default login
 export GCS_OAUTH_TOKEN=`gcloud auth application-default print-access-token`
 cd $WRKDIR/data
 bcftools view \
-  -O z -o $WRKDIR/data/TCGA.RAS_loci.exome.vcf.gz \
   --min-ac 1 \
   --samples-file $WRKDIR/data/sample_info/TCGA.ALL.exome.samples.list \
   --regions-file $WRKDIR/refs/TCGA_WES.covered_intervals.RAS_loci_plus_pathway.bed.gz \
-  gs://terra-workspace-archive-lifecycle/fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz
+  gs://terra-workspace-archive-lifecycle/fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz \
+| bcftools annotate -x FORMAT/AD,FORMAT/DP,FORMAT/PL,FORMAT/VAF \
+  -O z -o $WRKDIR/data/TCGA.RAS_loci.exome.noGQs.vcf.gz
+# Get median GQ per sample for all autosomal biallelic homozygous SNPs
+bcftools view \
+  -m 2 -M 2 --types snps \
+  $WRKDIR/data/TCGA.RAS_loci.exome.noGQs.vcf.gz \
+| bcftools query -f '[%SAMPLE\t%GQ\n]' -i 'GT="AA"' \
+| gzip -c \
+> $WRKDIR/data/sample_info/TCGA.median_homalt_snp_gq.all_data.tsv.gz
+$CODEDIR/utils/calc_sample_medians.py \
+  $WRKDIR/data/sample_info/TCGA.median_homalt_snp_gq.all_data.tsv.gz \
+| gzip -c > $WRKDIR/data/sample_info/TCGA.median_homalt_gqs.tsv.gz
+# 3. Fill reference GQs per sample with sample-specific median homalt GQ
+$CODEDIR/scripts/data_processing/fill_missing_vcf_format_values.py \
+  $WRKDIR/data/TCGA.RAS_loci.exome.noGQs.vcf.gz \
+  $WRKDIR/data/sample_info/TCGA.median_homalt_gqs.tsv.gz \
+  $WRKDIR/data/TCGA.RAS_loci.exome.vcf.gz
 tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.exome.vcf.gz
 # Merge VCFs for exomes and arrays for each chromosome
 for contig in $( seq 1 22 ); do
