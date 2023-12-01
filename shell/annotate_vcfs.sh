@@ -621,22 +621,19 @@ bcftools concat \
 tabix -p vcf -f $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcf.gz
 
 
-######################################
-### Build simple genotype matrixes ###
-######################################
+#############################################
+### Build simple genotype and GQ matrixes ###
+#############################################
 for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
-      sample_field=DONOR_ID
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
-      sample_field=PBP
       ;;
     HMF)
       COHORTDIR=$HMFDIR
-      sample_field=SAMPLE_ID
       ;;
   esac
   for subset in somatic_variants RAS_loci; do
@@ -645,6 +642,7 @@ for cohort in TCGA PROFILE HMF; do
         rm $WRKDIR/LSF/logs/make_dosage_${cohort}_$subset.$suf
       fi
     done
+    # Allele dosage matrixes
     bsub -q normal -sla miket_sc \
       -J make_dosage_${cohort}_$subset \
       -o $WRKDIR/LSF/logs/make_dosage_${cohort}_$subset.log \
@@ -652,6 +650,14 @@ for cohort in TCGA PROFILE HMF; do
       "$CODEDIR/scripts/data_processing/vcf2dosage.py \
          $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz - \
        | gzip -c > $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz"
+    # GQ matrixes
+    bsub -q normal -sla miket_sc \
+      -J make_GQ_matrix_${cohort}_$subset \
+      -o $WRKDIR/LSF/logs/make_GQ_matrix_${cohort}_$subset.log \
+      -e $WRKDIR/LSF/logs/make_GQ_matrix_${cohort}_$subset.err \
+      "$CODEDIR/scripts/data_processing/vcf2dosage.py \
+         $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz - \
+       | gzip -c > $COHORTDIR/data/$cohort.$subset.GQ.tsv.gz"
   done
 done
 

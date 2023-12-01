@@ -258,7 +258,7 @@ $CODEDIR/scripts/data_processing/merge_tcga_arrays_exomes.py \
   --array-typed-vcf $WRKDIR/data/TCGA.RAS_loci.array_typed.$contig.vcf.gz \
   --array-imputed-vcf $WRKDIR/data/TCGA.RAS_loci.array_imputed.$contig.vcf.gz \
   --ref-fasta $WRKDIR/refs/GRCh37.fa \
-  --header $WRKDIR/refs/simple_hg19_header.vcf.gz \
+  --header $WRKDIR/refs/simple_hg19_header.wGQ.vcf.gz \
   --outfile $WRKDIR/data/TCGA.RAS_loci.$contig.vcf.gz \
   --verbose
 tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.$contig.vcf.gz
@@ -272,7 +272,7 @@ EOF
     $WRKDIR/LSF/scripts/merge_arrays_exomes_RAS_loci.$contig.sh
 done
 # Merge tech-integrated germline variants across all chromosomes
-for contig in $( seq 1 22 ) X; do
+for contig in $( seq 1 22 ); do
   echo $WRKDIR/data/TCGA.RAS_loci.$contig.vcf.gz
 done > $WRKDIR/data/TCGA.RAS_loci.sharded_per_contig.vcfs.list
 bcftools concat \

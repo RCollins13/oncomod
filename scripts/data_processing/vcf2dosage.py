@@ -26,6 +26,8 @@ def main():
              formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('vcf_in', help='input .vcf')
     parser.add_argument('outfile', help='output .tsv')
+    parser.add_argument('--field', type=str, default='GT', 
+                        help='Field to extract [default: GT, which converts to AD]')
     args = parser.parse_args()
 
     # Open connection to input vcf
@@ -49,12 +51,18 @@ def main():
             vid = '{}_{}_{}_{}'.format(record.chrom, record.pos, *record.alleles)
         outvals = [vid]
         for sid, sgt in record.samples.items():
-            GT = [a for a in sgt['GT'] if a is not None]
-            if len(GT) == 0:
-                outvals.append('NA')
+            if args.field == 'GT':
+                GT = [a for a in sgt['GT'] if a is not None]
+                if len(GT) == 0:
+                    outvals.append('NA')
+                else:
+                    dos = int(np.sum([a for a in GT if a > 0]))
+                    outvals.append(str(dos))
             else:
-                dos = int(np.sum([a for a in GT if a > 0]))
-                outvals.append(str(dos))
+                sval = sgt.get(args.field, None)
+                if sval is None:
+                    sval = 'NA'
+                outvals.append(str(sval))
         outfile.write('\t'.join(outvals) + '\n')
 
     # Close connection to output file to clear buffer
