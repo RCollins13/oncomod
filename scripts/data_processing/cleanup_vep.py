@@ -435,7 +435,7 @@ def keep_in_output(record, mode, keep_genes, vep_map, pass_regions=None,
 
         # Keep any variant overlapping other "hard pass" regions
         if pass_regions is not None:
-            hits = (record.chrom == pass_regions.chrom) & \
+            hits = (record.chrom == pass_regions.chrom.astype(str)) & \
                    (record.pos >= pass_regions.start) & \
                    (record.pos <= pass_regions.end)
             if hits.sum() > 0:
