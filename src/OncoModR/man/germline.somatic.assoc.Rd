@@ -2,23 +2,13 @@
 % Please edit documentation in R/assoc.basic.R
 \name{germline.somatic.assoc}
 \alias{germline.somatic.assoc}
-\title{#' Query genotype quality matrix
-#'
-#' Extract and compress signed GQ values from a genotype quality matrix
-#'
-#' @param gq.matrix Matrix of genotype qualities imported by \link{load.ad.matrix}
-#'
-#'
-#' @seealso \code{\link[=load.ad.matrix]{load.ad.matrix()}}
-#' @export query.gq.matrix
-#' @export
-query.gq.matrix <- function(gq.matrix)
-Germline-somatic association test}
+\title{Germline-somatic association test}
 \usage{
 germline.somatic.assoc(
   y.vals,
   x.vals,
   meta,
+  gqs = NULL,
   firth.fallback = TRUE,
   strict.fallback = TRUE,
   nonstrict.se.tolerance = 10,
@@ -37,6 +27,9 @@ germline.somatic.assoc(
 \item{x.vals}{Numeric vector of germline values to test}
 
 \item{meta}{Metadata for all samples as loaded by \link{load.patient.metadata}}
+
+\item{gqs}{Two-element list of mean ref & alt genotype qualities per sample.
+If provided, will be included as covariates in association model.}
 
 \item{firth.fallback}{Attempt to use Firth bias-reduced logistic regression when
 traditional logistic regression fails to converge or dataset is quasi-separable

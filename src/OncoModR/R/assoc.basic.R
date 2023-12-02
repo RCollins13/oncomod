@@ -117,40 +117,49 @@ compress.ad.matrix <- function(ad.df, action, elig.controls=NULL){
 
 #' Query genotype quality matrix
 #'
-#' Extract and format signed GQ values from a genotype quality matrix
+#' Extract and compute genotype-conditional mean GQ values per sample
+#' from a genotype quality matrix
 #'
 #' @param gq.matrix Matrix of genotype qualities imported by [load.ad.matrix]
 #' @param ad.matrix Allele dosage matrix imported by [load.ad.matrix]
 #' @param vids Variant IDs to query \[default: use all VIDs in `ad.matrix`\]
-#' @param fill.missing Value to use in place of missing GQs \[default: 0\]
+#' @param fill.mean Fill missing mean GQs with cohort-wide mean on a
+#' genotype-specific basis \[default: TRUE\]
 #'
-#' @details If multiple variants are specified, the maximum of signed GQ values
-#' will be returned per sample
+#' @returns list of two numeric vectors, one for reference genotypes and one for
+#' non-reference genotypes
 #'
 #' @seealso [load.ad.matrix], [query.ad.matrix]
 #' @export query.gq.matrix
 #' @export
-query.gq.matrix <- function(gq.matrix, ad.matrix, vids=NULL, fill.missing=0){
+query.gq.matrix <- function(gq.matrix, ad.matrix, vids=NULL, fill.mean=TRUE){
   # Subset AD and GQ matrixes to variants of interest
   if(is.null(vids)){
     vids <- rownames(ad.matrix)
   }
   gq.matrix <- gq.matrix[intersect(rownames(gq.matrix), vids), ]
-  ad.matrix <- ad.matrix[intersect(rownames(ad.matrix), rownames(gq.matrix)), ]
+  ad.matrix <- ad.matrix[intersect(rownames(gq.matrix), rownames(ad.matrix)), ]
 
   # If no overlapping variants are found, exit
   if(nrow(gq.matrix) == 0){
     stop("No overlapping variant IDs found between gq.matrix and ad.matrix")
   }
 
-  # Fill missing values
-  gq.matrix[which(is.na(gq.matrix))] <- fill.missing
+  # Compute mean GQ per sample for reference and non-ref GTs separately
+  ref.gq <- sapply(colnames(ad.matrix), function(sid){
+    mean(gq.matrix[which(ad.matrix[, sid] == 0), sid], na.rm=T)
+  })
+  alt.gq <- sapply(colnames(ad.matrix), function(sid){
+    mean(gq.matrix[which(ad.matrix[, sid] > 0), sid], na.rm=T)
+  })
 
-  # Negate GQs for reference variants
-  # This is necessary for GQ to be an informative covariate in germ:som association testing
-  # TODO: implement this
+  # Fill missing mean GQs with cohort-wide means, if optioned
+  if(fill.mean){
+    ref.gq[which(is.na(ref.gq))] <- mean(ref.gq, na.rm=T)
+    alt.gq[which(is.na(alt.gq))] <- mean(alt.gq, na.rm=T)
+  }
 
-
+  return(list("ref.gq" = ref.gq, "alt.gq" = alt.gq))
 }
 
 
@@ -161,6 +170,8 @@ query.gq.matrix <- function(gq.matrix, ad.matrix, vids=NULL, fill.missing=0){
 #' @param y.vals Numeric vector indicating presence or absence of somatic endpoint
 #' @param x.vals Numeric vector of germline values to test
 #' @param meta Metadata for all samples as loaded by [load.patient.metadata]
+#' @param gqs Two-element list of mean ref & alt genotype qualities per sample.
+#' If provided, will be included as covariates in association model.
 #' @param firth.fallback Attempt to use Firth bias-reduced logistic regression when
 #' traditional logistic regression fails to converge or dataset is quasi-separable
 #' \[default: TRUE\]
@@ -195,7 +206,7 @@ query.gq.matrix <- function(gq.matrix, ad.matrix, vids=NULL, fill.missing=0){
 #' @return Vector of test results
 #' @export germline.somatic.assoc
 #' @export
-germline.somatic.assoc <- function(y.vals, x.vals, meta,
+germline.somatic.assoc <- function(y.vals, x.vals, meta, gqs=NULL,
                                    firth.fallback=TRUE, strict.fallback=TRUE,
                                    nonstrict.se.tolerance=10,
                                    firth.always=FALSE, custom.covariates=c(),
@@ -245,6 +256,12 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta,
   test.df <- cbind(data.frame("Y" = y.vals, "X" = x.vals, row.names=names(y.vals)),
                    test.df)
   test.df$AGE_BY_SEX <- test.df$AGE_AT_DIAGNOSIS * test.df$SEX
+
+  # Add genotype qualities, if optioned
+  if(!is.null(gqs)){
+    test.df$REF.GQ <- as.numeric(gqs$ref.gq[rownames(test.df)])
+    test.df$ALT.GQ <- as.numeric(gqs$alt.gq[rownames(test.df)])
+  }
 
   # Check if X is allele count or Z-score (for PRS)
   germ.is.ac <- if(all(sapply(x.vals, function(x){as.integer(x) == x}))){TRUE}else{FALSE}

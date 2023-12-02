@@ -207,16 +207,16 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
 
     # Prepare GQ data, if --germline-gq is provided
     if(!is.null(germline.gq)){
-      query.gq.matrix <- function(germline.gq)
-      gq.sub <- query.ad.matrix(germline.gq, germ.vids, action="verbose")
+      gq.vals <- query.gq.matrix(germline.gq, x.vals.all)
+    }else{
+      gq.vals <- NULL
     }
 
     # Compress x.vals as sum of ACs
     x.vals <- compress.ad.matrix(x.vals.all, action="sum")
 
-
     # Run germline-somatic association
-    res <- germline.somatic.assoc(y.vals, x.vals, meta,
+    res <- germline.somatic.assoc(y.vals, x.vals, meta, gqs=gq.vals,
                                   multiPop.min.ac=args$multiPop_min_ac,
                                   multiPop.min.freq=args$multiPop_min_freq)
     if(!is.null(res)){
