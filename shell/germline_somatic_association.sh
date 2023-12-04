@@ -19,8 +19,8 @@ export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
 export HMFDIR=/data/gusev/USERS/rlc47/HMF
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
 export CODEDIR=$WRKDIR/../code/oncomod
-export bonf_sig=$( echo "305977" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
-export lenient_sig=$( echo "61814" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
+export bonf_sig=$( echo "577737" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
+export lenient_sig=$( echo "147374" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
 cd $WRKDIR
 
 
@@ -64,7 +64,7 @@ for cancer in PDAC CRAD LUAD; do
       $COHORTDIR/data/$cohort.RAS_loci.anno.clean.vcf.gz \
     | bcftools +fill-tags - -- -t AC,AN,F_MISSING,HWE \
     | bcftools view \
-      --include 'AC >= 10 & (AN-AC) >= 10 & F_MISSING < 0.5 & HWE>0.000001' \
+      --include 'AF >= 0.01 & AF <= 0.99 & AC >= 10 & (AN-AC) >= 10 & F_MISSING <= 0.75 & HWE>0.0001' \
     | bcftools norm \
       -m - \
       --check-ref s \
@@ -369,6 +369,7 @@ $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
   --cancer-type $cancer \
   --somatic-ad $COHORTDIR/data/$cohort.somatic_variants.dosage.tsv.gz \
   --germline-ad $COHORTDIR/data/$cohort.RAS_loci.dosage.tsv.gz \
+  --germline-gq $COHORTDIR/data/$cohort.RAS_loci.GQ.tsv.gz \
   --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
   --germline-variant-sets $WRKDIR/data/variant_sets/test_sets/shards/$cancer.$gene.germline_sets.shard_\$1 \
   --eligible-controls $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list \

@@ -79,9 +79,9 @@ args <- parser$parse_args()
 # # DEV - TCGA
 # args <- list("sample_metadata" = "~/scratch/TCGA.ALL.sample_metadata.tsv.gz",
 #              "cancer_type" = "PDAC",
-#              "germline_ad" = "~/scratch/TCGA.RAS_loci.dosage.sub.tsv.gz",
-#              "germline_variant_sets" = "~/scratch/PDAC.KRAS.germline_sets.dev_subset.tsv",
-#              "germline_gq" = "~/scratch/TCGA.RAS_loci.GQ.sub.tsv.gz",
+#              "germline_ad" = "~/scratch/TCGA.RAS_loci.dosage.tsv.gz",
+#              "germline_variant_sets" = "~/scratch/PDAC.KRAS.germline_sets.shard_1",
+#              "germline_gq" = "~/scratch/TCGA.RAS_loci.GQ.tsv.gz",
 #              "outfile" = "~/scratch/TCGA.PDAC.KRAS.sumstats.tsv",
 #              "somatic_ad" = "~/scratch/TCGA.somatic_variants.dosage.tsv.gz",
 #              "somatic_variant_sets" = "~/scratch/PDAC.KRAS.somatic_endpoints.tsv",
@@ -216,9 +216,40 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
     x.vals <- compress.ad.matrix(x.vals.all, action="sum")
 
     # Run germline-somatic association
-    res <- germline.somatic.assoc(y.vals, x.vals, meta, gqs=gq.vals,
-                                  multiPop.min.ac=args$multiPop_min_ac,
-                                  multiPop.min.freq=args$multiPop_min_freq)
+    res <- tryCatch(germline.somatic.assoc(y.vals, x.vals, meta, gqs=gq.vals,
+                                           multiPop.min.ac=args$multiPop_min_ac,
+                                           multiPop.min.freq=args$multiPop_min_freq),
+                    error=function(e){
+                      # If model fails to converge, try again with a simpler model
+                      # by dropping lower-rank PCs below PCs 1-3
+                      tryCatch(germline.somatic.assoc(y.vals, x.vals,
+                                                      meta[, grep("^PC[4-9]|^PC[1-9][0-9]", colnames(meta), invert=TRUE)],
+                                                      gqs=gq.vals,
+                                                      multiPop.min.ac=args$multiPop_min_ac,
+                                                      multiPop.min.freq=args$multiPop_min_freq,
+                                                      model.suffix=".simple_PCs"),
+                               error=function(e){
+                                 # If model with fewer PCs fails to converge, try
+                                 # one last time by also dropping GQ adjustment
+                                 tryCatch(germline.somatic.assoc(y.vals, x.vals,
+                                                                 meta[, grep("^PC[4-9]|^PC[1-9][0-9]", colnames(meta), invert=TRUE)],
+                                                                 multiPop.min.ac=args$multiPop_min_ac,
+                                                                 multiPop.min.freq=args$multiPop_min_freq,
+                                                                 model.suffix=".simple_PCs.no_GQ"),
+                                          error=function(e){
+                                            # If model with fewer PCs and no GQ adjustment
+                                            # fails to converge, then return null vector
+                                            germline.somatic.assoc(y.vals, x.vals,
+                                                                   meta[, grep("^PC[4-9].|^PC[1-9][0-9].", colnames(meta), invert=TRUE)],
+                                                                   strict.fallback=F,
+                                                                   custom.covariates=colnames(meta)[grep("^cohort\\.", colnames(meta))],
+                                                                   multiPop.min.ac=args$multiPop_min_ac,
+                                                                   multiPop.min.freq=args$multiPop_min_freq,
+                                                                   only.return.freqs=TRUE)
+                                          })
+
+                               })
+                    })
     if(!is.null(res)){
       return(c("germline"=germ.sid, res))
     }else{
