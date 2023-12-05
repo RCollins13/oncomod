@@ -133,7 +133,7 @@ if(length(args$sample_metadata) != n.cohorts |
   stop("Different number of inputs for --sample-metadata, --somatic-ad, and --germline-ad. Exiting.")
 }
 if(length(args$germline_gq) > 0 &
-   lenght(args$germline_gq) != n.cohorts){
+   length(args$germline_gq) != n.cohorts){
   stop("Must either not specify --germline-gq or provide exactly one per cohort. Exiting.")
 }
 
