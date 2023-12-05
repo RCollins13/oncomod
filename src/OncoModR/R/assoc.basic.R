@@ -52,7 +52,8 @@ query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose",
                   elig.controls=elig.controls, action=action,
                   missing.vid.fill=missing.vid.fill)
     if(is.data.frame(res[[1]])){
-      return(as.data.frame(do.call("rbind", res)))
+      res <- lapply(res, function(df){df[vids, ]})
+      return(as.data.frame(do.call("cbind", res)))
     }else{
       return(unlist(res))
     }
@@ -120,11 +121,17 @@ compress.ad.matrix <- function(ad.df, action, elig.controls=NULL){
 #' Extract and compute genotype-conditional mean GQ values per sample
 #' from a genotype quality matrix
 #'
-#' @param gq.matrix Matrix of genotype qualities imported by [load.ad.matrix]
-#' @param ad.matrix Allele dosage matrix imported by [load.ad.matrix]
+#' @param gq One or more matrixes of genotype qualities imported by
+#' [load.ad.matrix]. See `Details`.
+#' @param ad One or more allele dosage matrixes imported by [load.ad.matrix].
+#' Order must match `gq`. See `Details`.
 #' @param vids Variant IDs to query \[default: use all VIDs in `ad.matrix`\]
 #' @param fill.mean Fill missing mean GQs with cohort-wide mean on a
 #' genotype-specific basis \[default: TRUE\]
+#'
+#' @details The `gq` argument accepts either a single data.frame or a list
+#' of data.frames. If a list is provided, each matrix will be queried individually
+#' and their results will be concatenated.
 #'
 #' @returns list of two numeric vectors, one for reference genotypes and one for
 #' non-reference genotypes
@@ -132,25 +139,41 @@ compress.ad.matrix <- function(ad.df, action, elig.controls=NULL){
 #' @seealso [load.ad.matrix], [query.ad.matrix]
 #' @export query.gq.matrix
 #' @export
-query.gq.matrix <- function(gq.matrix, ad.matrix, vids=NULL, fill.mean=TRUE){
+query.gq.matrix <- function(gq, ad, vids=NULL, fill.mean=TRUE){
+
+  # If gq is a list, call this function recursively on each separately and
+  # return the combined query results
+  if(inherits(gq, "list")){
+    if(length(gq) != length(ad)){
+      stop("Number of GQ matrixes does not match number of AD matrixes. Stopping.")
+    }
+    res <- lapply(1:length(gq), function(i){
+      query.gq.matrix(gq[[i]], ad[[i]], vids=vids, fill.mean=fill.mean)
+    })
+    return(list("ref.gq" = unlist(lapply(res, function(l){l$ref.gq})),
+                "alt.gq" = unlist(lapply(res, function(l){l$alt.gq}))))
+  }
+
   # Subset AD and GQ matrixes to variants of interest
   if(is.null(vids)){
-    vids <- rownames(ad.matrix)
+    vids <- rownames(ad)
   }
-  gq.matrix <- gq.matrix[intersect(rownames(gq.matrix), vids), ]
-  ad.matrix <- ad.matrix[intersect(rownames(gq.matrix), rownames(ad.matrix)), ]
+  gq <- gq[intersect(rownames(gq), vids), ]
+  ad <- ad[intersect(rownames(gq), rownames(ad)), ]
 
-  # If no overlapping variants are found, exit
-  if(nrow(gq.matrix) == 0){
-    stop("No overlapping variant IDs found between gq.matrix and ad.matrix")
+  # If no overlapping variants are found, return NA for all samples
+  if(nrow(gq) == 0){
+    na.vect <- rep(NA, times=ncol(ad))
+    names(na.vect) <- colnames(ad)
+    return(list("ref.gq" = na.vect, "alt.gq" = na.vect))
   }
 
   # Compute mean GQ per sample for reference and non-ref GTs separately
-  ref.gq <- sapply(colnames(ad.matrix), function(sid){
-    mean(gq.matrix[which(ad.matrix[, sid] == 0), sid], na.rm=T)
+  ref.gq <- sapply(colnames(ad), function(sid){
+    mean(gq[which(ad[, sid] == 0), sid], na.rm=T)
   })
-  alt.gq <- sapply(colnames(ad.matrix), function(sid){
-    mean(gq.matrix[which(ad.matrix[, sid] > 0), sid], na.rm=T)
+  alt.gq <- sapply(colnames(ad), function(sid){
+    mean(gq[which(ad[, sid] > 0), sid], na.rm=T)
   })
 
   # Fill missing mean GQs with cohort-wide means, if optioned
@@ -249,8 +272,8 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta, gqs=NULL,
   # Construct test df from y, x, and meta
   cov.to.keep <- Reduce(union,
                         list(c("AGE_AT_DIAGNOSIS", "SEX", "TUMOR_PURITY"),
-                            custom.covariates,
-                            colnames(meta)[grep("^PC[0-9]", colnames(meta))]))
+                             custom.covariates,
+                             colnames(meta)[grep("^PC[0-9]", colnames(meta))]))
   test.df <- meta[samples, intersect(cov.to.keep, colnames(meta))]
   test.df$SEX <- as.numeric(test.df$SEX == "MALE")
   test.df <- cbind(data.frame("Y" = y.vals, "X" = x.vals, row.names=names(y.vals)),
@@ -318,7 +341,7 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta, gqs=NULL,
   # Drop covariates with no informative observations
   useless.cov <- which(apply(test.df, 2, function(vals){
     all(is.na(vals)) | (length(table(vals)) < 2)
-    }))
+  }))
   if(length(useless.cov > 0)){
     test.df <- test.df[, -useless.cov]
   }
@@ -398,3 +421,4 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta, gqs=NULL,
            "EUR_only"=eur.only)
   return(res)
 }
+

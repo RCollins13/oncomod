@@ -4,12 +4,14 @@
 \alias{query.gq.matrix}
 \title{Query genotype quality matrix}
 \usage{
-query.gq.matrix(gq.matrix, ad.matrix, vids = NULL, fill.mean = TRUE)
+query.gq.matrix(gq, ad, vids = NULL, fill.mean = TRUE)
 }
 \arguments{
-\item{gq.matrix}{Matrix of genotype qualities imported by \link{load.ad.matrix}}
+\item{gq}{One or more matrixes of genotype qualities imported by
+\link{load.ad.matrix}. See \code{Details}.}
 
-\item{ad.matrix}{Allele dosage matrix imported by \link{load.ad.matrix}}
+\item{ad}{One or more allele dosage matrixes imported by \link{load.ad.matrix}.
+Order must match \code{gq}. See \code{Details}.}
 
 \item{vids}{Variant IDs to query [default: use all VIDs in \code{ad.matrix}]}
 
@@ -23,6 +25,11 @@ non-reference genotypes
 \description{
 Extract and compute genotype-conditional mean GQ values per sample
 from a genotype quality matrix
+}
+\details{
+The \code{gq} argument accepts either a single data.frame or a list
+of data.frames. If a list is provided, each matrix will be queried individually
+and their results will be concatenated.
 }
 \seealso{
 \link{load.ad.matrix}, \link{query.ad.matrix}

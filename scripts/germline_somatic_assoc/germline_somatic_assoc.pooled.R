@@ -45,6 +45,12 @@ parser$add_argument("--germline-variant-sets", metavar=".tsv", type="character",
                     help="Two-column .tsv of germline variant sets", required=TRUE)
 parser$add_argument("--outfile", metavar="path", type="character", required=TRUE,
                     help="output .tsv file for association statistics")
+parser$add_argument("--germline-gq", metavar=".tsv", type="character", action="append",
+                    help=paste("Matrix of germline genotype qualities. One ",
+                               "per cohort, in order. If provided, GQ will be ",
+                               "included as a covariate in association testing. ",
+                               "All variants in --somatic-ad must also be present ",
+                               "in these files."))
 parser$add_argument("--eligible-controls", metavar="path", type="character",
                     help=paste("path to one or more lists of samples eligible to",
                                "be treated as controls for association testing.",
@@ -80,6 +86,9 @@ args <- parser$parse_args()
 #              "somatic_variant_sets" = "~/scratch/PDAC.KRAS.somatic_endpoints.tsv",
 #              "germline_variant_sets" = "~/scratch/PDAC.KRAS.germline_sets.shard_1",
 #              "outfile" = "~/scratch/pooled.assoc.test.tsv",
+#              "germline_gq" = c("~/scratch/TCGA.RAS_loci.GQ.sub.tsv.gz",
+#                                "~/scratch/PROFILE.RAS_loci.GQ.sub.tsv.gz",
+#                                "~/scratch/HMF.RAS_loci.GQ.sub.tsv.gz"),
 #              "eligible_controls" = c("~/scratch/TCGA.ALL.eligible_controls.list",
 #                                      "~/scratch/PROFILE.ALL.eligible_controls.list",
 #                                      "~/scratch/HMF.ALL.eligible_controls.list"),
@@ -89,6 +98,7 @@ args <- parser$parse_args()
 #              "multiPop_min_freq" = 0.01)
 
 # # Firth fallback debug DEV:
+# Note: not yet updated for GQ adjustment
 # args <- list("sample_metadata" = c("~/scratch/TCGA.ALL.sample_metadata.tsv.gz",
 #                                    "~/scratch/PROFILE.ALL.sample_metadata.tsv.gz",
 #                                    "~/scratch/HMF.ALL.sample_metadata.tsv.gz"),
@@ -122,6 +132,10 @@ if(length(args$sample_metadata) != n.cohorts |
    length(args$germline_ad) != n.cohorts){
   stop("Different number of inputs for --sample-metadata, --somatic-ad, and --germline-ad. Exiting.")
 }
+if(length(args$germline_gq) > 0 &
+   lenght(args$germline_gq) != n.cohorts){
+  stop("Must either not specify --germline-gq or provide exactly one per cohort. Exiting.")
+}
 
 # Load patient metadata, subset to cancer type of interest (if optioned), and merge
 meta.list <- lapply(args$sample_metadata, load.patient.metadata, deduplicate=TRUE)
@@ -151,6 +165,16 @@ germline.ad <- lapply(args$germline_ad, load.ad.matrix, sample.subset=samples.w.
                       normalize=args$normalize_germline_ad)
 somatic.ad <- lapply(args$somatic_ad, load.ad.matrix, sample.subset=samples.w.pheno,
                      variant.subset=all.somatic.vids)
+
+# Load germline GQ matrix, if provided
+if(!is.null(args$germline_gq) & length(args$germline_gq) > 0){
+  germline.gq <- lapply(args$germline_gq, load.ad.matrix,
+                        sample.subset=samples.w.pheno,
+                        variant.subset=all.germline.vids,
+                        normalize=FALSE)
+}else{
+  germline.gq <- NULL
+}
 
 # Compute association statistics for each somatic endpoint
 res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
@@ -186,10 +210,20 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
     if(!any(germ.vids %in% unlist(sapply(germline.ad, rownames)))){
       return(NULL)
     }
-    x.vals <- query.ad.matrix(germline.ad, germ.vids, action="sum")
+    x.vals.all <- query.ad.matrix(germline.ad, germ.vids, action="verbose")
+
+    # Prepare GQ data, if --germline-gq is provided
+    if(!is.null(germline.gq)){
+      gq.vals <- query.gq.matrix(germline.gq, germline.ad, vids=germ.vids)
+    }else{
+      gq.vals <- NULL
+    }
+
+    # Compress x.vals as sum of ACs
+    x.vals <- compress.ad.matrix(x.vals.all, action="sum")
 
     # Run germline-somatic association
-    res <- tryCatch(germline.somatic.assoc(y.vals, x.vals, meta,
+    res <- tryCatch(germline.somatic.assoc(y.vals, x.vals, meta, gqs=gq.vals,
                                            strict.fallback=F,
                                            custom.covariates=colnames(meta)[grep("^cohort\\.", colnames(meta))],
                                            multiPop.min.ac=args$multiPop_min_ac,
@@ -199,7 +233,7 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
                       # by dropping lower-rank PCs below PCs 1-3
                       tryCatch(germline.somatic.assoc(y.vals, x.vals,
                                              meta[, grep("^PC[4-9].|^PC[1-9][0-9].", colnames(meta), invert=TRUE)],
-                                             strict.fallback=F,
+                                             gqs=gq.vals, strict.fallback=F,
                                              custom.covariates=colnames(meta)[grep("^cohort\\.", colnames(meta))],
                                              multiPop.min.ac=args$multiPop_min_ac,
                                              multiPop.min.freq=args$multiPop_min_freq,
@@ -208,7 +242,7 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
                                  # If model with fewer PCs fails to converge, then return null vector
                                  germline.somatic.assoc(y.vals, x.vals,
                                                         meta[, grep("^PC[4-9].|^PC[1-9][0-9].", colnames(meta), invert=TRUE)],
-                                                        strict.fallback=F,
+                                                        gqs=gq.vals, strict.fallback=F,
                                                         custom.covariates=colnames(meta)[grep("^cohort\\.", colnames(meta))],
                                                         multiPop.min.ac=args$multiPop_min_ac,
                                                         multiPop.min.freq=args$multiPop_min_freq,
