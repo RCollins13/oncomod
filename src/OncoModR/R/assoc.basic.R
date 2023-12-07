@@ -407,6 +407,9 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta, gqs=NULL,
       model <- paste("logit", model.suffix, sep="")
     }
   }
+  if(assoc.res[2] > nonstrict.se.tolerance){
+    stop("Beta SE exceeds permitted SE. Increase nonstrict.se.tolerance to bypass this error")
+  }
   # Return summary vector
   res <- c("samples"=n.samples,
            "somatic_AC"=somatic.ac,

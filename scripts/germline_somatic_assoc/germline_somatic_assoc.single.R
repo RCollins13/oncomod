@@ -105,14 +105,14 @@ args <- parser$parse_args()
 #              "multiPop_min_freq" = 0.01)
 
 # # DEV - HMF
-# # Note: not yet updated for GQ
 # args <- list("sample_metadata" = "~/scratch/HMF.ALL.sample_metadata.tsv.gz",
 #              "cancer_type" = "PDAC",
-#              "germline_ad" = "~/scratch/HMF.RAS_loci.dosage.sub.tsv.gz",
-#              "germline_variant_sets" = "~/scratch/PDAC.KRAS.germline_sets.tsv",
+#              "germline_ad" = "~/scratch/HMF.RAS_loci.dosage.dbg.tsv.gz",
+#              "germline_variant_sets" = "~/scratch/germline_sets.dbg.tsv",
 #              "outfile" = "~/scratch/HMF.PDAC.KRAS.sumstats.tsv",
 #              "somatic_ad" = "~/scratch/HMF.somatic_variants.dosage.tsv.gz",
 #              "somatic_variant_sets" = "~/scratch/PDAC.KRAS.somatic_endpoints.tsv",
+#              "germline_gq" = "~/scratch/HMF.RAS_loci.GQ.dbg.tsv.gz",
 #              "eligible_controls" = "~/scratch/HMF.ALL.eligible_controls.list",
 #              "normalize_germline_ad" = FALSE,
 #              "multiPop_min_ac" = 10,
@@ -215,39 +215,43 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
     # Compress x.vals as sum of ACs
     x.vals <- compress.ad.matrix(x.vals.all, action="sum")
 
-    # Run germline-somatic association
-    res <- tryCatch(germline.somatic.assoc(y.vals, x.vals, meta, gqs=gq.vals,
-                                           multiPop.min.ac=args$multiPop_min_ac,
-                                           multiPop.min.freq=args$multiPop_min_freq),
-                    error=function(e){
-                      # If model fails to converge, try again with a simpler model
-                      # by dropping lower-rank PCs below PCs 1-3
-                      tryCatch(germline.somatic.assoc(y.vals, x.vals,
-                                                      meta[, grep("^PC[4-9]|^PC[1-9][0-9]", colnames(meta), invert=TRUE)],
-                                                      gqs=gq.vals,
-                                                      multiPop.min.ac=args$multiPop_min_ac,
-                                                      multiPop.min.freq=args$multiPop_min_freq,
-                                                      model.suffix=".simple_PCs"),
-                               error=function(e){
-                                 # If model with fewer PCs fails to converge, try
-                                 # one last time by also dropping GQ adjustment
-                                 tryCatch(germline.somatic.assoc(y.vals, x.vals,
-                                                                 meta[, grep("^PC[4-9]|^PC[1-9][0-9]", colnames(meta), invert=TRUE)],
-                                                                 multiPop.min.ac=args$multiPop_min_ac,
-                                                                 multiPop.min.freq=args$multiPop_min_freq,
-                                                                 model.suffix=".simple_PCs.no_GQ"),
-                                          error=function(e){
-                                            # If model with fewer PCs and no GQ adjustment
-                                            # fails to converge, then return null vector
-                                            germline.somatic.assoc(y.vals, x.vals,
-                                                                   meta[, grep("^PC[4-9].|^PC[1-9][0-9].", colnames(meta), invert=TRUE)],
-                                                                   strict.fallback=F,
-                                                                   custom.covariates=colnames(meta)[grep("^cohort\\.", colnames(meta))],
-                                                                   multiPop.min.ac=args$multiPop_min_ac,
-                                                                   multiPop.min.freq=args$multiPop_min_freq,
-                                                                   only.return.freqs=TRUE)
-                                          })
+    # Prep function aliases with progressively simpler covariates
+    m1 <- function(y, x, m){germline.somatic.assoc(y, x, m, gqs=gq.vals,
+                                                   multiPop.min.ac=args$multiPop_min_ac,
+                                                   multiPop.min.freq=args$multiPop_min_freq)}
+    # If model fails to converge, try again with a simpler model
+    # by dropping lower-rank PCs below PCs 1-3
+    m2 <- function(y, x, m){germline.somatic.assoc(y, x,
+                                                   m[, grep("^PC[4-9]|^PC[1-9][0-9]", colnames(meta), invert=TRUE)],
+                                                   gqs=gq.vals,
+                                                   multiPop.min.ac=args$multiPop_min_ac,
+                                                   multiPop.min.freq=args$multiPop_min_freq,
+                                                   model.suffix=".simple_PCs")}
+    # If model with fewer PCs fails to converge, try
+    # one last time by also dropping GQ adjustment
+    m3 <- function(y, x, m){germline.somatic.assoc(y, x,
+                                                   m[, grep("^PC[4-9]|^PC[1-9][0-9]", colnames(meta), invert=TRUE)],
+                                                   multiPop.min.ac=args$multiPop_min_ac,
+                                                   multiPop.min.freq=args$multiPop_min_freq,
+                                                   model.suffix=".simple_PCs.no_GQ")}
+    # If model with fewer PCs and no GQ adjustment
+    # fails to converge, then return null vector
+    m4 <- function(y, x, m){germline.somatic.assoc(y.vals, x.vals, m,
+                                                   strict.fallback=F,
+                                                   custom.covariates=colnames(meta)[grep("^cohort\\.", colnames(meta))],
+                                                   multiPop.min.ac=args$multiPop_min_ac,
+                                                   multiPop.min.freq=args$multiPop_min_freq,
+                                                   only.return.freqs=TRUE)}
 
+    # Run germline-somatic association
+    res <- tryCatch(m1(y.vals, x.vals, meta),
+                    error=function(e){
+                      tryCatch(m2(y.vals, x.vals, meta),
+                               error=function(e){
+                                 tryCatch(m3(y.vals, x.vals, meta),
+                                          error=function(e){
+                                            m4(y.vals, x.vals, meta)
+                                          })
                                })
                     })
     if(!is.null(res)){

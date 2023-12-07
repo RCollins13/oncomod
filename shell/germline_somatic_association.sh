@@ -589,7 +589,7 @@ EOF
         logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_pooled_${cancer}_${gene}.$i.$suf
         if [ -e $logfile ]; then rm $logfile; fi
       done
-      bsub -q big -sla miket_sc -R "rusage[mem=32000]" \
+      bsub -q big-multi -sla miket_sc -R "rusage[mem=24000]" -n 4 \
         -J germline_somatic_assoc_pooled_${cancer}_${gene}_$i \
         -o $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_${cancer}_${gene}.$i.log \
         -e $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_${cancer}_${gene}.$i.err \
