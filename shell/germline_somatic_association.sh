@@ -817,3 +817,21 @@ if [ -s $stats ]; then
     --p-threshold $bonf_sig
 fi
 
+
+### Post hoc follow up: all FGFR4 coding alleles and KRAS tier 1 somatic mutations
+# Prep directory structure
+for dir in $WRKDIR/data/FGFR4 $WRKDIR/results/FGFR4; do
+  if ! [ -e $dir ]; then mkdir $WRKDIR/data/FGFR4; fi
+done
+# Make input germline test sets
+# awk '{ if ($1=="FGFR4_all_nonsynonymous") print $2 }' \
+#   $WRKDIR/data/variant_sets/test_sets/CRAD.KRAS.germline_sets.tsv \
+# | sed 's/,/\n/g' | sort -V | uniq \
+# > $WRKDIR/data/FGFR4/all_FGFR4_germline_vids.list
+for cohort in TCGA PROFILE HMF; do
+  zcat $WRKDIR/data/variant_sets/$cohort.germline.collapsed_coding_csqs.tsv.gz \
+  | awk -v FS="\t" -v OFS="\t" '{ if ($2=="FGFR4") print $1, $NF }' \
+  | sort -Vk1,1
+done > $TMPDIR/vids_in.tsv | $TMPDIR/simple_collapse_variant_sets.py --tsv-out $TMPDIR/test.tsv
+
+
