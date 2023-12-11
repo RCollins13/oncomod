@@ -30,7 +30,7 @@ for SUBDIR in data data/variant_set_freqs/filtered data/germline_vcfs \
               results results/assoc_stats results/assoc_stats/single \
               results/assoc_stats/merged results/assoc_stats/merged/filtered \
               results/assoc_stats/meta plots/germline_somatic_assoc \
-              plots/germline_somatic_assoc/qq; do
+              plots/germline_somatic_assoc/qq plots/germline_somatic_assoc/other_stats; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -738,7 +738,20 @@ done
 
 
 ### Plot correlation of meta-analysis and pooled mega-analysis summary statistics
-# TODO: implement this
+for cancer in PDAC CRAD LUAD; do
+  meta=$WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz
+  pooled=$WRKDIR/results/assoc_stats/merged/pooled.$cancer.sumstats.tsv.gz
+  if [ -s $meta ] && [ -s $pooled ]; then
+    bsub -q short -sla miket_sc -J compare_meta_pooled_$cancer \
+      -o $WRKDIR/LSF/logs/compare_meta_pooled_$cancer.log \
+      -e $WRKDIR/LSF/logs/compare_meta_pooled_$cancer.err \
+      "$CODEDIR/scripts/plot/compare_meta_mega_sumstats.R \
+         --meta-sumstats $meta \
+         --pooled-sumstats $pooled \
+         --cancer $cancer \
+         --out-prefix $WRKDIR/plots/germline_somatic_assoc/other_stats/$cancer.meta_plus_single.qq.png"
+  fi
+done
 
 
 ### Gather significant hits in any individual cohort or pooled analysis

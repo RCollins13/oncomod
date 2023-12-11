@@ -45,7 +45,7 @@ parser$add_argument("--meta-sumstats", metavar=".tsv", type="character",
                     help="meta-analysis summary statistics .tsv", required=TRUE)
 parser$add_argument("--pooled-sumstats", metavar=".tsv", type="character",
                     help="pooled mega-analysis summary statistics .tsv", required=TRUE)
-parser$add_argument("--cancer", metafar="string", type="character",
+parser$add_argument("--cancer", metavar="string", type="character",
                     help="(Optional) Cancer type abbreviation to color plots by cancer")
 parser$add_argument("--out-prefix", metavar="path|string", type="character",
                     default="sumstat_comparison", help="file prefix for output plots")
