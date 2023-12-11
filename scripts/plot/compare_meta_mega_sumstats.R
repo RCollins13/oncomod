@@ -74,7 +74,7 @@ if(!is.null(args$cancer)){
 }
 
 # Plot P-values
-max.p <- ceiling(max(data[, paste("p", c("meta", "pooled"), sep=".")], na.rm=T))
+max.p <- min(c(10, ceiling(max(data[, paste("p", c("meta", "pooled"), sep=".")], na.rm=T))))
 png(paste(args$out_prefix, "meta_vs_pooled.p_values.png", sep="."),
     height=3.25*300, width=3.25*300, res=300)
 par(mar=c(2.75, 2.75, 0.5, 0.5), bty="n")

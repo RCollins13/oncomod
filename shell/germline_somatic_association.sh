@@ -742,6 +742,10 @@ for cancer in PDAC CRAD LUAD; do
   meta=$WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz
   pooled=$WRKDIR/results/assoc_stats/merged/pooled.$cancer.sumstats.tsv.gz
   if [ -s $meta ] && [ -s $pooled ]; then
+    for suf in err log; do
+      logfile=$WRKDIR/LSF/logs/compare_meta_pooled_$cancer.$suf
+      if [ -e $logfile ]; then rm $logfile; fi
+    done
     bsub -q short -sla miket_sc -J compare_meta_pooled_$cancer \
       -o $WRKDIR/LSF/logs/compare_meta_pooled_$cancer.log \
       -e $WRKDIR/LSF/logs/compare_meta_pooled_$cancer.err \
@@ -749,7 +753,7 @@ for cancer in PDAC CRAD LUAD; do
          --meta-sumstats $meta \
          --pooled-sumstats $pooled \
          --cancer $cancer \
-         --out-prefix $WRKDIR/plots/germline_somatic_assoc/other_stats/$cancer.meta_plus_single.qq.png"
+         --out-prefix $WRKDIR/plots/germline_somatic_assoc/other_stats/$cancer"
   fi
 done
 
