@@ -737,6 +737,10 @@ for cancer in PDAC CRAD LUAD; do
 done
 
 
+### Plot correlation of meta-analysis and pooled mega-analysis summary statistics
+# TODO: implement this
+
+
 ### Gather significant hits in any individual cohort or pooled analysis
 for cancer in PDAC CRAD LUAD; do
   echo -e "\n\n$cancer:"

@@ -15,7 +15,7 @@
 #'
 #' Load a subset of constants for RAS modifier analyses
 #'
-#' @param susbet Vector of constant groups to load See `Details` for options.
+#' @param susbet Vector of constant groups to load. See `Details` for options. \[default: load all constants\]
 #' @param envir Environment passed to [base::assign] \[default: .GlobalEnv\]
 #'
 #' @details Recognized values for `subset` include:
@@ -35,7 +35,7 @@
 #'
 #' @export load.constants
 #' @export
-load.constants <- function(subset, envir=.GlobalEnv){
+load.constants <- function(subset="all", envir=.GlobalEnv){
   # Define colors
   PDAC.colors <- c("dark3" = "#240E29",
                    "dark2" = "#481D53",
