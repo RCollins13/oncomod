@@ -144,7 +144,8 @@ load.constants <- function(subset="all", envir=.GlobalEnv){
                                 "DFCI" = "main",
                                 "TCGA" = "dark2"),
     "exon.color" = "#027831",
-    "gene.color" = "#235020")
+    "gene.color" = "#235020",
+    "csq.colors" = csq.colors)
 
   # Define scales
   logscale.major <- 10^(-10:10)

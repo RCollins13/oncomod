@@ -13,19 +13,26 @@
 # Note: intended to be executed on the MGB ERISOne cluster
 
 
-### Set local parameters
+### Setup
+# Set local parameters
 export TCGADIR=/data/gusev/USERS/rlc47/TCGA
 export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
 export HMFDIR=/data/gusev/USERS/rlc47/HMF
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
 export CODEDIR=$WRKDIR/../code/oncomod
 cd $WRKDIR
-
-
-### Prep directory structure
-for dir in $WRKDIR/data/FGFR4 $WRKDIR/results/FGFR4; do
-  if ! [ -e $dir ]; then mkdir $WRKDIR/data/FGFR4; fi
+# Prep directory structure
+for dir in $WRKDIR/data/FGFR4 $WRKDIR/results/FGFR4 \
+           $WRKDIR/plots/germline_somatic_assoc/FGFR4; do
+  if ! [ -e $dir ]; then mkdir $dir; fi
 done
+# Ensure most recent version of OncoMod R package is installed from source
+cd $CODEDIR && \
+git pull && \
+Rscript -e "install.packages('$CODEDIR/src/OncoModR_0.2.tar.gz', \
+                             lib='~/R/x86_64-pc-linux-gnu-library/3.6', \
+                             type='source', repos=NULL)" && \
+cd -
 
 
 ### Compute single-variant association tests for all FGFR4 coding variants vs. all KRAS somatic endpoints
@@ -77,3 +84,11 @@ bsub -q big-multi -sla miket_sc -R "rusage[mem=24000]" -n 4 \
   "$WRKDIR/LSF/scripts/germline_somatic_assoc_pooled_CRAD.FGFR4_allelic_series.sh"
 
 
+### Plot single-variant association results
+$TMPDIR/plot_FGFR4_results.R \
+  $WRKDIR/results/FGFR4/pooled.CRAD.FGFR4_allelic_series.sumstats.tsv.gz \
+  $WRKDIR/plots/germline_somatic_assoc/FGFR4
+
+
+### Gather genotypes for all variants in a 100kb window around FGFR4 for haplotyping
+chr5:176469524-176569524
