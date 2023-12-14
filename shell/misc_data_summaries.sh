@@ -114,19 +114,19 @@ for cohort in PROFILE HMF TCGA; do
   cat $TMPDIR/$cohort.ALL.GWAS_loci.vids.list | wc -l
 done | paste - - - - -
 
-# KRAS locus, intersection of all cohorts
+# RAS-driven cancer-associated GWAS loci, intersection of all cohorts
 # Note: must have run the code block directly above
 for cancer in PDAC CRAD LUAD ALL; do
   for cohort in PROFILE HMF TCGA; do
-    cat $TMPDIR/$cohort.$cancer.KRAS_cis_alleles.vids.list
+    cat $TMPDIR/$cohort.$cancer.GWAS_loci.vids.list
   done | sort -V | uniq -c | awk '{ if ($1==3) print }' | wc -l
 done | paste <( echo "Intersection" ) - - - -
 
-# KRAS locus, union of all cohorts
+# RAS-driven cancer-associated GWAS loci, union of all cohorts
 # Note: must have run the code block directly above
 for cancer in PDAC CRAD LUAD ALL; do
   for cohort in PROFILE HMF TCGA; do
-    cat $TMPDIR/$cohort.$cancer.KRAS_cis_alleles.vids.list
+    cat $TMPDIR/$cohort.$cancer.GWAS_loci.vids.list
   done | sort -V | uniq | wc -l
 done | paste <( echo "Union" ) - - - -
 

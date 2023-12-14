@@ -206,11 +206,15 @@ def map_genotypes(old_rec, new_rec, id_mappings, rec_fmt):
 
     AN, AC, AF = [0] * 3
 
-    for sample in old_rec.samples:
+    # Reverse id_mappings
+    id_mappings = {v : k for k, v in id_mappings.items()}
+
+    for new_sample in new_rec.samples:
 
         # Skip samples not slated for inclusion in merged VCF
-        new_sample = id_mappings.get(sample)
-        if new_sample is None:
+        sample = id_mappings.get(new_sample)
+        if sample is None or sample not in old_rec.samples.keys():
+            new_rec.samples[new_sample]['GT'] = (None, None)
             continue
 
         # Get old genotype
@@ -225,14 +229,14 @@ def map_genotypes(old_rec, new_rec, id_mappings, rec_fmt):
             if rec_fmt == 'exome':
                 GT = (0, 0)
         else:
-            if None in GT:
+            if any(a is None for a in GT):
                 GT = (None, [g for g in GT if g is not None][0])
             else:
                 GT = tuple(sorted(GT))
 
         # Assign genotype to new record
-        new_rec.samples[id_mappings[sample]]['GT'] = GT
-        new_rec.samples[id_mappings[sample]]['GQ'] = GQ
+        new_rec.samples[new_sample]['GT'] = GT
+        new_rec.samples[new_sample]['GQ'] = GQ
 
         # Update AC/AN
         AC += len([a for a in GT if a is not None and a > 0])
