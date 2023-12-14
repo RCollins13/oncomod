@@ -102,6 +102,9 @@ load.constants <- function(subset="all", envir=.GlobalEnv){
                   "main" = "#995A9B",
                   "light1" = "#AD7BAF",
                   "light2" = "#C29CC3")
+  csq.colors <- c("synonymous" = "#AAAAAA",
+                  "missense" = "#FF6103",
+                  "lof" = "#9D1309")
   colors <- list(
     "cancer.colors" = c("PDAC" = PDAC.colors[["main"]],
                         "CRAD" = CRAD.colors[["main"]],
@@ -195,7 +198,10 @@ load.constants <- function(subset="all", envir=.GlobalEnv){
                       "1" = "I",
                       "2" = "II",
                       "3" = "III",
-                      "4" = "IV")
+                      "4" = "IV"),
+    "csq.names.short" = c("synonymous" = "Syn.",
+                          "missense" = "Mis.",
+                          "lof" = "LoF")
   )
 
   # Assign constants to global environment
