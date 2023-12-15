@@ -35,6 +35,15 @@ data$csq <- "missense"
 data$csq[grep("=$", data$germline)] <- "synonymous"
 data$csq[grep("Ter$|Ter[0-9]+$", data$germline)] <- "lof"
 
+# Custom labels
+label.vars <- c("ENST00000292408_p.Gly388Arg" = "G388R",
+  "ENST00000292408_p.Pro136Leu" = "P136L",
+  "ENST00000292408_p.Arg54=" = "R54R",
+  "ENST00000292408_p.Ser137=" = "S137S",
+  "ENST00000292408_p.Asp575Asn" = "D575N",
+  "ENST00000292408_p.Val10Ile" = "V10I",
+  "ENST00000292408_p.Arg234=" = "R234R")
+
 # Stacked barplot of coding variants by AF & consequence
 af.breaks <- seq(0,1, 0.05)
 bdat <- do.call("cbind", lapply(names(csq.colors), function(csq){
@@ -69,6 +78,12 @@ par(mar=c(2.5, 3, 2, 0.5), bty="n")
 plot(log2(exp(t1.data$beta)), -log10(t1.data$p), pch=19, col=csq.colors[t1.data$csq],
      xlab="", xaxt="n", ylab="", yaxt="n",
      panel.first=c(abline(h=-log10(0.05), v=0, lty=5, col="gray60")))
+sapply(names(label.vars), function(var){
+  text(x=log2(exp(t1.data$beta[which(t1.data$germline == var)])),
+  y=-log10(t1.data$p[which(t1.data$germline == var)]),
+  labels=label.vars[var], pos=2, cex=5/6,
+  col=csq.colors[t1.data$csq[which(t1.data$germline == var)]])
+})
 clean.axis(1, title=bquote(log[2]("Odds Ratio")), infinite=TRUE)
 clean.axis(2, title=bquote(-log[10](italic(P))), infinite=TRUE)
 mtext(3, font=2, text=bquote(italic(FGFR4) ~ "germline alleles vs."), line=1)
@@ -83,6 +98,12 @@ par(mar=c(2.5, 3, 2, 0.5), bty="n")
 plot(log2(exp(t1.data$beta)), t1.data$AF, pch=19, col=csq.colors[t1.data$csq],
      xlab="", xaxt="n", ylab="", yaxt="n",
      panel.first=c(abline(v=0, lty=5, col="gray60")))
+sapply(names(label.vars), function(var){
+  text(x=log2(exp(t1.data$beta[which(t1.data$germline == var)])),
+       y=t1.data$AF[which(t1.data$germline == var)],
+       labels=label.vars[var], pos=2, cex=5/6,
+       col=csq.colors[t1.data$csq[which(t1.data$germline == var)]])
+})
 clean.axis(1, title=bquote(log[2]("Odds Ratio")), infinite=TRUE)
 clean.axis(2, title="Allele Frequency", infinite=TRUE)
 mtext(3, font=2, text=bquote(italic(FGFR4) ~ "germline alleles vs."), line=1)
