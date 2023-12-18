@@ -163,6 +163,7 @@ dev.off()
 
 # Write variant IDs corresponding to top three haplotypes based on common variants
 k <- cutree(hclust(dist(common.ld)), k=4)
-write.table(data.frame("#variant" = names(k), "cluster" = k, check.names=F),
+hap.df <- data.frame("#variant"=names(k), "cluster"=paste("H", k, sep=""), check.names=F)
+write.table(hap.df[which(hap.df$cluster %in% c("H1", "H2", "H3")), ],
             paste(dir.out, "FGFR4.common_variants.haplotype_assignment.tsv", sep="/"),
             quote=F, sep="\t", col.names=T, row.names=F)

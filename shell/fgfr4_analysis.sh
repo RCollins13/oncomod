@@ -319,8 +319,8 @@ for suffix in common_biallelic coding; do
 done
 
 
-### Visualize FGFR4 haplotypes
-$CODEDIR/scripts/plot/visualize_FGFR_haplotypes.R \
+### Analyze & visualize FGFR4 haplotypes
+$CODEDIR/scripts/germline_somatic_assoc/FGFR4_haplotype_analysis.R \
   $WRKDIR/data/FGFR4/all_cohorts.FGFR4.CRAD.coding.ld.tsv.gz \
   $WRKDIR/data/FGFR4/all_cohorts.FGFR4.CRAD.common_biallelic.ld.tsv.gz \
   $WRKDIR/data/FGFR4/FGFR4.coding_variants.sets.tsv \
