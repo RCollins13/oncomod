@@ -293,13 +293,13 @@ tabix -p vcf -f $WRKDIR/data/FGFR4/all_cohorts.FGFR4.CRAD.coding.vcf.gz
 
 
 ### Calculate LD among FGFR4 variant subsets
-# For common biallelic variants, ensure they are genotyped in nearly all samples
+# Subset common biallelic variants detected in at least two cohorts
 bcftools +fill-tags \
   $WRKDIR/data/FGFR4/all_cohorts.FGFR4.CRAD.vcf.gz \
   -- -t F_MISSING \
 | bcftools view \
   -m 2 -M 2 \
-  --include 'INFO/F_MISSING < 0.05 & INFO/AF > 0.005' \
+  --include 'INFO/F_MISSING < 0.20 & INFO/AF > 0.01' \
   -Oz -o $WRKDIR/data/FGFR4/all_cohorts.FGFR4.CRAD.common_biallelic.vcf.gz
 tabix -p vcf -f $WRKDIR/data/FGFR4/all_cohorts.FGFR4.CRAD.common_biallelic.vcf.gz
 # Compute LD for common variants and coding variants
@@ -319,56 +319,10 @@ for suffix in common_biallelic coding; do
 done
 
 
-# ### Get imputed haplotypes for all colorectal samples
-# # Download BEAGLE 5.4
-# mkdir $CODEDIR/../beagle
-# wget \
-#   --no-check-certificate \
-#   -P $CODEDIR/../beagle/ \
-#   https://faculty.washington.edu/browning/beagle/beagle.22Jul22.46e.jar
-# chmod a+x $CODEDIR/../beagle/beagle.22Jul22.46e.jar
-# # Download reference panel & genetic map
-# wget \
-#   -P $CODEDIR/../beagle/ \
-#   https://bochet.gcc.biostat.washington.edu/beagle/1000_Genomes_phase3_v5a/b37.bref3/chr5.1kg.phase3.v5a.b37.bref3
-# wget \
-#   -P $CODEDIR/../beagle/ \
-#   https://bochet.gcc.biostat.washington.edu/beagle/genetic_maps/plink.GRCh37.map.zip
-# cd $CODEDIR/../beagle && \
-# unzip $CODEDIR/../beagle/plink.GRCh37.map.zip && \
-# cd -
-# # Impute genotypes for all samples
-# java -Xmx14g -jar $CODEDIR/../beagle/beagle.22Jul22.46e.jar \
-#   gt=$WRKDIR/data/FGFR4/all_cohorts.FGFR4.vcf.gz \
-#   map=$CODEDIR/../beagle/plink.chr5.GRCh37.map \
-#   ref=$CODEDIR/../beagle/chr5.1kg.phase3.v5a.b37.bref3 \
-#   chrom=$fgfr4_haploblock \
-#   out=$WRKDIR/data/FGFR4/all_cohorts.FGFR4.imputed
-# tabix -p vcf -f $WRKDIR/data/FGFR4/all_cohorts.FGFR4.imputed.vcf.gz
-# # Subset imputed data to biallelic variants at FGFR4 gene locus ±1kb in colorectal patients
-# bcftools view \
-#   -m 2 -M 2 --min-ac 1 --type snps \
-#   --regions-file <( zcat $CODEDIR/refs/NCI_RAS_pathway.genes.GRCh37.bed.gz | fgrep -w FGFR4 \
-#                | awk -v OFS="\t" -v buffer=1000 '{ print $1, $2-buffer, $3+buffer }' ) \
-#   -Oz -o $WRKDIR/data/FGFR4/all_cohorts.FGFR4.imputed.biallelic_snps.gene_locus.CRAD_only.vcf.gz \
-#   --include 'INFO/DR2>0.5 & AF > 0.01 & AF<0.99' \
-#   --samples-file $WRKDIR/data/FGFR4/all_cohorts.CRAD.samples.list \
-#   $WRKDIR/data/FGFR4/all_cohorts.FGFR4.imputed.vcf.gz
-# # Convert to plink haps format
-# module load plink/2.0a2.3
-# plink2 \
-#   --vcf $WRKDIR/data/FGFR4/all_cohorts.FGFR4.imputed.biallelic_snps.gene_locus.CRAD_only.vcf.gz \
-#   --export haps \
-#   --out $WRKDIR/data/FGFR4/all_cohorts.FGFR4.imputed.biallelic_snps.gene_locus.CRAD_only
-# bcftools query -l $WRKDIR/data/FGFR4/all_cohorts.FGFR4.imputed.biallelic_snps.gene_locus.CRAD_only.vcf.gz \
-# > $WRKDIR/data/FGFR4/all_cohorts.FGFR4.imputed.biallelic_snps.gene_locus.CRAD_only.samples.list
-
-
-# ## Make AD matrix based on raw and imputed genotypes
-# $CODEDIR/scripts/data_processing/vcf2dosage.py \
-#   $WRKDIR/data/FGFR4/all_cohorts.FGFR4.vcf.gz - \
-# | gzip -c > $WRKDIR/data/FGFR4/all_cohorts.FGFR4.dosage.tsv.gz
-# $CODEDIR/scripts/data_processing/vcf2dosage.py \
-#   $WRKDIR/data/FGFR4/all_cohorts.FGFR4.imputed.vcf.gz - \
-# | gzip -c > $WRKDIR/data/FGFR4/all_cohorts.FGFR4.imputed.dosage.tsv.gz
+### Visualize FGFR4 haplotypes
+$CODEDIR/scripts/plot/visualize_FGFR_haplotypes.R \
+  $WRKDIR/data/FGFR4/all_cohorts.FGFR4.CRAD.coding.ld.tsv.gz \
+  $WRKDIR/data/FGFR4/all_cohorts.FGFR4.CRAD.common_biallelic.ld.tsv.gz \
+  $WRKDIR/data/FGFR4/FGFR4.coding_variants.sets.tsv \
+  $WRKDIR/plots/germline_somatic_assoc/FGFR4
 

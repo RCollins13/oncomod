@@ -147,3 +147,16 @@ pdf(paste(dir.out, "FGFR4.LD.common.pdf", sep="/"),
 plot.ld.matrix(common.ld, label.vars=label.vars, label.colors=label.colors)
 dev.off()
 
+# Plot LD scale
+pdf(paste(dir.out, "LD.scale.pdf", sep="/"),
+    height=2.5, width=0.75)
+par(mar=c(1.1, 1.5, 1.1, 0.1), bty="n")
+plot(NA, xlim=c(0, 1), ylim=c(0, 100),
+     xaxt="n", yaxt="n", xlab="", ylab="", xaxs="i", yaxs="i")
+rect(xleft=0, xright=1, ybottom=(1:100)-1, ytop=1:100,
+     border=viridis(101), col=viridis(101), lwd=0.5)
+box(bty="o")
+axis(1, tick=F, at=0.5, labels=0, line=-1)
+axis(3, tick=F, at=0.5, labels=1, line=-1)
+axis(2, at=50, las=2, line=-0.9, labels=bquote(italic("R")^2), tick=F)
+dev.off()
