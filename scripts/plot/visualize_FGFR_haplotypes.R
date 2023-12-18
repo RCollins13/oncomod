@@ -160,3 +160,9 @@ axis(1, tick=F, at=0.5, labels=0, line=-1)
 axis(3, tick=F, at=0.5, labels=1, line=-1)
 axis(2, at=50, las=2, line=-0.9, labels=bquote(italic("R")^2), tick=F)
 dev.off()
+
+# Write variant IDs corresponding to top three haplotypes based on common variants
+k <- cutree(hclust(dist(common.ld)), k=4)
+write.table(data.frame("#variant" = names(k), "cluster" = k, check.names=F),
+            paste(dir.out, "FGFR4.common_variants.haplotype_assignment.tsv", sep="/"),
+            quote=F, sep="\t", col.names=T, row.names=F)

@@ -131,7 +131,7 @@ protein.domains <- list("Ig-C2 1" = c(22, 118),
                         "Ig-C2 2" = c(152, 240),
                         "Ig-C2 3" = c(249, 349),
                         "Kinase" = c(467, 755))
-phosphosites <- c(390, 419, 573, 642, 643, 754)
+# phosphosites <- c(390, 419, 573, 642, 643, 754)
 pdf(paste(dir.out, "FGFR4.annotated_variant_localization.pdf", sep="/"),
     height=4.2, width=6)
 par(mar=c(0.25, 5, 2.5, 0.25), bty="n")

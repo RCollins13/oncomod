@@ -326,3 +326,8 @@ $CODEDIR/scripts/plot/visualize_FGFR_haplotypes.R \
   $WRKDIR/data/FGFR4/FGFR4.coding_variants.sets.tsv \
   $WRKDIR/plots/germline_somatic_assoc/FGFR4
 
+
+### Fit multivariate linear model to estimate marginal effects of FGFR4 variants
+# TODO: implement this
+# $CODEDIR/scripts/germline_somatic_assoc/fgfr4_multivariate_model.R
+
