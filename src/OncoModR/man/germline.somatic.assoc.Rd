@@ -8,13 +8,17 @@ germline.somatic.assoc(
   y.vals,
   x.vals,
   meta,
+  gqs = NULL,
   firth.fallback = TRUE,
   strict.fallback = TRUE,
   nonstrict.se.tolerance = 10,
   firth.always = FALSE,
   custom.covariates = c(),
   multiPop.min.ac = 10,
-  multiPop.min.freq = 0.01
+  multiPop.min.freq = 0.01,
+  logistf.maxiter = 1000,
+  model.suffix = "",
+  only.return.freqs = FALSE
 )
 }
 \arguments{
@@ -23,6 +27,9 @@ germline.somatic.assoc(
 \item{x.vals}{Numeric vector of germline values to test}
 
 \item{meta}{Metadata for all samples as loaded by \link{load.patient.metadata}}
+
+\item{gqs}{Two-element list of mean ref & alt genotype qualities per sample.
+If provided, will be included as covariates in association model.}
 
 \item{firth.fallback}{Attempt to use Firth bias-reduced logistic regression when
 traditional logistic regression fails to converge or dataset is quasi-separable
@@ -45,6 +52,15 @@ as covariates in the regression model. See \code{Details}.}
 \item{multiPop.min.ac}{Minimum allele count to include non-European populations}
 
 \item{multiPop.min.freq}{Minimum variant frequency to include non-European populations}
+
+\item{logistf.maxiter}{Maximum number of iterations for \code{logistf()} [default: 1000]}
+
+\item{model.suffix}{String to append to the end of the "model" indicator in
+the returned vector of results [default: append nothing]}
+
+\item{only.return.freqs}{If set to \code{TRUE}, no association will be conducted
+and only frequencies will be reported. All association statistics will be
+reported as \code{NA} in the returned vector.}
 }
 \value{
 Vector of test results
@@ -63,5 +79,5 @@ By default, the following covariates will be included:
 Any other covariates to be included must be specified in \code{custom.covariates}
 }
 \seealso{
-\link{load.patient.metadata}
+\link{load.patient.metadata}, \link[logistf:logistf]{logistf::logistf}
 }

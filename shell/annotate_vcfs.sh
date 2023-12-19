@@ -430,6 +430,7 @@ $CODEDIR/scripts/data_processing/cleanup_vep.py \
   --transcript-info $WRKDIR/../refs/gencode.v19.annotation.transcript_info.tsv.gz \
   --mode \$1 \
   --priority-genes $CODEDIR/refs/NCI_RAS_pathway.genes.list \
+  --hard-pass-regions $CODEDIR/refs/GWAS_catalog_loci.CRAD_PDAC_LUAD.GRCh37.bed.gz \
   \$2 stdout \
 | grep -ve "^##bcftools" | grep -ve "^##CADD_" | grep -ve "^##UTRAnnotator_" \
 | grep -ve "^##LoF_" | grep -ve "^##SpliceAI_" | grep -ve "^##VEP-command-line" \
@@ -621,30 +622,29 @@ bcftools concat \
 tabix -p vcf -f $HMFDIR/data/HMF.RAS_loci.anno.clean.wAF.vcf.gz
 
 
-######################################
-### Build simple genotype matrixes ###
-######################################
+#############################################
+### Build simple genotype and GQ matrixes ###
+#############################################
 for cohort in TCGA PROFILE HMF; do
   case $cohort in
     TCGA)
       COHORTDIR=$TCGADIR
-      sample_field=DONOR_ID
       ;;
     PROFILE)
       COHORTDIR=$PROFILEDIR
-      sample_field=PBP
       ;;
     HMF)
       COHORTDIR=$HMFDIR
-      sample_field=SAMPLE_ID
       ;;
   esac
   for subset in somatic_variants RAS_loci; do
     for suf in err log; do
-      if [ -e $WRKDIR/LSF/logs/make_dosage_${cohort}_$subset.$suf ]; then
-        rm $WRKDIR/LSF/logs/make_dosage_${cohort}_$subset.$suf
-      fi
+      for job in dosage GQ_matrix; do
+        log=$WRKDIR/LSF/logs/make_${job}_${cohort}_$subset.$suf
+        if [ -e $log ]; then rm $log; fi
+      done
     done
+    # Allele dosage matrixes
     bsub -q normal -sla miket_sc \
       -J make_dosage_${cohort}_$subset \
       -o $WRKDIR/LSF/logs/make_dosage_${cohort}_$subset.log \
@@ -652,6 +652,15 @@ for cohort in TCGA PROFILE HMF; do
       "$CODEDIR/scripts/data_processing/vcf2dosage.py \
          $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz - \
        | gzip -c > $COHORTDIR/data/$cohort.$subset.dosage.tsv.gz"
+    # GQ matrixes
+    bsub -q normal -sla miket_sc \
+      -J make_GQ_matrix_${cohort}_$subset \
+      -o $WRKDIR/LSF/logs/make_GQ_matrix_${cohort}_$subset.log \
+      -e $WRKDIR/LSF/logs/make_GQ_matrix_${cohort}_$subset.err \
+      "$CODEDIR/scripts/data_processing/vcf2dosage.py \
+        --field GQ \
+         $COHORTDIR/data/$cohort.$subset.anno.clean.vcf.gz - \
+       | gzip -c > $COHORTDIR/data/$cohort.$subset.GQ.tsv.gz"
   done
 done
 

@@ -19,8 +19,8 @@ export PROFILEDIR=/data/gusev/USERS/rlc47/PROFILE
 export HMFDIR=/data/gusev/USERS/rlc47/HMF
 export WRKDIR=/data/gusev/USERS/rlc47/RAS_modifier_analysis
 export CODEDIR=$WRKDIR/../code/oncomod
-export bonf_sig=$( echo "341095" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
-export lenient_sig=$( echo "72633" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
+export bonf_sig=$( echo "577737" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
+export lenient_sig=$( echo "147374" | awk '{ printf "%.12f\n", 0.05 / $1 }' )
 cd $WRKDIR
 
 
@@ -30,7 +30,7 @@ for SUBDIR in data data/variant_set_freqs/filtered data/germline_vcfs \
               results results/assoc_stats results/assoc_stats/single \
               results/assoc_stats/merged results/assoc_stats/merged/filtered \
               results/assoc_stats/meta plots/germline_somatic_assoc \
-              plots/germline_somatic_assoc/qq; do
+              plots/germline_somatic_assoc/qq plots/germline_somatic_assoc/other_stats; do
   if ! [ -e $WRKDIR/$SUBDIR ]; then
     mkdir $WRKDIR/$SUBDIR
   fi
@@ -64,7 +64,7 @@ for cancer in PDAC CRAD LUAD; do
       $COHORTDIR/data/$cohort.RAS_loci.anno.clean.vcf.gz \
     | bcftools +fill-tags - -- -t AC,AN,F_MISSING,HWE \
     | bcftools view \
-      --include 'AC >= 10 & (AN-AC) >= 10 & F_MISSING < 0.5 & HWE>0.000001' \
+      --include 'AF >= 0.01 & AF <= 0.99 & AC >= 10 & (AN-AC) >= 10 & F_MISSING <= 0.75 & HWE>0.0001' \
     | bcftools norm \
       -m - \
       --check-ref s \
@@ -94,16 +94,14 @@ for cancer in PDAC CRAD LUAD; do
     --out $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.pruned
 done
 
-# Once merged & LD-pruned, determine number of variants retained per cancer type per gene 
+# Once merged & LD-pruned, determine number of variants retained per cancer type
 for cancer in PDAC CRAD LUAD; do
-  while read chrom start end gene; do
-    bcftools query \
-      -f '%ID\n' -r "$chrom:$start-$end" \
-      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
-    | fgrep -wf - \
-      $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.pruned.prune.in \
-    | wc -l
-  done < <( zcat $CODEDIR/refs/RAS_loci.GRCh37.bed.gz | fgrep KRAS )
+  bcftools query \
+    -f '%ID\n' \
+    $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.vcf.gz \
+  | fgrep -wf - \
+    $WRKDIR/data/germline_vcfs/all_cohorts.RAS_loci.$cancer.qc_pass.pruned.prune.in \
+  | wc -l
 done | paste -s - | awk -v OFS="\t" '{ print $0, $1+$2+$3 }'
 
 
@@ -323,6 +321,10 @@ $CODEDIR/scripts/germline_somatic_assoc/summarize_somatic_endpoints.py \
 
 
 ### Shard germline test sets for improved parallelization
+if [ -e $WRKDIR/data/variant_sets/test_sets/shards/ ]; then
+  rm -rf $WRKDIR/data/variant_sets/test_sets/shards/
+fi
+mkdir $WRKDIR/data/variant_sets/test_sets/shards/
 for cancer in PDAC CRAD LUAD; do
   while read chrom start end gene; do
     $CODEDIR/../GenomicsToolbox/evenSplitter.R \
@@ -367,6 +369,7 @@ $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.single.R \
   --cancer-type $cancer \
   --somatic-ad $COHORTDIR/data/$cohort.somatic_variants.dosage.tsv.gz \
   --germline-ad $COHORTDIR/data/$cohort.RAS_loci.dosage.tsv.gz \
+  --germline-gq $COHORTDIR/data/$cohort.RAS_loci.GQ.tsv.gz \
   --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
   --germline-variant-sets $WRKDIR/data/variant_sets/test_sets/shards/$cancer.$gene.germline_sets.shard_\$1 \
   --eligible-controls $COHORTDIR/data/sample_info/$cohort.ALL.eligible_controls.list \
@@ -508,64 +511,38 @@ for cohort in TCGA PROFILE HMF; do
            --cancer $cancer \
            --cohort $alt_cohort \
            --p-threshold $bonf_sig"
-      # Also generate separate QQ for KRAS cis modifier SNPs
-      cat \
-        $CODEDIR/refs/NCI_RAS_pathway.genes.list \
-      | fgrep -vf - \
-        $WRKDIR/data/variant_sets/test_sets/$cancer.KRAS.germline_sets.tsv \
-      | cut -f1 | fgrep -wf - <( zcat $stats ) | cat <( zcat $stats | head -n1 ) - \
-      | gzip -c > $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.cis_SNPs.tsv.gz
-      bsub -q short -sla miket_sc -J plot_qq_single_${cohort}_${cancer}_cis_SNPs \
-        -o $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_cis_SNPs.log \
-        -e $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_cis_SNPs.err \
-        "$CODEDIR/utils/plot_qq.R \
-           --stats $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.cis_SNPs.tsv.gz \
-           --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.$cancer.cis_SNPs.qq.png \
-           --cancer $cancer \
-           --title \"$cancer ($alt_cohort): cis SNPs\" \
-           --cohort $alt_cohort \
-           --p-threshold $bonf_sig"
-      # Also generate separate QQ for RAS pathway gene set tests
-      cat \
-        $CODEDIR/refs/NCI_RAS_pathway.genes.list \
-      | fgrep -vf - \
-        $WRKDIR/data/variant_sets/test_sets/$cancer.KRAS.germline_sets.tsv \
-      | cut -f1 | fgrep -wvf - <( zcat $stats ) \
-      | gzip -c > $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.ras_pathway.tsv.gz
-      bsub -q short -sla miket_sc -J plot_qq_single_${cohort}_${cancer}_ras_pathway \
-        -o $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_ras_pathway.log \
-        -e $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_ras_pathway.err \
-        "$CODEDIR/utils/plot_qq.R \
-           --stats $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.ras_pathway.tsv.gz \
-           --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.$cancer.ras_pathway.qq.png \
-           --cancer $cancer \
-           --title \"$cancer ($alt_cohort): RAS Pathway\" \
-           --cohort $alt_cohort \
-           --p-threshold $bonf_sig"
-      # # Also generate separate QQ for synonymous variants in RAS pathway genes
-      # zcat $stats | awk '{ if ($1 ~ "#" || $2 ~ "_synonymous") print }' \
-      # | gzip -c > $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.ras_pathway.syn.tsv.gz
-      # bsub -q short -sla miket_sc -J plot_qq_single_${cohort}_${cancer}_ras_pathway_syn \
-      #   -o $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_ras_pathway_syn.log \
-      #   -e $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_ras_pathway_syn.err \
+      # # Also generate separate QQ for KRAS cis modifier SNPs
+      # cat \
+      #   $CODEDIR/refs/NCI_RAS_pathway.genes.list \
+      # | fgrep -vf - \
+      #   $WRKDIR/data/variant_sets/test_sets/$cancer.KRAS.germline_sets.tsv \
+      # | cut -f1 | fgrep -wf - <( zcat $stats ) | cat <( zcat $stats | head -n1 ) - \
+      # | gzip -c > $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.cis_SNPs.tsv.gz
+      # bsub -q short -sla miket_sc -J plot_qq_single_${cohort}_${cancer}_cis_SNPs \
+      #   -o $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_cis_SNPs.log \
+      #   -e $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_cis_SNPs.err \
       #   "$CODEDIR/utils/plot_qq.R \
-      #      --stats $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.ras_pathway.syn.tsv.gz \
-      #      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.$cancer.ras_pathway.syn.qq.png \
+      #      --stats $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.cis_SNPs.tsv.gz \
+      #      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.$cancer.cis_SNPs.qq.png \
       #      --cancer $cancer \
-      #      --title \"$cancer ($alt_cohort): Syn. in Path.\" \
+      #      --title \"$cancer ($alt_cohort): cis SNPs\" \
       #      --cohort $alt_cohort \
       #      --p-threshold $bonf_sig"
-      # # Also generate separate QQ for nonsynonymous variants in RAS pathway genes
-      # zcat $stats | awk '{ if ($1 ~ "#" || $2 ~ "_nonsynonymous") print }' \
-      # | gzip -c > $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.ras_pathway.nonsyn.tsv.gz
-      # bsub -q short -sla miket_sc -J plot_qq_single_${cohort}_${cancer}_ras_pathway_nonsyn \
-      #   -o $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_ras_pathway_nonsyn.log \
-      #   -e $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_ras_pathway_nonsyn.err \
+      # # Also generate separate QQ for RAS pathway gene set tests
+      # cat \
+      #   $CODEDIR/refs/NCI_RAS_pathway.genes.list \
+      # | fgrep -vf - \
+      #   $WRKDIR/data/variant_sets/test_sets/$cancer.KRAS.germline_sets.tsv \
+      # | cut -f1 | fgrep -wvf - <( zcat $stats ) \
+      # | gzip -c > $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.ras_pathway.tsv.gz
+      # bsub -q short -sla miket_sc -J plot_qq_single_${cohort}_${cancer}_ras_pathway \
+      #   -o $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_ras_pathway.log \
+      #   -e $WRKDIR/LSF/logs/plot_qq_single_${cohort}_${cancer}_ras_pathway.err \
       #   "$CODEDIR/utils/plot_qq.R \
-      #      --stats $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.ras_pathway.nonsyn.tsv.gz \
-      #      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.$cancer.ras_pathway.nonsyn.qq.png \
+      #      --stats $WRKDIR/results/assoc_stats/merged/filtered/$cohort.$cancer.sumstats.filtered.ras_pathway.tsv.gz \
+      #      --outfile $WRKDIR/plots/germline_somatic_assoc/qq/$cohort.$cancer.ras_pathway.qq.png \
       #      --cancer $cancer \
-      #      --title \"$cancer ($alt_cohort): Nonsyn. in Path.\" \
+      #      --title \"$cancer ($alt_cohort): RAS Pathway\" \
       #      --cohort $alt_cohort \
       #      --p-threshold $bonf_sig"
     fi
@@ -584,16 +561,19 @@ $CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.pooled.R \
 --somatic-ad $TCGADIR/data/TCGA.somatic_variants.dosage.tsv.gz \
 --germline-ad $TCGADIR/data/TCGA.RAS_loci.dosage.tsv.gz \
 --name TCGA \
+--germline-gq $TCGADIR/data/TCGA.RAS_loci.GQ.tsv.gz \
 --eligible-controls $TCGADIR/data/sample_info/TCGA.ALL.eligible_controls.list \
 --sample-metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
 --somatic-ad $PROFILEDIR/data/PROFILE.somatic_variants.dosage.tsv.gz \
 --germline-ad $PROFILEDIR/data/PROFILE.RAS_loci.dosage.tsv.gz \
 --name DFCI \
+--germline-gq $PROFILEDIR/data/PROFILE.RAS_loci.GQ.tsv.gz \
 --eligible-controls $PROFILEDIR/data/sample_info/PROFILE.ALL.eligible_controls.list \
 --sample-metadata $HMFDIR/data/sample_info/HMF.ALL.sample_metadata.tsv.gz \
 --somatic-ad $HMFDIR/data/HMF.somatic_variants.dosage.tsv.gz \
 --germline-ad $HMFDIR/data/HMF.RAS_loci.dosage.tsv.gz \
 --name HMF \
+--germline-gq $HMFDIR/data/HMF.RAS_loci.GQ.tsv.gz \
 --eligible-controls $HMFDIR/data/sample_info/HMF.ALL.eligible_controls.list \
 --cancer-type $cancer \
 --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/$cancer.$gene.somatic_endpoints.tsv \
@@ -609,7 +589,7 @@ EOF
         logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_pooled_${cancer}_${gene}.$i.$suf
         if [ -e $logfile ]; then rm $logfile; fi
       done
-      bsub -q big -sla miket_sc -R "rusage[mem=32000]" \
+      bsub -q big-multi -sla miket_sc -R "rusage[mem=24000]" -n 4 \
         -J germline_somatic_assoc_pooled_${cancer}_${gene}_$i \
         -o $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_${cancer}_${gene}.$i.log \
         -e $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_${cancer}_${gene}.$i.err \
@@ -757,6 +737,27 @@ for cancer in PDAC CRAD LUAD; do
 done
 
 
+### Plot correlation of meta-analysis and pooled mega-analysis summary statistics
+for cancer in PDAC CRAD LUAD; do
+  meta=$WRKDIR/results/assoc_stats/meta/$cancer.meta.sumstats.tsv.gz
+  pooled=$WRKDIR/results/assoc_stats/merged/pooled.$cancer.sumstats.tsv.gz
+  if [ -s $meta ] && [ -s $pooled ]; then
+    for suf in err log; do
+      logfile=$WRKDIR/LSF/logs/compare_meta_pooled_$cancer.$suf
+      if [ -e $logfile ]; then rm $logfile; fi
+    done
+    bsub -q short -sla miket_sc -J compare_meta_pooled_$cancer \
+      -o $WRKDIR/LSF/logs/compare_meta_pooled_$cancer.log \
+      -e $WRKDIR/LSF/logs/compare_meta_pooled_$cancer.err \
+      "$CODEDIR/scripts/plot/compare_meta_mega_sumstats.R \
+         --meta-sumstats $meta \
+         --pooled-sumstats $pooled \
+         --cancer $cancer \
+         --out-prefix $WRKDIR/plots/germline_somatic_assoc/other_stats/$cancer"
+  fi
+done
+
+
 ### Gather significant hits in any individual cohort or pooled analysis
 for cancer in PDAC CRAD LUAD; do
   echo -e "\n\n$cancer:"
@@ -815,4 +816,57 @@ if [ -s $stats ]; then
     --outfile $WRKDIR/plots/germline_somatic_assoc/qq/PanCancer.pooled.meta.qq.png \
     --p-threshold $bonf_sig
 fi
+
+
+### Post hoc follow up: all FGFR4 coding alleles and KRAS tier 1 somatic mutations
+# Prep directory structure
+for dir in $WRKDIR/data/FGFR4 $WRKDIR/results/FGFR4; do
+  if ! [ -e $dir ]; then mkdir $WRKDIR/data/FGFR4; fi
+done
+# Make input germline test sets
+for cohort in TCGA PROFILE HMF; do
+  zcat $WRKDIR/data/variant_sets/$cohort.germline.collapsed_coding_csqs.tsv.gz \
+  | awk -v FS="\t" -v OFS="\t" '{ if ($2=="FGFR4") print $1, $NF }' \
+  | sort -Vk1,1
+done \
+| $CODEDIR/scripts/germline_somatic_assoc/simple_collapse_variant_sets.py \
+  --tsv-out $WRKDIR/data/FGFR4/FGFR4.coding_variants.sets.tsv
+# Run pooled association tests for all FGFR4 coding variants
+cat << EOF > $WRKDIR/LSF/scripts/germline_somatic_assoc_pooled_CRAD.FGFR4_allelic_series.sh
+#!/usr/bin/env bash
+$CODEDIR/scripts/germline_somatic_assoc/germline_somatic_assoc.pooled.R \
+--sample-metadata $TCGADIR/data/sample_info/TCGA.ALL.sample_metadata.tsv.gz \
+--somatic-ad $TCGADIR/data/TCGA.somatic_variants.dosage.tsv.gz \
+--germline-ad $TCGADIR/data/TCGA.RAS_loci.dosage.tsv.gz \
+--name TCGA \
+--germline-gq $TCGADIR/data/TCGA.RAS_loci.GQ.tsv.gz \
+--eligible-controls $TCGADIR/data/sample_info/TCGA.ALL.eligible_controls.list \
+--sample-metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
+--somatic-ad $PROFILEDIR/data/PROFILE.somatic_variants.dosage.tsv.gz \
+--germline-ad $PROFILEDIR/data/PROFILE.RAS_loci.dosage.tsv.gz \
+--name DFCI \
+--germline-gq $PROFILEDIR/data/PROFILE.RAS_loci.GQ.tsv.gz \
+--eligible-controls $PROFILEDIR/data/sample_info/PROFILE.ALL.eligible_controls.list \
+--sample-metadata $HMFDIR/data/sample_info/HMF.ALL.sample_metadata.tsv.gz \
+--somatic-ad $HMFDIR/data/HMF.somatic_variants.dosage.tsv.gz \
+--germline-ad $HMFDIR/data/HMF.RAS_loci.dosage.tsv.gz \
+--name HMF \
+--germline-gq $HMFDIR/data/HMF.RAS_loci.GQ.tsv.gz \
+--eligible-controls $HMFDIR/data/sample_info/HMF.ALL.eligible_controls.list \
+--cancer-type CRAD \
+--somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/CRAD.KRAS.somatic_endpoints.tsv \
+--germline-variant-sets $WRKDIR/data/FGFR4/FGFR4.coding_variants.sets.tsv \
+--outfile $WRKDIR/results/FGFR4/pooled.CRAD.FGFR4_allelic_series.sumstats.tsv
+gzip -f $WRKDIR/results/FGFR4/pooled.CRAD.FGFR4_allelic_series.sumstats.tsv
+EOF
+chmod a+x $WRKDIR/LSF/scripts/germline_somatic_assoc_pooled_CRAD.FGFR4_allelic_series.sh
+for suf in err log; do
+  logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_pooled_CRAD.FGFR4_allelic_series.$suf
+  if [ -e $logfile ]; then rm $logfile; fi
+done
+bsub -q big-multi -sla miket_sc -R "rusage[mem=24000]" -n 4 \
+  -J germline_somatic_assoc_pooled_CRAD.FGFR4_allelic_series \
+  -o $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_CRAD.FGFR4_allelic_series.log \
+  -e $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_CRAD.FGFR4_allelic_series.err \
+  "$WRKDIR/LSF/scripts/germline_somatic_assoc_pooled_CRAD.FGFR4_allelic_series.sh"
 

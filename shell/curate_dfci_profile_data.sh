@@ -72,12 +72,24 @@ for contig in $( seq 1 22 ); do
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
 bcftools view \
-  -O z -o $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz \
   --min-ac 1 \
   --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
-  --regions-file $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz \
-  $GTDIR/PROFILE_COMB.$contig.HQ.vcf.gz
+  --regions-file $CODEDIR/refs/RAS_loci.plus_pathway.plus_GWAS.GRCh37.bed.gz \
+  $GTDIR/PROFILE_COMB.$contig.HQ.vcf.gz \
+| bcftools annotate -x FORMAT/DS \
+| bcftools +fill-tags - \
+  -O z -o $WRKDIR/data/PROFILE.imputed_snps.$contig.noGQs.vcf.gz \
+  -- -t 'FORMAT/GQ:1=int(".")'
+$CODEDIR/scripts/data_processing/gp2gq.py \
+  $WRKDIR/data/PROFILE.imputed_snps.$contig.noGQs.vcf.gz \
+  $WRKDIR/data/PROFILE.imputed_snps.$contig.wGQs.vcf.gz
+bcftools annotate -x FORMAT/GP \
+  -O z -o $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz \
+  $WRKDIR/data/PROFILE.imputed_snps.$contig.wGQs.vcf.gz
 tabix -p vcf -f $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz
+rm \
+  $WRKDIR/data/PROFILE.imputed_snps.$contig.noGQs.vcf.gz \
+  $WRKDIR/data/PROFILE.imputed_snps.$contig.wGQs.vcf.gz
 EOF
   chmod a+x $WRKDIR/LSF/scripts/extract_${contig}_imputed_snps.sh
   rm $WRKDIR/LSF/logs/extract_${contig}_imputed_snps.*
@@ -94,7 +106,7 @@ for contig in $( seq 1 22 ); do
     --min-ac 1 \
     --samples-file $WRKDIR/data/sample_info/PROFILE.ALL.samples.list \
     --force-samples \
-    --regions-file <( zcat $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz \
+    --regions-file <( zcat $CODEDIR/refs/RAS_loci.plus_pathway.plus_GWAS.GRCh37.bed.gz \
                       | awk -v contig=$contig '{ if ($1==contig) print }' ) \
     $WRKDIR/LOHGIC/data/PROFILE.LOHGIC.predicted_germline_coding_variants.vcf.gz
   tabix -p vcf -f $WRKDIR/data/PROFILE.oncopanel_lohgic.$contig.vcf.gz
@@ -108,7 +120,7 @@ cd $WRKDIR
 $CODEDIR/scripts/data_processing/merge_profile_snps_lohgic.py \
   --lohgic-vcf $WRKDIR/data/PROFILE.oncopanel_lohgic.$contig.vcf.gz \
   --imputed-vcf $WRKDIR/data/PROFILE.imputed_snps.$contig.vcf.gz \
-  --header $WRKDIR/refs/simple_hg19_header.vcf.gz \
+  --header $WRKDIR/refs/simple_hg19_header.wGQ.vcf.gz \
   --outfile $WRKDIR/data/PROFILE.RAS_loci.$contig.vcf.gz
 tabix -p vcf -f $WRKDIR/data/PROFILE.RAS_loci.$contig.vcf.gz
 EOF

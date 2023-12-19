@@ -4,12 +4,12 @@
 \alias{load.constants}
 \title{Load RAS Modifier Study Constants}
 \usage{
-load.constants(subset, envir = .GlobalEnv)
+load.constants(subset = "all", envir = .GlobalEnv)
 }
 \arguments{
 \item{envir}{Environment passed to \link[base:assign]{base::assign} [default: .GlobalEnv]}
 
-\item{susbet}{Vector of constant groups to load See \code{Details} for options.}
+\item{susbet}{Vector of constant groups to load. See \code{Details} for options. [default: load all constants]}
 }
 \description{
 Load a subset of constants for RAS modifier analyses

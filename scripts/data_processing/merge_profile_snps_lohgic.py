@@ -49,70 +49,6 @@ def determine_next_record(imp_rec, ex_rec):
     return [k for i, k in enumerate('imputed lohgic'.split()) if i in next_idxs]
 
 
-def correct_strand(record, fasta, verbose=False):
-    """
-    Corrects strand flips in genotyped array data
-    """
-
-    # Check if record is a candidate for a strand flip
-    old_alleles = record.alleles
-    if len(record.alleles) == 2:
-        ref_allele = fasta.fetch(record.chrom, record.pos, record.pos+1)
-        if ref_allele == record.alleles[1]:
-            record.alleles = record.alleles[::-1]
-
-            if verbose:
-                fmt = '  ** Detected strand flip at {:,} (typed as {} / {} but should be {} / {})\n'
-                stderr.write(fmt.format(record.pos, *old_alleles, *record.alleles))
-
-    vid = '{}_{}_{}_{}'.format(record.chrom, record.pos, *record.alleles)
-
-    return record, vid
-
-
-def calc_gt_correlation(rec1, rec2):
-    """
-    Compute simple correlation coefficient between two sets of genotypes
-    """
-
-    samp1 = set(s for s in rec1.samples if rec1.samples[s]['GT'] is not (None, None))
-    samp2 = set(s for s in rec2.samples if rec2.samples[s]['GT'] is not (None, None))
-    samples = samp1.intersection(samp2)
-
-    def _get_ad(gt):
-        return sum([a for a in gt if a is not None])
-
-    ad1 = np.array([_get_ad(rec1.samples[s]['GT']) for s in samples])
-    ad2 = np.array([_get_ad(rec2.samples[s]['GT']) for s in samples])
-
-    return np.corrcoef(ad1, ad2)[0, 1]
-
-
-def invert_genotypes(record, gt_cor, verbose=False):
-    """
-    Inverts ref/alt and all genotypes for a single record
-    """
-
-    nt_map = {'A' : 'T', 'T' : 'A', 'C' : 'G', 'G' : 'C'}
-    new_alleles = tuple([nt_map[a] for a in record.alleles])
-
-
-    if verbose:
-        fmt = '  ** Detected inverted record at {:,} (typed as {} / {} but should be {} / {}; r={:.2f})\n'
-        stderr.write(fmt.format(record.pos, *record.alleles, *new_alleles, gt_cor))
-
-    record.alleles = new_alleles
-
-    for sample in record.samples.keys():
-        old_gt = record.samples[sample]['GT']
-        if old_gt != (None, None):
-            record.samples[sample]['GT'] = tuple([abs(a - 1) for a in old_gt])
-
-    vid = '{}_{}_{}_{}'.format(record.chrom, record.pos, *record.alleles)
-
-    return record, vid
-
-
 def map_genotypes(old_rec, new_rec, rec_fmt):
     """
     Extracts GTs in old_rec and maps them onto samples in new_rec
@@ -126,16 +62,19 @@ def map_genotypes(old_rec, new_rec, rec_fmt):
 
     for sample in new_rec.samples.keys():
 
-        # Get old genotype
+        # Get old genotype & GQ
         if sample in old_samples:
             GT = old_rec.samples[sample]['GT']
+            GQ = old_rec.samples[sample]['GQ']
             if GT != (None, None, ):
                 GT = tuple(sorted(GT))
         else:
             GT = (None, None, )
+            GQ = None
 
         # Assign genotype to new record
         new_rec.samples[sample]['GT'] = GT
+        new_rec.samples[sample]['GQ'] = GQ
 
         # Update AC/AN
         AC += len([a for a in GT if a is not None and a > 0])

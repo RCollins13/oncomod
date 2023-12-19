@@ -15,7 +15,7 @@
 #'
 #' Load a subset of constants for RAS modifier analyses
 #'
-#' @param susbet Vector of constant groups to load See `Details` for options.
+#' @param susbet Vector of constant groups to load. See `Details` for options. \[default: load all constants\]
 #' @param envir Environment passed to [base::assign] \[default: .GlobalEnv\]
 #'
 #' @details Recognized values for `subset` include:
@@ -35,7 +35,7 @@
 #'
 #' @export load.constants
 #' @export
-load.constants <- function(subset, envir=.GlobalEnv){
+load.constants <- function(subset="all", envir=.GlobalEnv){
   # Define colors
   PDAC.colors <- c("dark3" = "#240E29",
                    "dark2" = "#481D53",
@@ -102,6 +102,9 @@ load.constants <- function(subset, envir=.GlobalEnv){
                   "main" = "#995A9B",
                   "light1" = "#AD7BAF",
                   "light2" = "#C29CC3")
+  csq.colors <- c("synonymous" = "#AAAAAA",
+                  "missense" = "#FF6103",
+                  "lof" = "#9D1309")
   colors <- list(
     "cancer.colors" = c("PDAC" = PDAC.colors[["main"]],
                         "CRAD" = CRAD.colors[["main"]],
@@ -141,7 +144,8 @@ load.constants <- function(subset, envir=.GlobalEnv){
                                 "DFCI" = "main",
                                 "TCGA" = "dark2"),
     "exon.color" = "#027831",
-    "gene.color" = "#235020")
+    "gene.color" = "#235020",
+    "csq.colors" = csq.colors)
 
   # Define scales
   logscale.major <- 10^(-10:10)
@@ -195,7 +199,10 @@ load.constants <- function(subset, envir=.GlobalEnv){
                       "1" = "I",
                       "2" = "II",
                       "3" = "III",
-                      "4" = "IV")
+                      "4" = "IV"),
+    "csq.names.short" = c("synonymous" = "Syn.",
+                          "missense" = "Mis.",
+                          "lof" = "LoF")
   )
 
   # Assign constants to global environment

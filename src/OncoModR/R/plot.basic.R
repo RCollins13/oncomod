@@ -322,3 +322,74 @@ km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
   }
 }
 
+
+#' Clean axis
+#'
+#' Print a clean axis using visually pleasing defaults
+#'
+#' @param side Value passed to `axis()`. See `?axis` for details.
+#' @param at Positions where axis ticks should be plotted \[default: `axTicks(side)`\]
+#' @param labels Labels for axis ticks \[default: values of `at`\]
+#' @param labels.at Positions for axis labels \[default: values of `at`\]
+#' @param label.units Specify custom units for the axis label. Default of `NULL`
+#' will display numeric values. Options currently include "percent" for percentages.
+#' Can be overridden by supplying `labels` directly.
+#' @param max.ticks Maximum number of axis ticks. Will be overridden by `at` \[default: 6\]
+#' @param title Axis title
+#' @param tck Value passed to `axis()`. See `?axis` for details. \[default: -0.025\]
+#' @param cex.axis Value passed to `axis()`. See `?axis` for details. \[default: 5/6\]
+#' @param label.line `line` parameter for axis labels \[default: -0.65\]
+#' @param title.line `line` parameter for axis title \[default: 0.5\]
+#' @param infinite Indicator for the axis to be extended infinitely (without ticks) \[default: FALSE\]
+#' @param infinite.positive Indicator for the axis to be extended infinitely
+#' in the positive direction (without ticks) \[default: FALSE\]
+#' @param infinite.negative Indicator for the axis to be extended infinitely
+#' in the negative direction (without ticks) \[default: FALSE\]
+#'
+#' @returns NULL
+#'
+#' @export clean.axis
+#' @export
+clean.axis <- function(side, at=NULL, labels=NULL, labels.at=NULL, label.units=NULL,
+                       max.ticks=6, title=NULL, tck=-0.025, cex.axis=5/6,
+                       label.line=-0.65, title.line=0.5,
+                       infinite=FALSE, infinite.positive=FALSE, infinite.negative=FALSE){
+  if(infinite){axis(side, at=c(-10e10, 10e10), tck=0, labels=NA)}
+  if(is.null(at)){
+    at <- axTicks(side)
+    if(length(at) > max.ticks){
+      at <- at[c(TRUE, FALSE)]
+    }
+  }
+  if(infinite.positive){axis(side, at=c(at[1], 10e10), tck=0, labels=NA)}
+  if(infinite.negative){axis(side, at=c(-10e10, at[length(at)]), tck=0, labels=NA)}
+  if(is.null(labels)){
+    labels <- at
+    if(!is.null(label.units)){
+      if(label.units == "percent"){
+        labels <- paste(100 * labels, "%", sep="")
+      }
+    }
+  }
+  if(is.null(labels.at)){labels.at <- at}
+  if(side %in% c(1, 3)){
+    las <- 1
+    title.at <- mean(par("usr")[1:2])
+  }else{
+    las <- 2
+    title.at <- mean(par("usr")[3:4])
+  }
+  axis(side, at=at, labels=NA, tck=tck)
+  sapply(1:length(labels.at), function(i){
+    if(is.numeric(labels[i])){
+      label <- prettyNum(labels[i], big.mark=",")
+    }else{
+      label <- labels[i]
+    }
+    axis(side, at=labels.at[i], labels=label, tick=F, cex.axis=cex.axis,
+         las=las, line=label.line)
+  })
+  if(!is.null(title)){
+    axis(side, at=title.at, tick=F, labels=title, line=title.line, xpd=T)
+  }
+}

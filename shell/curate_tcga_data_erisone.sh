@@ -105,6 +105,21 @@ $CODEDIR/scripts/data_processing/preprocess_tcga_phenotypes.py \
 
 
 ### Subset VCFs to patients of interest and RAS loci
+# Estimate average GQ per sample from typed arrays based on the proportion of
+# no-call SNPs per sample as a very rough proxy for sample genotyping quality
+total_n_sites=$( bcftools query -f '%CHROM\n' $WRKDIR/data/TCGA.array_typed.vcf.gz | wc -l )
+bcftools view \
+  --samples-file $WRKDIR/data/sample_info/TCGA.ALL.$tech.samples.list \
+  $WRKDIR/data/TCGA.array_typed.vcf.gz \
+| bcftools query \
+  -f '[%SAMPLE\n]' \
+  --include 'GT=="mis"' \
+| cat - $WRKDIR/data/sample_info/TCGA.ALL.$tech.samples.list \
+| sort -V | uniq -c \
+| awk -v OFS="\t" -v denom=$total_n_sites '{ print $2, $1/(denom+1) }' \
+| awk -v OFS="\t" '{ gq=-10*log($2)/log(10); if(gq>99){gq=99}; print $1, gq }' \
+| gzip -c \
+> $WRKDIR/data/sample_info/TCGA.ALL.typed_array_approx_GQ_per_sample.tsv.gz
 # Extract samples & loci of interest from genotyped arrays
 export tech=array_typed
 cat << EOF > $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.sh
@@ -112,11 +127,18 @@ cat << EOF > $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.sh
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
 bcftools view \
-  -O z -o $WRKDIR/data/TCGA.RAS_loci.$tech.vcf.gz \
   --min-ac 1  \
   --samples-file $WRKDIR/data/sample_info/TCGA.ALL.$tech.samples.list \
-  --regions-file <( zcat $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz | fgrep -v "#" ) \
-  $WRKDIR/data/TCGA.array_typed.vcf.gz
+  --regions-file $CODEDIR/refs/RAS_loci.plus_pathway.plus_GWAS.GRCh37.bed.gz \
+  $WRKDIR/data/TCGA.array_typed.vcf.gz \
+| bcftools +fill-tags - \
+   -O z -o $WRKDIR/data/TCGA.RAS_loci.$tech.noGQs.vcf.gz \
+   -- -t 'FORMAT/GQ:1=int(".")'
+$CODEDIR/scripts/data_processing/fill_missing_vcf_format_values.py \
+  --overwrite \
+  $WRKDIR/data/TCGA.RAS_loci.$tech.noGQs.vcf.gz \
+  $WRKDIR/data/sample_info/TCGA.ALL.typed_array_approx_GQ_per_sample.tsv.gz \
+  $WRKDIR/data/TCGA.RAS_loci.$tech.vcf.gz
 tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.$tech.vcf.gz
 EOF
 chmod a+x $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.sh
@@ -134,12 +156,24 @@ while read contig; do
 . /PHShome/rlc47/.bashrc
 cd $WRKDIR
 bcftools view \
-  -O z -o $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.vcf.gz \
   --min-ac 1 --exclude 'INFO/INFO < 0.8' \
   --samples-file $WRKDIR/data/sample_info/TCGA.ALL.$tech.samples.list \
-  --regions-file <( zcat $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz | fgrep -v "#" ) \
-  $GTDIR/IMPUTED/$contig.vcf.gz
+  --regions-file $CODEDIR/refs/RAS_loci.plus_pathway.plus_GWAS.GRCh37.bed.gz \
+  $GTDIR/IMPUTED/$contig.vcf.gz \
+| bcftools annotate -x FORMAT/ADS,FORMAT/DS \
+| bcftools +fill-tags - \
+  -Oz -o $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.noGQs.vcf.gz \
+  -- -t 'FORMAT/GQ:1=int(".")'
+$CODEDIR/scripts/data_processing/gp2gq.py \
+  $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.noGQs.vcf.gz \
+  $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.wGQs.vcf.gz
+bcftools annotate -x FORMAT/GP \
+  -O z -o $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.vcf.gz \
+  $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.wGQs.vcf.gz
 tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.vcf.gz
+rm \
+  $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.noGQs.vcf.gz \
+  $WRKDIR/data/TCGA.RAS_loci.$tech.$contig.wGQs.vcf.gz
 EOF
   chmod a+x $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.${contig}.sh
   rm $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.${contig}.*
@@ -148,7 +182,7 @@ EOF
     -o $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.${contig}.log \
     -e $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.${contig}.err \
     $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.${contig}.sh
-done < <( zcat $CODEDIR/refs/RAS_loci.plus_pathway.GRCh37.bed.gz \
+done < <( zcat $CODEDIR/refs/RAS_loci.plus_pathway.plus_GWAS.GRCh37.bed.gz \
           | fgrep -v "#" | cut -f1 | sort -V | uniq )
 # Merge imputed array variants across all chromosomes
 for contig in $( seq 1 22 ); do
@@ -182,11 +216,28 @@ gcloud auth application-default login
 export GCS_OAUTH_TOKEN=`gcloud auth application-default print-access-token`
 cd $WRKDIR/data
 bcftools view \
-  -O z -o $WRKDIR/data/TCGA.RAS_loci.exome.vcf.gz \
   --min-ac 1 \
   --samples-file $WRKDIR/data/sample_info/TCGA.ALL.exome.samples.list \
   --regions-file $WRKDIR/refs/TCGA_WES.covered_intervals.RAS_loci_plus_pathway.bed.gz \
-  gs://terra-workspace-archive-lifecycle/fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz
+  gs://terra-workspace-archive-lifecycle/fc-e5ae96e4-c495-44d1-9155-b27057d570d8/e3d12a6b-5051-4656-b911-ea425aa14ce7/VT_Decomp/49610c65-a66c-45e9-9ef3-a3b5ab80ac9f/call-VTRecal/all_normal_samples.vt2_normalized_spanning_alleles.vcf.gz \
+| bcftools annotate -x FORMAT/AD,FORMAT/DP,FORMAT/PL,FORMAT/VAF \
+  -O z -o $WRKDIR/data/TCGA.RAS_loci.exome.noGQs.vcf.gz
+# Get median GQ per sample for all autosomal biallelic homozygous SNPs
+bcftools view \
+  -m 2 -M 2 --types snps \
+  $WRKDIR/data/TCGA.RAS_loci.exome.noGQs.vcf.gz \
+| bcftools query -f '[%SAMPLE\t%GQ\n]' -i 'GT="AA"' \
+| gzip -c \
+> $WRKDIR/data/sample_info/TCGA.median_homalt_snp_gq.all_data.tsv.gz
+$CODEDIR/utils/calc_sample_medians.py \
+  $WRKDIR/data/sample_info/TCGA.median_homalt_snp_gq.all_data.tsv.gz \
+| gzip -c > $WRKDIR/data/sample_info/TCGA.median_homalt_gqs.tsv.gz
+# 3. Fill reference GQs per sample with sample-specific median homalt GQ
+$CODEDIR/scripts/data_processing/fill_missing_vcf_format_values.py \
+  --ignore-genotype \
+  $WRKDIR/data/TCGA.RAS_loci.exome.noGQs.vcf.gz \
+  $WRKDIR/data/sample_info/TCGA.median_homalt_gqs.tsv.gz \
+  $WRKDIR/data/TCGA.RAS_loci.exome.vcf.gz
 tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.exome.vcf.gz
 # Merge VCFs for exomes and arrays for each chromosome
 for contig in $( seq 1 22 ); do
@@ -207,7 +258,7 @@ $CODEDIR/scripts/data_processing/merge_tcga_arrays_exomes.py \
   --array-typed-vcf $WRKDIR/data/TCGA.RAS_loci.array_typed.$contig.vcf.gz \
   --array-imputed-vcf $WRKDIR/data/TCGA.RAS_loci.array_imputed.$contig.vcf.gz \
   --ref-fasta $WRKDIR/refs/GRCh37.fa \
-  --header $WRKDIR/refs/simple_hg19_header.vcf.gz \
+  --header $WRKDIR/refs/simple_hg19_header.wGQ.vcf.gz \
   --outfile $WRKDIR/data/TCGA.RAS_loci.$contig.vcf.gz \
   --verbose
 tabix -p vcf -f $WRKDIR/data/TCGA.RAS_loci.$contig.vcf.gz
@@ -221,7 +272,7 @@ EOF
     $WRKDIR/LSF/scripts/merge_arrays_exomes_RAS_loci.$contig.sh
 done
 # Merge tech-integrated germline variants across all chromosomes
-for contig in $( seq 1 22 ) X; do
+for contig in $( seq 1 22 ); do
   echo $WRKDIR/data/TCGA.RAS_loci.$contig.vcf.gz
 done > $WRKDIR/data/TCGA.RAS_loci.sharded_per_contig.vcfs.list
 bcftools concat \
