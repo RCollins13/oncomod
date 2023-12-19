@@ -327,7 +327,46 @@ $CODEDIR/scripts/germline_somatic_assoc/FGFR4_haplotype_analysis.R \
   $WRKDIR/plots/germline_somatic_assoc/FGFR4
 
 
+### Make allele dosage matrixes for FGFR4 locus for all three cohorts
+for cohort in TCGA PROFILE HMF; do
+  for suf in err log; do
+      log=$WRKDIR/LSF/logs/make_dosage_${cohort}_FGFR4.$suf
+      if [ -e $log ]; then rm $log; fi
+  done
+  bsub -q normal -sla miket_sc \
+    -J make_dosage_${cohort}_FGFR4 \
+    -o $WRKDIR/LSF/logs/make_dosage_${cohort}_FGFR4.log \
+    -e $WRKDIR/LSF/logs/make_dosage_${cohort}_FGFR4.err \
+    "$CODEDIR/scripts/data_processing/vcf2dosage.py \
+       $WRKDIR/data/FGFR4/$cohort.FGFR4.vcf.gz - \
+     | gzip -c > $WRKDIR/data/FGFR4/$cohort.FGFR4.dosage.tsv.gz"
+done
+
+
 ### Fit multivariate linear model to estimate marginal effects of FGFR4 variants
+# Prepare input data
+fgrep KRAS_cosmic_tier1_mutations \
+  $WRKDIR/data/variant_sets/test_sets/CRAD.KRAS.somatic_endpoints.tsv \
+| cut -f2 | sed 's/,/\n/g' | sort -V \
+> $WRKDIR/data/FGFR4/KRAS_tier_1.somatic.variant_ids.list
 # TODO: implement this
-# $CODEDIR/scripts/germline_somatic_assoc/fgfr4_multivariate_model.R
+$CODEDIR/scripts/germline_somatic_assoc/fgfr4_multivariate_model.R \
+  --sample-metadata $TCGADIR/data/sample_info/TCGA.ALL.sample_metadata.tsv.gz \
+  --somatic-ad $TCGADIR/data/TCGA.somatic_variants.dosage.tsv.gz \
+  --germline-ad $WRKDIR/data/FGFR4/TCGA.FGFR4.dosage.tsv.gz \
+  --name TCGA \
+  --eligible-controls $TCGADIR/data/sample_info/TCGA.ALL.eligible_controls.list \
+  --sample-metadata $PROFILEDIR/data/sample_info/PROFILE.ALL.sample_metadata.tsv.gz \
+  --somatic-ad $PROFILEDIR/data/PROFILE.somatic_variants.dosage.tsv.gz \
+  --germline-ad $WRKDIR/data/FGFR4/PROFILE.FGFR4.dosage.tsv.gz \
+  --name DFCI \
+  --eligible-controls $PROFILEDIR/data/sample_info/PROFILE.ALL.eligible_controls.list \
+  --sample-metadata $HMFDIR/data/sample_info/HMF.ALL.sample_metadata.tsv.gz \
+  --somatic-ad $HMFDIR/data/HMF.somatic_variants.dosage.tsv.gz \
+  --germline-ad $WRKDIR/data/FGFR4/HMF.FGFR4.dosage.tsv.gz \
+  --name HMF \
+  --eligible-controls $HMFDIR/data/sample_info/HMF.ALL.eligible_controls.list \
+  --cancer-type CRAD \
+  --somatic-variant-ids $WRKDIR/data/FGFR4/KRAS_tier_1.somatic.variant_ids.list \
+  --germline-haplotype-snps $WRKDIR/plots/germline_somatic_assoc/FGFR4/FGFR4.common_variants.haplotype_assignment.tsv
 

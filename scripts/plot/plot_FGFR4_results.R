@@ -193,6 +193,8 @@ axis(2, at=(1:7)-0.5, las=2, cex.axis=5/6, tick=F, line=-1,
      labels=c("Localization", "Bonds", "Domains", "Common",
               "Rare vars in\nKRAS mutant", "Rare vars in\nKRAS WT",
               "Rare vars in\nmutant & WT"))
+legend("topright", cex=5/6, fill=csq.colors, bg="white", xpd=T,
+       legend=c("Syn.", "Mis.", "LoF"))
 dev.off()
 
 # Compute relative frequency of rare FGFR4 germline hits by domain

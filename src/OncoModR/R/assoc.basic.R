@@ -35,6 +35,7 @@
 #' for each sample
 #' * `"sum"` : return the sum of allele dosages for all query rows per sample
 #' * `"max"` : return the max of allele dosages for all query rows per sample
+#' * `"mean"` : return the mean of allele dosages for all query rows per sample
 #'
 #' @return numeric vector or data.frame, depending on `action`
 #'
@@ -89,6 +90,7 @@ query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose",
 #' for each sample
 #' * `"sum"` : return the sum of allele dosages for all query rows per sample
 #' * `"max"` : return the max of allele dosages for all query rows per sample
+#' * `"mean"` : return the mean of allele dosages for all query rows per sample
 #'
 #' @return numeric or logical vector, depending on `action`
 #'
@@ -106,6 +108,10 @@ compress.ad.matrix <- function(ad.df, action, elig.controls=NULL){
     query.res <- apply(ad.df, 2, sum, na.rm=T)
   }else if(action == "max"){
     query.res <- apply(ad.df, 2, max, na.rm=T)
+  }else if(action == "mean"){
+    query.res <- apply(ad.df, 2, mean, na.rm=T)
+  }else{
+    stop(paste("action ", action, " not recognized as a viable option for compress.ad.matrix", sep="'"))
   }
   query.res[col.all.na] <- NA
   names(query.res) <- colnames(ad.df)
