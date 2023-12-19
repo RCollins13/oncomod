@@ -83,7 +83,7 @@ parser$add_argument("--eligible-controls", metavar="path", type="character",
                                "be treated as controls for association testing.",
                                "If no file is provided, all samples are eligible."),
                     action="append")
-parser$add_argument("--out-dir", metavar="path", type="character",
+parser$add_argument("--outdir", metavar="path", type="character",
                     help="output directory for results", default="./")
 parser$add_argument("--cancer-type", metavar="character",
                     help=paste("Subset to samples from this cancer type",
@@ -107,7 +107,7 @@ args <- parser$parse_args()
 #              "eligible_controls" = c("~/scratch/TCGA.ALL.eligible_controls.list",
 #                                      "~/scratch/PROFILE.ALL.eligible_controls.list",
 #                                      "~/scratch/HMF.ALL.eligible_controls.list"),
-#              "out_dir" = "~/scratch/",
+#              "outdir" = "~/scratch/",
 #              "cancer_type" = "CRAD")
 
 # Sanity check to make sure all cohorts have the same number of inputs
@@ -255,7 +255,7 @@ fit.df <- fit.df[, c("Variable", setdiff(colnames(fit.df), "Variable"))]
 
 # Write summary of regression coefficients
 write.table(fit.df,
-            paste(args$out_dir, "FGFR4.multivariate_regression_results.tsv", sep="/"),
+            paste(args$outdir, "FGFR4.multivariate_regression_results.tsv", sep="/"),
             col.names=T, row.names=F, quote=F, sep="\t")
 
 # Plot selected coefficients
@@ -284,7 +284,7 @@ plot.colors.shaded <- sapply(plot.df$Variable, function(v){
   adjustcolor(as.character(plot.colors[v]), alpha=alpha)
 })
 plot.label.colors <- c("TRUE"="black", "FALSE"="gray70")[as.character(plot.df$`Pr(>|z|)` <= 0.05)]
-pdf(paste(args$out_dir, "FGFR4.multivariate_association.coefficients.pdf", sep="/"),
+pdf(paste(args$outdir, "FGFR4.multivariate_association.coefficients.pdf", sep="/"),
     height=4.2, width=6)
 prep.plot.area(xlims=c(min(c(0, 1.5*min(plot.df$Estimate))), 1.5*max(plot.df$Estimate)),
                ylims=c(nrow(plot.df), 0), parmar=c(0.25, 7, 3, 4))
@@ -312,10 +312,11 @@ clean.axis(3, at=c(-rev(l2.at), 0, l2.at), infinite=TRUE,
            title=bquote("Odds of somatic" ~ italic("KRAS") ~ "mutation per germline" ~ italic("FGFR4") ~ "allele"))
 dev.off()
 
-# # Cross-tabs of EUR-only for two significant germline categories
-# eur.ids <- rownames(meta)[which(meta$POPULATION == "EUR")]
-# lapply(1:length(meta.list), function(i){
-#
-# })
-
+# Cross-tabs of EUR-only for two significant germline categories
+eur.ids <- rownames(meta)[which(meta$POPULATION == "EUR")]
+lapply(1:length(meta.list), function(i){
+  cohort.ids <- meta.list[[i]][, 1]
+  sub.ids <- intersect(rownames(test.df), intersect(eur.ids, cohort.ids))
+  print(table(test.df[sub.ids, c("Y", "G388R")]))
+})
 

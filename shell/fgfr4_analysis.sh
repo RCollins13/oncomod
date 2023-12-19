@@ -349,7 +349,6 @@ fgrep KRAS_cosmic_tier1_mutations \
   $WRKDIR/data/variant_sets/test_sets/CRAD.KRAS.somatic_endpoints.tsv \
 | cut -f2 | sed 's/,/\n/g' | sort -V \
 > $WRKDIR/data/FGFR4/KRAS_tier_1.somatic.variant_ids.list
-# TODO: implement this
 $CODEDIR/scripts/germline_somatic_assoc/fgfr4_multivariate_model.R \
   --sample-metadata $TCGADIR/data/sample_info/TCGA.ALL.sample_metadata.tsv.gz \
   --somatic-ad $TCGADIR/data/TCGA.somatic_variants.dosage.tsv.gz \
@@ -368,5 +367,7 @@ $CODEDIR/scripts/germline_somatic_assoc/fgfr4_multivariate_model.R \
   --eligible-controls $HMFDIR/data/sample_info/HMF.ALL.eligible_controls.list \
   --cancer-type CRAD \
   --somatic-variant-ids $WRKDIR/data/FGFR4/KRAS_tier_1.somatic.variant_ids.list \
-  --germline-haplotype-snps $WRKDIR/plots/germline_somatic_assoc/FGFR4/FGFR4.common_variants.haplotype_assignment.tsv
+  --germline-haplotype-snps $WRKDIR/plots/germline_somatic_assoc/FGFR4/FGFR4.common_variants.haplotype_assignment.tsv \
+  --coding-variant-map $WRKDIR/data/FGFR4/FGFR4.coding_variants.sets.tsv \
+  --out-dir $WRKDIR/plots/germline_somatic_assoc/FGFR4
 
