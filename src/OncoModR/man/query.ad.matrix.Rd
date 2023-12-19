@@ -45,6 +45,7 @@ for each sample
 for each sample
 \item \code{"sum"} : return the sum of allele dosages for all query rows per sample
 \item \code{"max"} : return the max of allele dosages for all query rows per sample
+\item \code{"mean"} : return the mean of allele dosages for all query rows per sample
 }
 }
 \seealso{
