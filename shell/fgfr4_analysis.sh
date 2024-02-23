@@ -367,6 +367,7 @@ $CODEDIR/scripts/germline_somatic_assoc/fgfr4_multivariate_model.R \
   --eligible-controls $HMFDIR/data/sample_info/HMF.ALL.eligible_controls.list \
   --cancer-type CRAD \
   --somatic-variant-ids $WRKDIR/data/FGFR4/KRAS_tier_1.somatic.variant_ids.list \
+  --somatic-variant-sets $WRKDIR/data/variant_sets/test_sets/CRAD.KRAS.somatic_endpoints.tsv \
   --germline-haplotype-snps $WRKDIR/plots/germline_somatic_assoc/FGFR4/FGFR4.common_variants.haplotype_assignment.tsv \
   --coding-variant-map $WRKDIR/data/FGFR4/FGFR4.coding_variants.sets.tsv \
   --outdir $WRKDIR/plots/germline_somatic_assoc/FGFR4

@@ -11,6 +11,8 @@
 # Fit multivariate regression model to estimate marginal effects of FGFR4 common
 # and rare germline variants on somatic KRAS tier 1 mutation status
 
+# Also compiles a table of counts for KRAS alleles by FGFR4 genotype
+
 
 #########
 # Setup #
@@ -32,6 +34,12 @@ protein.domains <- list("Ig-C2 1" = c(22, 118),
                         "Ig-C2 2" = c(152, 240),
                         "Ig-C2 3" = c(249, 349),
                         "Kinase" = c(467, 755))
+kras.aa.abbrevs <- c("Gly12Ala" = "G12A",
+                     "Gly12Asp" = "G12D",
+                     "Gly12Cys" = "G12C",
+                     "Gly12Ser" = "G12R",
+                     "Gly12Val" = "G12V",
+                     "Gly13Asp" = "G13D")
 
 
 ##################
@@ -49,6 +57,92 @@ simplify.vids <- function(ad.df){
 # Simple check of whether one integer is inside an interval defined by two other integers
 is.inside <- function(pos, interval){
   pos >= min(interval) & pos <= max(interval)
+}
+
+# Build a map of KRAS aa to nt changes
+make.aa.map <- function(set_map_tsv, somatic.vids){
+  set.map <- read.table(set_map_tsv, header=F, sep="\t")
+  colnames(set.map) <- c("csq", "vids")
+  set.map$vids <- sapply(set.map$vids, function(mstr){unlist(strsplit(mstr, split=","))})
+  ovr.idx <- which(sapply(set.map$vids, function(vids){length(intersect(vids, somatic.vids)) > 0}))
+  aa.idx <- grep("_p.", set.map$csq, fixed=T)
+  set.map <- set.map[intersect(ovr.idx, aa.idx), ]
+  set.map$csq <- sapply(set.map$csq, function(s){unlist(strsplit(s, split="_p.", fixed=T))[2]})
+  return(set.map[order(kras.aa.abbrevs[set.map$csq]), ])
+}
+
+# Compile a table of KRAS allele counts vs. cohort
+count.kras.alleles.by.cohort <- function(somatic.ad, cohort.names, kras.aa.map,
+                                         keep.samples=NULL){
+  res <- as.data.frame(do.call("cbind", lapply(1:nrow(kras.aa.map), function(aidx){
+    sapply(somatic.ad, function(df){
+      if(is.null(keep.samples)){
+        keep.samples <- colnames(df)
+      }
+      ad.vals <- apply(df[intersect(rownames(df), unlist(kras.aa.map[aidx, 2])),
+         intersect(colnames(df), keep.samples)], 2, sum, na.rm=T)
+      length(which(ad.vals > 0))
+    })
+  })))
+  colnames(res) <- kras.aa.abbrevs[kras.aa.map[, 1]]
+  rownames(res) <- cohort.names
+  return(res)
+}
+
+
+######################
+# Plotting Functions #
+######################
+# Plot coefficients from multivariate regression model
+plot.multivariate.coeffs <- function(fit.df){
+  plot.df <- fit.df[c("H3", "V10I", "G388R", "nonsyn_key_domains",
+                      "nonsyn_cytoplasmic", "nonsyn_other", "rare_synonymous"), ]
+  plot.df$lower <- plot.df$Estimate + (qnorm(0.025) * plot.df$`Std. Error`)
+  plot.df$upper <- plot.df$Estimate + (qnorm(0.975) * plot.df$`Std. Error`)
+  plot.df <- plot.df[order(-plot.df[, 4]), ]
+  plot.df[, c("Estimate", "lower", "upper")] <- log2(exp(plot.df[, c("Estimate", "lower", "upper")]))
+  plot.labels <- c("G388R" = "G388R",
+                   "nonsyn_key_domains" = "Rare nonsynonymous\nin transmem. domain\nor at disulfide bonds",
+                   "H3" = "Haplotype 3\n(includes P136L)",
+                   "V10I" = "V10I",
+                   "nonsyn_cytoplasmic" = "Rare nonsynonymous\nin cytoplasmic domain",
+                   "nonsyn_other" = "Other rare\nnonsynonymous",
+                   "rare_synonymous" = "Rare\nsynonymous")
+  plot.colors <- c("G388R" = as.character(csq.colors["missense"]),
+                   "nonsyn_key_domains" = as.character(csq.colors["missense"]),
+                   "H3" = as.character(csq.colors["missense"]),
+                   "V10I" = as.character(csq.colors["missense"]),
+                   "nonsyn_cytoplasmic" = as.character(csq.colors["missense"]),
+                   "nonsyn_other" = as.character(csq.colors["missense"]),
+                   "rare_synonymous" = as.character(csq.colors["synonymous"]))
+  plot.colors.shaded <- sapply(plot.df$Variable, function(v){
+    alpha <- if(plot.df[v, "Pr(>|z|)"] <= 0.05){1}else{0.3}
+    adjustcolor(as.character(plot.colors[v]), alpha=alpha)
+  })
+  plot.label.colors <- c("TRUE"="black", "FALSE"="gray75")[as.character(plot.df$`Pr(>|z|)` <= 0.05)]
+  prep.plot.area(xlims=c(min(c(log2(0.75), 1.5*min(plot.df$Estimate))), 1.5*max(plot.df$Estimate)),
+                 ylims=c(nrow(plot.df), 0), parmar=c(0.25, 7, 3, 4))
+  abline(v=0)
+  rect(xleft=0, xright=plot.df$Estimate,
+       ybottom=(1:nrow(plot.df))-0.9, ytop=(1:nrow(plot.df))-0.1,
+       col=plot.colors.shaded, border=plot.colors[plot.df$Variable])
+  segments(x0=plot.df$lower, x1=plot.df$upper,
+           y0=(1:nrow(plot.df))-0.5, y1=(1:nrow(plot.df))-0.5,
+           col=plot.label.colors)
+  sapply(1:nrow(plot.df), function(y){
+    axis(2, at=y-0.5, labels=plot.labels[plot.df$Variable[y]],
+         tick=F, line=-1, cex.axis=5/6, col.axis=plot.label.colors[y],
+         las=2)
+  })
+  sapply(1:nrow(plot.df), function(y){
+    axis(4, at=y-0.5, labels=OncoModR::format.pval(plot.df$`Pr(>|z|)`[y]),
+         tick=F, line=-1, cex.axis=5/6, col.axis=plot.label.colors[y],
+         las=2)
+  })
+  l2.at <- log2(c(0.75, 1, 1.25, 1.5, 2, 3, 4, 5))
+  l2.labels <- c(0.75, 1, 1.25, 1.5, 2, 3, 4, 5)
+  clean.axis(3, at=l2.at, infinite=TRUE, labels=paste(l2.labels, "x", sep=""),
+             title=bquote("Odds of somatic" ~ italic("KRAS") ~ "mutation per germline" ~ italic("FGFR4") ~ "allele"))
 }
 
 
@@ -73,6 +167,9 @@ parser$add_argument("--name", metavar="string", type="character", action="append
                                "in the same order"))
 parser$add_argument("--somatic-variant-ids", metavar=".txt", type="character",
                     help="List of somatic mutation IDs to consider tier 1", required=TRUE)
+parser$add_argument("--somatic-variant-sets", metavar=".tsv", type="character",
+                    help="Map of --somatic-variant-ids to somatic endpoints",
+                    required=TRUE)
 parser$add_argument("--germline-haplotype-snps", metavar=".tsv", type="character",
                     help="Two-column .tsv mapping variant IDs to haplotypes",
                     required=TRUE)
@@ -102,6 +199,7 @@ args <- parser$parse_args()
 #                                "~/scratch/HMF.FGFR4.dosage.tsv.gz"),
 #              "name" = c("TCGA", "PROFILE", "HMF"),
 #              "somatic_variant_ids" = "~/scratch/KRAS_tier_1.somatic.variant_ids.list",
+#              "somatic_variant_sets" = "~/scratch/CRAD.KRAS.somatic_endpoints.tsv",
 #              "germline_haplotype_snps" = "~/scratch/FGFR4.common_variants.haplotype_assignment.tsv",
 #              "coding_variant_map" = "~/scratch/FGFR4.coding_variants.sets.tsv",
 #              "eligible_controls" = c("~/scratch/TCGA.ALL.eligible_controls.list",
@@ -140,6 +238,7 @@ elig.controls <- intersect(samples.w.pheno, all.elig.controls)
 
 # Load germline and somatic variant lists
 somatic.vids <- sort(unique(read.table(args$somatic_variant_ids, header=F)[, 1]))
+kras.aa.map <- make.aa.map(args$somatic_variant_sets, somatic.vids)
 hap.snps <- read.table(args$germline_haplotype_snps, header=T, sep="\t", comment.char="")
 colnames(hap.snps) <- c("vid", "haplotype")
 coding.variants <- load.variant.sets(args$coding_variant_map)
@@ -259,57 +358,9 @@ write.table(fit.df,
             col.names=T, row.names=F, quote=F, sep="\t")
 
 # Plot selected coefficients
-plot.df <- fit.df[c("H3", "V10I", "G388R", "nonsyn_key_domains",
-                    "nonsyn_cytoplasmic", "nonsyn_other", "rare_synonymous"), ]
-plot.df$lower <- plot.df$Estimate + (qnorm(0.025) * plot.df$`Std. Error`)
-plot.df$upper <- plot.df$Estimate + (qnorm(0.975) * plot.df$`Std. Error`)
-plot.df <- plot.df[order(-plot.df[, 4]), ]
-plot.df[, c("Estimate", "lower", "upper")] <- log2(exp(plot.df[, c("Estimate", "lower", "upper")]))
-plot.labels <- c("G388R" = "G388R",
-                    "nonsyn_key_domains" = "Rare nonsynonymous\nin transmem. domain\nor at disulfide bonds",
-                    "H3" = "Haplotype 3\n(includes P136L)",
-                    "V10I" = "V10I",
-                    "nonsyn_cytoplasmic" = "Rare nonsynonymous\nin cytoplasmic domain",
-                    "nonsyn_other" = "Other rare\nnonsynonymous",
-                    "rare_synonymous" = "Rare\nsynonymous")
-plot.colors <- c("G388R" = as.character(csq.colors["missense"]),
-                    "nonsyn_key_domains" = as.character(csq.colors["missense"]),
-                    "H3" = as.character(csq.colors["missense"]),
-                    "V10I" = as.character(csq.colors["missense"]),
-                    "nonsyn_cytoplasmic" = as.character(csq.colors["missense"]),
-                    "nonsyn_other" = as.character(csq.colors["missense"]),
-                    "rare_synonymous" = as.character(csq.colors["synonymous"]))
-plot.colors.shaded <- sapply(plot.df$Variable, function(v){
-  alpha <- if(plot.df[v, "Pr(>|z|)"] <= 0.05){1}else{0.3}
-  adjustcolor(as.character(plot.colors[v]), alpha=alpha)
-})
-plot.label.colors <- c("TRUE"="black", "FALSE"="gray70")[as.character(plot.df$`Pr(>|z|)` <= 0.05)]
 pdf(paste(args$outdir, "FGFR4.multivariate_association.coefficients.pdf", sep="/"),
     height=4.2, width=6)
-prep.plot.area(xlims=c(min(c(0, 1.5*min(plot.df$Estimate))), 1.5*max(plot.df$Estimate)),
-               ylims=c(nrow(plot.df), 0), parmar=c(0.25, 7, 3, 4))
-abline(v=0)
-rect(xleft=0, xright=plot.df$Estimate,
-     ybottom=(1:nrow(plot.df))-0.9, ytop=(1:nrow(plot.df))-0.1,
-     col=plot.colors.shaded, border=plot.colors[plot.df$Variable])
-segments(x0=plot.df$lower, x1=plot.df$upper,
-         y0=(1:nrow(plot.df))-0.5, y1=(1:nrow(plot.df))-0.5)
-sapply(1:nrow(plot.df), function(y){
-  axis(2, at=y-0.5, labels=plot.labels[plot.df$Variable[y]],
-       tick=F, line=-1, cex.axis=5/6, col.axis=plot.label.colors[y],
-       las=2)
-})
-sapply(1:nrow(plot.df), function(y){
-  axis(4, at=y-0.5, labels=OncoModR::format.pval(plot.df$`Pr(>|z|)`[y]),
-       tick=F, line=-1, cex.axis=5/6, col.axis=plot.label.colors[y],
-       las=2)
-})
-l2.at <- log2(c(1.25, 1.5, 2, 3, 4, 5))
-l2.labels <- c(1.25, 1.5, 2, 3, 4, 5)
-clean.axis(3, at=c(-rev(l2.at), 0, l2.at), infinite=TRUE,
-           labels=c(paste("-", rev(l2.labels), "x", sep=""), "1x",
-                    paste(l2.labels, "x", sep="")),
-           title=bquote("Odds of somatic" ~ italic("KRAS") ~ "mutation per germline" ~ italic("FGFR4") ~ "allele"))
+plot.multivariate.coeffs(fit.df)
 dev.off()
 
 # Cross-tabs of EUR-only for two significant germline categories
@@ -320,3 +371,25 @@ lapply(1:length(meta.list), function(i){
   print(table(test.df[sub.ids, c("Y", "G388R")]))
 })
 
+# Cross-tabs of KRAS allele rates by FGFR genotype & cohort
+cat("\nRare missense carriers in key FGFR4 domains:\n")
+key_domains.sids <- rownames(test.df)[which(test.df$nonsyn_key_domains > 0)]
+key_domains.aa_rate <- count.kras.alleles.by.cohort(somatic.ad, cohort.names,
+                                                    kras.aa.map,
+                                                    keep.samples=key_domains.sids)
+print(key_domains.aa_rate)
+cat("\nFGFR4 G388R carriers:\n")
+g388r.sids <- rownames(test.df)[which(test.df$nonsyn_key_domains < 1
+                                      & test.df$G388R > 0)]
+g388r.aa_rate <- count.kras.alleles.by.cohort(somatic.ad, cohort.names,
+                                              kras.aa.map, keep.samples=g388r.sids)
+print(g388r.aa_rate)
+cat("\nAll other colorectal samples:\n")
+other.aa_rate <- count.kras.alleles.by.cohort(somatic.ad, cohort.names, kras.aa.map,
+                                   keep.samples=setdiff(rownames(test.df), c(key_domains.sids, g388r.sids)))
+print(other.aa_rate)
+
+
+# # Statistical test of key_domains vs. everything else
+# chisq.test(cbind(apply(key_domains.aa_rate, 2, sum),
+# apply(rbind(g388r.aa_rate, other.aa_rate), 2, sum)))

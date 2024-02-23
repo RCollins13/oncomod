@@ -227,6 +227,7 @@ scaled.swarm <- function(values, colors, group.names=NULL, sep.wex=0.05,
 #' @param legend.names (Optional) mapping of `values` to labels for legend
 #' @param legend.label.spacing Minimum vertical spacing between legend labels \[default: 0.075\]
 #' @param title (Optional) Title for plot
+#' @param y.title Title for Y-axis \[default: "Survival Probability"\]
 #' @param xlims (Optional) two-element vector of start and stop values for X-axis, in days
 #' @param parmar Margin values passed to par()
 #'
@@ -236,7 +237,8 @@ scaled.swarm <- function(values, colors, group.names=NULL, sep.wex=0.05,
 #' @export
 km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
                      legend=TRUE, legend.names=NULL, legend.label.spacing=0.075,
-                     title=NULL, xlims=NULL, parmar=c(2, 3, 0.25, 4)){
+                     title=NULL, y.title="Survival Probability",
+                     xlims=NULL, parmar=c(2, 3, 0.25, 4)){
   # Ensure survival library and OncoModR scale constants are loaded within function scope
   require(survival, quietly=TRUE)
   OncoModR::load.constants("scales", envir=environment())
@@ -295,7 +297,7 @@ km.curve <- function(surv.models, colors, group.names=NULL, ci.alpha=0.15,
   # Add axes
   clean.axis(1, at=x.ax.years*365, labels=x.ax.years, infinite=TRUE,
              title="Years", label.line=-0.75, title.line=0, tck=-0.0175)
-  clean.axis(2, title="Survival Probability", infinite=FALSE, tck=-0.0175)
+  clean.axis(2, title=y.title, infinite=FALSE, tck=-0.0175)
   mtext(title, side=3, line=0, font=2)
 
   # Add legend

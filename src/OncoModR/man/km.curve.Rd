@@ -13,6 +13,7 @@ km.curve(
   legend.names = NULL,
   legend.label.spacing = 0.075,
   title = NULL,
+  y.title = "Survival Probability",
   xlims = NULL,
   parmar = c(2, 3, 0.25, 4)
 )
@@ -33,6 +34,8 @@ km.curve(
 \item{legend.label.spacing}{Minimum vertical spacing between legend labels [default: 0.075]}
 
 \item{title}{(Optional) Title for plot}
+
+\item{y.title}{Title for Y-axis [default: "Survival Probability"]}
 
 \item{xlims}{(Optional) two-element vector of start and stop values for X-axis, in days}
 
