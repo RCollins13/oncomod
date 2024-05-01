@@ -11,23 +11,6 @@
 # Miscellaneous helper functions
 
 
-#' Stretch Vector
-#'
-#' Expand the length of a vector by repeating (or "stuttering") values
-#'
-#' @param values Vector of values to be stretched
-#' @param k Number of times to duplicate each element in `values`
-#'
-#' @examples
-#' stretch.vector(values=c(1, 2, 3), k=4)
-#'
-#' @export stretch.vector
-#' @export
-stretch.vector <- function(values, k){
-  as.vector(sapply(values, rep, times=k))
-}
-
-
 #' Parse Variant Set Members
 #'
 #' Parse a string of variant IDs that comprise a variant set
