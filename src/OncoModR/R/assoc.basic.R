@@ -22,6 +22,10 @@
 #' @param action Action to apply to query rows; see `Details`
 #' @param missing.vid.fill Value to fill for all samples if a specified variant
 #' ID from `vids` is not present in `ad` \[default: NA\]
+#' @param na.behavior Specify how `NA` entries in `ad.df` should be treated when
+#' compressing. See [compress.ad.matrix] for more information.
+#' @param na.frac Fraction of `NA` entries allowed before failing a sample.
+#' See [compress.ad.matrix] for more information.
 #'
 #' @details The `ad` argument accepts either a single data.frame or a list
 #' of data.frames. If a list is provided, each matrix will be queried individually
@@ -44,7 +48,8 @@
 #' @export query.ad.matrix
 #' @export
 query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose",
-                            missing.vid.fill=NA){
+                            missing.vid.fill=NA, na.behavior="threshold",
+                            na.frac=0.05){
 
   # If ad is a list, call this function recursively on each separately and
   # return the combined query results
@@ -70,7 +75,8 @@ query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose",
   }
 
   # Otherwise, apply various compression strategies prior to returning
-  return(compress.ad.matrix(sub.df, action=action, elig.controls=elig.controls))
+  return(compress.ad.matrix(sub.df, action=action, elig.controls=elig.controls,
+                            na.behavior=na.behavior, na.frac=na.frac))
 }
 
 

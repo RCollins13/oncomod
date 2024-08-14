@@ -9,7 +9,9 @@ query.ad.matrix(
   vids,
   elig.controls = NULL,
   action = "verbose",
-  missing.vid.fill = NA
+  missing.vid.fill = NA,
+  na.behavior = "threshold",
+  na.frac = 0.05
 )
 }
 \arguments{
@@ -24,6 +26,12 @@ query.ad.matrix(
 
 \item{missing.vid.fill}{Value to fill for all samples if a specified variant
 ID from \code{vids} is not present in \code{ad} [default: NA]}
+
+\item{na.behavior}{Specify how \code{NA} entries in \code{ad.df} should be treated when
+compressing. See \link{compress.ad.matrix} for more information.}
+
+\item{na.frac}{Fraction of \code{NA} entries allowed before failing a sample.
+See \link{compress.ad.matrix} for more information.}
 }
 \value{
 numeric vector or data.frame, depending on \code{action}

@@ -18,7 +18,7 @@
 
   # Check to make sure RLCtools is available
   if(!require(RLCtools)){
-    stop(paste("Dependency `RLCtools` is required for `PedSV` but is not found.\n",
+    stop(paste("Dependency `RLCtools` is required for `OncoModR` but is not found.\n",
                "For more info, see https://github.com/RCollins13/RLCtools\n", sep=""))
   }
 }

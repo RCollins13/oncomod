@@ -54,11 +54,6 @@ simplify.vids <- function(ad.df){
   return(ad.df)
 }
 
-# Simple check of whether one integer is inside an interval defined by two other integers
-is.inside <- function(pos, interval){
-  pos >= min(interval) & pos <= max(interval)
-}
-
 # Build a map of KRAS aa to nt changes
 make.aa.map <- function(set_map_tsv, somatic.vids){
   set.map <- read.table(set_map_tsv, header=F, sep="\t")
@@ -135,7 +130,7 @@ plot.multivariate.coeffs <- function(fit.df){
          las=2)
   })
   sapply(1:nrow(plot.df), function(y){
-    axis(4, at=y-0.5, labels=OncoModR::format.pval(plot.df$`Pr(>|z|)`[y]),
+    axis(4, at=y-0.5, labels=RLCtools::format.pval(plot.df$`Pr(>|z|)`[y]),
          tick=F, line=-1, cex.axis=5/6, col.axis=plot.label.colors[y],
          las=2)
   })
@@ -290,6 +285,11 @@ v10i.idx <- which(coding.variants$set_id == "ENST00000292408_p.Val10Ile")
 v10i.ac <- query.ad.matrix(germline.ad,
                            vids=unlist(coding.variants$variant_ids[v10i.idx]),
                            action="sum", missing.vid.fill=0)
+# rare_nonsyn.idxs <- which(coding.variants$csq != "synonymous"
+#                               & coding.variants$AF < 0.01)
+# rare_nonsyn.vids <- unlist(coding.variants$variant_ids[rare_nonsyn.idxs])
+# rare_nonsyn.ac <- query.ad.matrix(germline.ad, vids=rare_nonsyn.vids,
+#                                       action="sum", missing.vid.fill=0)
 key_domains.idxs <- which(coding.variants$csq != "synonymous"
                           & coding.variants$AF < 0.01
                           & (sapply(coding.variants$aa, is.inside, interval=protein.regions[[2]])
@@ -317,7 +317,7 @@ rare_synonymous.ac <- query.ad.matrix(germline.ad, vids=rare_synonymous.vids,
                                    action="sum", missing.vid.fill=0)
 
 # Get somatic mutation status
-Y.vals <- query.ad.matrix(somatic.ad, somatic.vids, elig.controls=elig.controls, action="any")
+Y.vals <- query.ad.matrix(somatic.ad, somatic.vids, elig.controls=elig.controls, action="any", missing.vid.fill=0)
 Y.vals <- Y.vals[which(!is.na(Y.vals))]
 
 # Build test dataframe
@@ -333,6 +333,7 @@ test.df$Y <- Y.vals[final.samples]
 test.df$H3 <- hap.dosage[final.samples, "H3"]
 test.df$V10I <- v10i.ac[final.samples]
 test.df$G388R <- g388r.ac[final.samples]
+# test.df$rare_nonsyn <- rare_nonsyn.ac[final.samples]
 test.df$nonsyn_key_domains <- key_domains.ac[final.samples]
 test.df$nonsyn_cytoplasmic <- cytoplasmic.ac[final.samples]
 test.df$nonsyn_other <- nonsyn_other.ac[final.samples]
