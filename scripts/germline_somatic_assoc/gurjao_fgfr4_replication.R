@@ -33,6 +33,10 @@ protein.domains <- list("Ig-C2 1" = c(22, 118),
                         "Ig-C2 3" = c(249, 349),
                         "Kinase" = c(467, 755))
 tier1.muts <- c("G12D", "G12V", "G13D", "G12R", "G12A", "G12C")
+control.exclusion.list <- c("G12A", "G12C", "G12D", "G12R", "G12S", "G12T", "G12V",
+                            "Q61H", "Q61K", "Q61L", "Q61R", "A146P", "A146T",
+                            "A146V", "G10dup", "G13C", "G13D", "G13dup", "G13R",
+                            "G13V", "L19F", "Q22K", "D33E", "A59T", "K117N", "K117R")
 
 
 ##################
@@ -71,8 +75,8 @@ add.kras.status <- function(meta, tsv.in){
   # Get list of samples with tier 1 mutation or other mutation
   # Assume all other samples are WT (elig controls)
   tier1.ids <- unique(kras.df$ID[which(kras.df$aa_csq %in% tier1.muts)])
-  other.ids <- setdiff(kras.df$ID, tier1.ids)
-  wt.ids <- setdiff(meta$ID, kras.df$ID)
+  noncontrol.ids <- unique(kras.df$ID[which(kras.df$aa_csq %in% control.exclusion.list)])
+  wt.ids <- setdiff(meta$ID, noncontrol.ids)
 
   # Annotate sample metadata with KRAS mutation status
   # Only keep WT or Tier 1 samples
@@ -158,7 +162,8 @@ p136l.ac <- query.ad.matrix(germline.ad,
                            action="sum", missing.vid.fill=0)
 rare_nonsyn.idxs <- which(csq.df$csq != "synonymous" & csq.df$AF < 0.01)
 rare_nonsyn.vids <- unlist(csq.df$VID[rare_nonsyn.idxs])
-rare_nonsyn.ac <- query.ad.matrix(germline.ad, vids=rare_nonsyn.vids, action="sum")
+rare_nonsyn.ac <- query.ad.matrix(germline.ad, vids=rare_nonsyn.vids,
+                                  action="sum", missing.vid.fill=0)
 # key_domains.idxs <- which(csq.df$csq != "synonymous"
 #                           & csq.df$AF < 0.01
 #                           & (sapply(csq.df$aa_number, is.inside, interval=protein.regions[[2]])
@@ -182,7 +187,8 @@ rare_nonsyn.ac <- query.ad.matrix(germline.ad, vids=rare_nonsyn.vids, action="su
 rare_synonymous.idxs <- which(csq.df$csq == "synonymous"
                               & csq.df$AF < 0.01)
 rare_synonymous.vids <- unlist(csq.df$VID[rare_synonymous.idxs])
-rare_synonymous.ac <- query.ad.matrix(germline.ad, vids=rare_synonymous.vids, action="sum")
+rare_synonymous.ac <- query.ad.matrix(germline.ad, vids=rare_synonymous.vids,
+                                      action="sum", missing.vid.fill=0, )
 
 # Get somatic mutation status
 Y.vals <- as.numeric(meta$tier1)
@@ -209,7 +215,8 @@ test.df$rare_synonymous <- rare_synonymous.ac[final.samples]
 test.df$Age <- scale(test.df$Age)
 pc.idxs <- grep("^PC[1-9]", colnames(test.df))
 test.df[, pc.idxs] <- apply(test.df[, pc.idxs], 2, scale)
-test.df <- test.df[complete.cases(test.df), ]
+test.df <- impute.missing.values(test.df, fill.columns=c("rare_nonsyn", "rare_synonymous"))
+# test.df <- test.df[complete.cases(test.df), ]
 
 # Fit regression
 fit <- glm(Y ~ ., data=test.df, family="binomial")
