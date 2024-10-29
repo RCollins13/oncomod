@@ -8,7 +8,7 @@
 # Distributed under terms of the GNU GPL v2.0 License (see LICENSE)
 # Contact: Ryan L. Collins <Ryan_Collins@dfci.harvard.edu>
 
-# Utility functions for handling and manipulating germline variant data
+# Utility functions for handling and manipulating genomic variant data
 
 
 #' Infer germline position
@@ -33,3 +33,26 @@ infer.germline.position.from.id <- function(vid, extract="position"){
     as.character(v[length(v) - 3])
   }
 }
+
+
+#' Simplify allele dosage variant IDs
+#'
+#' Simplify variant IDs for a single allele dosage matrix
+#'
+#' @param ad.df Allele dosage matrix as read by [RLCtools::query.ad.matrix()]
+#'
+#' @returns Allele dosage matrix with simplified variant IDs.
+#'
+#' @details Note that this function assumes the variant IDs adhere to the
+#' ID format of chrom_pos_ref_alt used throughout this study
+#'
+#' @export simplify.vids
+#' @export
+simplify.vids <- function(ad.df){
+  rownames(ad.df) <- sapply(rownames(ad.df), function(vid){
+    parts <- unlist(strsplit(vid, split="_"))
+    paste(parts[(length(parts)-3):length(parts)], collapse="_")
+  })
+  return(ad.df)
+}
+

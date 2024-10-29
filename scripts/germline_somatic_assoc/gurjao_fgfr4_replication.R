@@ -132,6 +132,10 @@ args <- parser$parse_args()
 # Load sample metadata and filter to samples for consideration in analysis
 meta <- load.gurjao.meta(args$sample_metadata, args$pcs)
 
+# Dev code to quickly estimate European samples (those with all PC Z-scores within ~ [-1, 1])
+# eur.ids <- rownames(meta)[which(apply(apply(meta[, grep("^PC", colnames(meta))], 2, scale), 1, function(v){all(v < 1 & v > -1)}))]
+# meta <- meta[eur.ids, ]
+
 # Add KRAS mutation status to sample metadata and only retain eligible controls or Tier 1 mutants
 meta <- add.kras.status(meta, args$kras_status)
 
@@ -156,34 +160,10 @@ g388r.idx <- which(csq.df$aa_number == 388 & csq.df$aa_change == "G/R")
 g388r.ac <- query.ad.matrix(germline.ad, vids=unlist(csq.df$VID[g388r.idx]), action="sum")
 v10i.idx <- which(csq.df$aa_number == 10 & csq.df$aa_change == "V/I")
 v10i.ac <- query.ad.matrix(germline.ad, vids=unlist(csq.df$VID[v10i.idx]), action="sum")
-p136l.idx <- which(csq.df$aa_number == 136 & csq.df$aa_change == "P/L")
-p136l.ac <- query.ad.matrix(germline.ad,
-                           vids=unlist(csq.df$VID[p136l.idx]),
-                           action="sum", missing.vid.fill=0)
 rare_nonsyn.idxs <- which(csq.df$csq != "synonymous" & csq.df$AF < 0.01)
 rare_nonsyn.vids <- unlist(csq.df$VID[rare_nonsyn.idxs])
 rare_nonsyn.ac <- query.ad.matrix(germline.ad, vids=rare_nonsyn.vids,
                                   action="sum", missing.vid.fill=0)
-# key_domains.idxs <- which(csq.df$csq != "synonymous"
-#                           & csq.df$AF < 0.01
-#                           & (sapply(csq.df$aa_number, is.inside, interval=protein.regions[[2]])
-#                              | sapply(csq.df$aa_number, is.inside, interval=disulfide.bonds[[2]])
-#                              | sapply(csq.df$aa_number, is.inside, interval=disulfide.bonds[[3]])))
-# key_domains.vids <- unlist(csq.df$VID[key_domains.idxs])
-# key_domains.ac <- query.ad.matrix(germline.ad, vids=key_domains.vids,
-#                                   action="sum", missing.vid.fill=0)
-# cytoplasmic.idxs <- which(csq.df$csq != "synonymous"
-#                           & csq.df$AF < 0.01
-#                           & sapply(csq.df$aa_number, is.inside, interval=protein.regions[[3]]))
-# cytoplasmic.vids <- unlist(csq.df$VID[cytoplasmic.idxs])
-# cytoplasmic.ac <- query.ad.matrix(germline.ad, vids=cytoplasmic.vids,
-#                                   action="sum", missing.vid.fill=0)
-# nonsyn_other.idxs <- setdiff(which(csq.df$csq != "synonymous"
-#                                    & csq.df$AF < 0.01),
-#                              c(key_domains.idxs, cytoplasmic.idxs))
-# nonsyn_other.vids <- unlist(csq.df$VID[nonsyn_other.idxs])
-# nonsyn_other.ac <- query.ad.matrix(germline.ad, vids=nonsyn_other.vids,
-#                                    action="sum", missing.vid.fill=0)
 rare_synonymous.idxs <- which(csq.df$csq == "synonymous"
                               & csq.df$AF < 0.01)
 rare_synonymous.vids <- unlist(csq.df$VID[rare_synonymous.idxs])
@@ -197,20 +177,14 @@ names(Y.vals) <- rownames(meta)
 # Build test dataframe
 meta.samples <- rownames(meta)
 Y.samples <- names(Y.vals)
-# final.samples <- intersect(intersect(meta.samples, Y.samples), names(all_nonsyn.ac))
-final.samples <- intersect(intersect(meta.samples, Y.samples), names(p136l.ac))
+final.samples <- intersect(meta.samples, Y.samples)
 test.df <- meta[final.samples,
                 c("Cohort", "Age", "Sex", "advanced_disease",
                   colnames(meta)[grep("^PC[1-4]$", colnames(meta))])]
 test.df$Y <- Y.vals[final.samples]
-# test.df$all_nonsyn <- all_nonsyn.ac[final.samples]
-test.df$H3 <- p136l.ac[final.samples]
 test.df$V10I <- v10i.ac[final.samples]
 test.df$G388R <- g388r.ac[final.samples]
 test.df$rare_nonsyn <- rare_nonsyn.ac[final.samples]
-# test.df$nonsyn_key_domains <- key_domains.ac[final.samples]
-# test.df$nonsyn_cytoplasmic <- cytoplasmic.ac[final.samples]
-# test.df$nonsyn_other <- nonsyn_other.ac[final.samples]
 test.df$rare_synonymous <- rare_synonymous.ac[final.samples]
 test.df$Age <- scale(test.df$Age)
 pc.idxs <- grep("^PC[1-9]", colnames(test.df))

@@ -10,8 +10,8 @@ query.ad.matrix(
   elig.controls = NULL,
   action = "verbose",
   missing.vid.fill = NA,
-  na.behavior = "threshold",
-  na.frac = 0.05
+  na.behavior = "all",
+  na.frac = 1
 )
 }
 \arguments{
@@ -28,9 +28,9 @@ query.ad.matrix(
 ID from \code{vids} is not present in \code{ad} [default: NA]}
 
 \item{na.behavior}{Specify how \code{NA} entries in \code{ad.df} should be treated when
-compressing. See \link{compress.ad.matrix} for more information.}
+compressing. See \link{compress.ad.matrix} for more information. [default: "all"]}
 
-\item{na.frac}{Fraction of \code{NA} entries allowed before failing a sample.
+\item{na.frac}{Fraction of \code{NA} entries allowed before failing a sample. [default: 1]
 See \link{compress.ad.matrix} for more information.}
 }
 \value{

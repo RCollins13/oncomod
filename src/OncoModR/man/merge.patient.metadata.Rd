@@ -4,13 +4,16 @@
 \alias{merge.patient.metadata}
 \title{Merge patient metadata}
 \usage{
-\method{merge}{patient.metadata}(meta.list, cancer, cohort.names = NULL)
+\method{merge}{patient.metadata}(meta.list, cancer, cohort.names = NULL, impute.missing = TRUE)
 }
 \arguments{
 \item{meta.list}{List of data frames, one per cohort, as loaded by \link{load.patient.metadata}}
 
 \item{cancer}{Subset metadata to a specific cancer type before merging
 [default: keep all samples]}
+
+\item{impute.missing}{Should missing values be imputed on a cohort specific
+basis? [default: TRUE]}
 }
 \value{
 data.frame

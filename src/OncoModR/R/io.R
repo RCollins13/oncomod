@@ -61,6 +61,8 @@ load.patient.metadata <- function(file, fill.missing=NA, fill.columns=NULL,
 #' @param meta.list List of data frames, one per cohort, as loaded by [load.patient.metadata]
 #' @param cancer Subset metadata to a specific cancer type before merging
 #' \[default: keep all samples\]
+#' @param impute.missing Should missing values be imputed on a cohort specific
+#' basis? \[default: TRUE\]
 #'
 #' @return data.frame
 #'
@@ -68,7 +70,8 @@ load.patient.metadata <- function(file, fill.missing=NA, fill.columns=NULL,
 #'
 #' @export merge.patient.metadata
 #' @export
-merge.patient.metadata <- function(meta.list, cancer, cohort.names=NULL){
+merge.patient.metadata <- function(meta.list, cancer, cohort.names=NULL,
+                                   impute.missing=TRUE){
   if(is.null(cohort.names)){
     cohort.names <- paste("cohort", 1:length(meta.list), sep="_")
   }
@@ -84,7 +87,9 @@ merge.patient.metadata <- function(meta.list, cancer, cohort.names=NULL){
     meta.sub[, 1] <- NULL
 
     # Impute missing phenotype data as median or mode (depending on variable class)
-    meta.sub <- impute.missing.values(meta.sub, fill.missing="median")
+    if(impute.missing){
+      meta.sub <- impute.missing.values(meta.sub, fill.missing="median")
+    }
 
     # Suffix PC covariates with cohort name (to be imputed across cohorts separately)
     pc.idxs <- grep("^PC[0-9]", colnames(meta.sub))

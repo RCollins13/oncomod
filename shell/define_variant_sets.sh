@@ -89,7 +89,7 @@ for cohort in TCGA PROFILE HMF; do
       logfile=$WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_$context.$suf
       if [ -e $logfile ]; then rm $logfile; fi
     done
-    bsub -q short -sla miket_sc \
+    bsub -q normal -sla miket_sc \
       -J find_recurrent_codons_${cohort}_$context \
       -o $WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_$context.log \
       -e $WRKDIR/LSF/logs/find_recurrent_codons_${cohort}_$context.err \
@@ -118,7 +118,7 @@ for cohort in TCGA PROFILE HMF; do
       logfile=$WRKDIR/LSF/logs/find_recurrent_exons_${cohort}_$context.$suf
       if [ -e $logfile ]; then rm $logfile; fi
     done
-    bsub -q short \
+    bsub -q normal \
       -J find_recurrent_exons_${cohort}_$context \
       -o $WRKDIR/LSF/logs/find_recurrent_exons_${cohort}_$context.log \
       -e $WRKDIR/LSF/logs/find_recurrent_exons_${cohort}_$context.err \
@@ -203,7 +203,7 @@ for cohort in TCGA PROFILE HMF; do
       logfile=$WRKDIR/LSF/logs/get_coding_freqs_${cohort}_$context.$suf
       if [ -e $logfile ]; then rm $logfile; fi
     done
-    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+    bsub -q normal -sla miket_sc -R "rusage[mem=16000]" -n 4 \
       -J get_coding_freqs_${cohort}_$context \
       -o $WRKDIR/LSF/logs/get_coding_freqs_${cohort}_$context.log \
       -e $WRKDIR/LSF/logs/get_coding_freqs_${cohort}_$context.err \
@@ -256,7 +256,7 @@ for cohort in TCGA PROFILE HMF; do
       logfile=$WRKDIR/LSF/logs/get_other_freqs_${cohort}_$context.$suf
       if [ -e $logfile ]; then rm $logfile; fi
     done
-    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+    bsub -q normal -sla miket_sc -R "rusage[mem=16000]" -n 4 \
       -J get_other_freqs_${cohort}_$context \
       -o $WRKDIR/LSF/logs/get_other_freqs_${cohort}_$context.log \
       -e $WRKDIR/LSF/logs/get_other_freqs_${cohort}_$context.err \
@@ -297,7 +297,7 @@ for cohort in TCGA PROFILE HMF; do
       logfile=$WRKDIR/LSF/logs/get_recurrent_codon_freqs_${cohort}_$context.$suf
       if [ -e $logfile ]; then rm $logfile; fi
     done
-    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+    bsub -q normal -sla miket_sc -R "rusage[mem=16000]" -n 4 \
       -J get_recurrent_codon_freqs_${cohort}_$context \
       -o $WRKDIR/LSF/logs/get_recurrent_codon_freqs_${cohort}_$context.log \
       -e $WRKDIR/LSF/logs/get_recurrent_codon_freqs_${cohort}_$context.err \
@@ -338,7 +338,7 @@ for cohort in TCGA PROFILE HMF; do
       logfile=$WRKDIR/LSF/logs/get_recurrent_exon_freqs_${cohort}_$context.$suf
       if [ -e $logfile ]; then rm $logfile; fi
     done
-    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+    bsub -q normal -sla miket_sc -R "rusage[mem=16000]" -n 4 \
       -J get_recurrent_exon_freqs_${cohort}_$context \
       -o $WRKDIR/LSF/logs/get_recurrent_exon_freqs_${cohort}_$context.log \
       -e $WRKDIR/LSF/logs/get_recurrent_exon_freqs_${cohort}_$context.err \
@@ -379,7 +379,7 @@ for cohort in TCGA PROFILE HMF; do
       logfile=$WRKDIR/LSF/logs/get_burden_set_freqs_${cohort}_$context.$suf
       if [ -e $logfile ]; then rm $logfile; fi
     done
-    bsub -q big-multi -sla miket_sc -R "rusage[mem=16000]" -n 4 \
+    bsub -q normal -sla miket_sc -R "rusage[mem=16000]" -n 4 \
       -J get_burden_set_freqs_${cohort}_$context \
       -o $WRKDIR/LSF/logs/get_burden_set_freqs_${cohort}_$context.log \
       -e $WRKDIR/LSF/logs/get_burden_set_freqs_${cohort}_$context.err \

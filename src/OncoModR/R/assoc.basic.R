@@ -23,8 +23,8 @@
 #' @param missing.vid.fill Value to fill for all samples if a specified variant
 #' ID from `vids` is not present in `ad` \[default: NA\]
 #' @param na.behavior Specify how `NA` entries in `ad.df` should be treated when
-#' compressing. See [compress.ad.matrix] for more information.
-#' @param na.frac Fraction of `NA` entries allowed before failing a sample.
+#' compressing. See [compress.ad.matrix] for more information. \[default: "all"\]
+#' @param na.frac Fraction of `NA` entries allowed before failing a sample. \[default: 1\]
 #' See [compress.ad.matrix] for more information.
 #'
 #' @details The `ad` argument accepts either a single data.frame or a list
@@ -48,8 +48,8 @@
 #' @export query.ad.matrix
 #' @export
 query.ad.matrix <- function(ad, vids, elig.controls=NULL, action="verbose",
-                            missing.vid.fill=NA, na.behavior="threshold",
-                            na.frac=0.05){
+                            missing.vid.fill=NA, na.behavior="all",
+                            na.frac=1){
 
   # If ad is a list, call this function recursively on each separately and
   # return the combined query results
@@ -182,7 +182,8 @@ query.gq.matrix <- function(gq, ad, vids=NULL, fill.mean=TRUE){
 #' reported as `NA` in the returned vector.
 #'
 #' @details By default, the following covariates will be included:
-#' * Age, sex, and an interaction term for age by sex
+#' * Age and sex
+#' * Advanced disease (stage III+)
 #' * Top ten principal components \(PCs\)
 #' * Tumor purity
 #'
@@ -235,14 +236,14 @@ germline.somatic.assoc <- function(y.vals, x.vals, meta, gqs=NULL,
 
   # Construct test df from y, x, and meta
   cov.to.keep <- Reduce(union,
-                        list(c("AGE_AT_DIAGNOSIS", "SEX", "TUMOR_PURITY"),
+                        list(c("AGE_AT_DIAGNOSIS", "SEX", "TUMOR_PURITY",
+                               "ADVANCED_DISEASE"),
                              custom.covariates,
                              colnames(meta)[grep("^PC[0-9]", colnames(meta))]))
   test.df <- meta[samples, intersect(cov.to.keep, colnames(meta))]
   test.df$SEX <- as.numeric(test.df$SEX == "MALE")
   test.df <- cbind(data.frame("Y" = y.vals, "X" = x.vals, row.names=names(y.vals)),
                    test.df)
-  test.df$AGE_BY_SEX <- test.df$AGE_AT_DIAGNOSIS * test.df$SEX
 
   # Add genotype qualities, if optioned
   if(!is.null(gqs)){

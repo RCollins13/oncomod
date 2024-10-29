@@ -45,15 +45,6 @@ kras.aa.abbrevs <- c("Gly12Ala" = "G12A",
 ##################
 # Data Functions #
 ##################
-# Simplify variant IDs for a single allele dosage matrix
-simplify.vids <- function(ad.df){
-  rownames(ad.df) <- sapply(rownames(ad.df), function(vid){
-    parts <- unlist(strsplit(vid, split="_"))
-    paste(parts[(length(parts)-3):length(parts)], collapse="_")
-  })
-  return(ad.df)
-}
-
 # Build a map of KRAS aa to nt changes
 make.aa.map <- function(set_map_tsv, somatic.vids){
   set.map <- read.table(set_map_tsv, header=F, sep="\t")
@@ -90,22 +81,23 @@ count.kras.alleles.by.cohort <- function(somatic.ad, cohort.names, kras.aa.map,
 ######################
 # Plot coefficients from multivariate regression model
 plot.multivariate.coeffs <- function(fit.df){
-  plot.df <- fit.df[c("H3", "V10I", "G388R", "nonsyn_key_domains",
-                      "nonsyn_cytoplasmic", "nonsyn_other", "rare_synonymous"), ]
+  coeffs.to.plot <- c("H3", "V10I", "G388R", "nonsyn_key_domains",
+                      "nonsyn_cytoplasmic", "nonsyn_other", "rare_synonymous")
+  plot.df <- fit.df[intersect(coeffs.to.plot, rownames(fit.df)), ]
   plot.df$lower <- plot.df$Estimate + (qnorm(0.025) * plot.df$`Std. Error`)
   plot.df$upper <- plot.df$Estimate + (qnorm(0.975) * plot.df$`Std. Error`)
   plot.df <- plot.df[order(-plot.df[, 4]), ]
   plot.df[, c("Estimate", "lower", "upper")] <- log2(exp(plot.df[, c("Estimate", "lower", "upper")]))
   plot.labels <- c("G388R" = "G388R",
                    "nonsyn_key_domains" = "Rare nonsynonymous\nin transmem. domain\nor at disulfide bonds",
-                   "H3" = "Haplotype 3\n(includes P136L)",
+                   # "H3" = "Haplotype 3\n(includes P136L)",
                    "V10I" = "V10I",
                    "nonsyn_cytoplasmic" = "Rare nonsynonymous\nin cytoplasmic domain",
                    "nonsyn_other" = "Other rare\nnonsynonymous",
                    "rare_synonymous" = "Rare\nsynonymous")
   plot.colors <- c("G388R" = as.character(csq.colors["missense"]),
                    "nonsyn_key_domains" = as.character(csq.colors["missense"]),
-                   "H3" = as.character(csq.colors["missense"]),
+                   # "H3" = as.character(csq.colors["missense"]),
                    "V10I" = as.character(csq.colors["missense"]),
                    "nonsyn_cytoplasmic" = as.character(csq.colors["missense"]),
                    "nonsyn_other" = as.character(csq.colors["missense"]),
@@ -250,33 +242,38 @@ germline.ad <- lapply(args$germline_ad, load.ad.matrix, sample.subset=samples.w.
 somatic.ad <- lapply(args$somatic_ad, load.ad.matrix, sample.subset=samples.w.pheno,
                      variant.subset=somatic.vids)
 
-# Make copies of germline AD matrixes with "simple" variant IDs
-# This is required for haplotype dosage estimation (below)
-germline.ad.simpleIDs <- lapply(germline.ad, simplify.vids)
-
-# Estimate haplotype dosage for each sample based on available data
-haplotypes <- sort(unique(hap.snps$haplotype))
-hap.dosage <- do.call("cbind", lapply(haplotypes, function(hid){
-  marker.vids <- hap.snps$vid[which(hap.snps$haplotype == hid)]
-  query.ad.matrix(germline.ad.simpleIDs, vids=marker.vids, action="mean")
-}))
-colnames(hap.dosage) <- haplotypes
-hap.dosage <- impute.missing.values(hap.dosage, fill.columns=haplotypes)
-hap.dosage <- as.data.frame(t(apply(hap.dosage, 1, function(h.est){
-  if(sum(h.est) < 2){
-    h.est <- h.est + ((2 - sum(h.est)) / length(haplotypes))
-  }
-  2 * h.est / sum(h.est, na.rm=T)
-})))
-rm(germline.ad.simpleIDs)
+# # Make copies of germline AD matrixes with "simple" variant IDs
+# # This is required for haplotype dosage estimation (below)
+# germline.ad.simpleIDs <- lapply(germline.ad, simplify.vids)
+#
+# # Estimate haplotype dosage for each sample based on available data
+# haplotypes <- sort(unique(hap.snps$haplotype))
+# hap.dosage <- do.call("cbind", lapply(haplotypes, function(hid){
+#   marker.vids <- hap.snps$vid[which(hap.snps$haplotype == hid)]
+#   query.ad.matrix(germline.ad.simpleIDs, vids=marker.vids, action="mean")
+# }))
+# colnames(hap.dosage) <- haplotypes
+# hap.dosage <- impute.missing.values(hap.dosage, fill.columns=haplotypes)
+# hap.dosage <- as.data.frame(t(apply(hap.dosage, 1, function(h.est){
+#   if(sum(h.est) < 2){
+#     h.est <- h.est + ((2 - sum(h.est)) / length(haplotypes))
+#   }
+#   2 * h.est / sum(h.est, na.rm=T)
+# })))
+# rm(germline.ad.simpleIDs)
 
 # Estimate allele frequency for all coding variants
-coding.afs <- sapply(coding.variants$variant_ids, function(vlist){
-  mean(query.ad.matrix(germline.ad, vids=unlist(vlist), action="mean"), na.rm=T)
+coding.afs <- lapply(coding.variants$variant_ids, function(vlist){
+  v <- mean(query.ad.matrix(germline.ad, vids=unlist(vlist), action="sum"), na.rm=T) / 2
+  if(!is.na(v)){v}else{0}
 })
 coding.variants$AF <- coding.afs
 
 # Get germline allele counts for various sets of FGFR4 alleles of interest
+h3.idx <- which(coding.variants$set_id == "ENST00000292408_p.Pro136Leu")
+h3.ac <- query.ad.matrix(germline.ad,
+                         vids=unlist(coding.variants$variant_ids[h3.idx]),
+                         action="sum", missing.vid.fill=0)
 g388r.idx <- which(coding.variants$set_id == "ENST00000292408_p.Gly388Arg")
 g388r.ac <- query.ad.matrix(germline.ad,
                            vids=unlist(coding.variants$variant_ids[g388r.idx]),
@@ -295,7 +292,7 @@ key_domains.idxs <- which(coding.variants$csq != "synonymous"
                           & (sapply(coding.variants$aa, is.inside, interval=protein.regions[[2]])
                              | sapply(coding.variants$aa, is.inside, interval=disulfide.bonds[[2]])
                              | sapply(coding.variants$aa, is.inside, interval=disulfide.bonds[[3]])))
-key_domains.vids <- unlist(coding.variants$variant_ids[key_domains.idxs])
+key_domains.vids <- unlist(coding.variants[key_domains.idxs, "variant_ids"])
 key_domains.ac <- query.ad.matrix(germline.ad, vids=key_domains.vids,
                                   action="sum", missing.vid.fill=0)
 cytoplasmic.idxs <- which(coding.variants$csq != "synonymous"
@@ -323,14 +320,17 @@ Y.vals <- Y.vals[which(!is.na(Y.vals))]
 # Build test dataframe
 meta.samples <- rownames(meta)
 Y.samples <- names(Y.vals)
-haplotype.samples <- rownames(hap.dosage)
-final.samples <- intersect(intersect(meta.samples, Y.samples), haplotype.samples)
+# haplotype.samples <- rownames(hap.dosage)
+# final.samples <- intersect(intersect(meta.samples, Y.samples), haplotype.samples)
+final.samples <- intersect(meta.samples, Y.samples)
 test.df <- meta[final.samples, c("SEX", "AGE_AT_DIAGNOSIS", "TUMOR_PURITY",
                       colnames(meta)[grep("^cohort\\.", colnames(meta))],
                       colnames(meta)[grep("^PC[1-3]\\.", colnames(meta))])]
 test.df$SEX <- as.numeric(test.df$SEX == "MALE")
 test.df$Y <- Y.vals[final.samples]
-test.df$H3 <- hap.dosage[final.samples, "H3"]
+# test.df$H3 <- hap.dosage[final.samples, "H3"]
+# test.df$H3 <- h3.ac[final.samples]
+# test.df$nonH3 <- 2 - h3.ac[final.samples]
 test.df$V10I <- v10i.ac[final.samples]
 test.df$G388R <- g388r.ac[final.samples]
 # test.df$rare_nonsyn <- rare_nonsyn.ac[final.samples]
@@ -338,11 +338,12 @@ test.df$nonsyn_key_domains <- key_domains.ac[final.samples]
 test.df$nonsyn_cytoplasmic <- cytoplasmic.ac[final.samples]
 test.df$nonsyn_other <- nonsyn_other.ac[final.samples]
 test.df$rare_synonymous <- rare_synonymous.ac[final.samples]
+# test.df$heterozygous_haplotypes <- test.df$V10I == 1 | test.df$G388R == 1 | round(test.df$H3) == 1
 
 # Standard normalize all non-integer/non-factor covariates
 no.scale.covariates <- c("Y", "SEX",
                          colnames(test.df)[grep("^cohort\\.", colnames(test.df))],
-                         "H3", "V10I", "G388R",
+                         "H3", "nonH3", "V10I", "G388R",
                          colnames(test.df)[grep("syn", colnames(test.df))])
 scale.cidxs <- which(!(colnames(test.df) %in% no.scale.covariates))
 test.df[, scale.cidxs] <- apply(test.df[, scale.cidxs], 2, scale)
@@ -394,3 +395,4 @@ print(other.aa_rate)
 # # Statistical test of key_domains vs. everything else
 # chisq.test(cbind(apply(key_domains.aa_rate, 2, sum),
 # apply(rbind(g388r.aa_rate, other.aa_rate), 2, sum)))
+
