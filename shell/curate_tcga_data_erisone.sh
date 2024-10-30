@@ -144,7 +144,7 @@ EOF
 chmod a+x $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.sh
 rm $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.*
 bsub \
-  -q short -R 'rusage[mem=6000]' -n 2 -J TCGA_extract_RAS_loci_variants_${tech} \
+  -q normal -R 'rusage[mem=6000]' -n 2 -J TCGA_extract_RAS_loci_variants_${tech} \
   -o $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.log \
   -e $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.err \
   $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.sh
@@ -178,7 +178,7 @@ EOF
   chmod a+x $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.${contig}.sh
   rm $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.${contig}.*
   bsub \
-    -q short -R 'rusage[mem=6000]' -n 2 -J TCGA_extract_RAS_loci_variants_${tech}_${contig} \
+    -q normal -R 'rusage[mem=6000]' -n 2 -J TCGA_extract_RAS_loci_variants_${tech}_${contig} \
     -o $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.${contig}.log \
     -e $WRKDIR/LSF/logs/extract_RAS_loci_variants_${tech}.${contig}.err \
     $WRKDIR/LSF/scripts/extract_RAS_loci_variants_${tech}.${contig}.sh

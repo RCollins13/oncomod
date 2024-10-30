@@ -71,7 +71,8 @@ Run association test for a single germline-somatic interaction
 \details{
 By default, the following covariates will be included:
 \itemize{
-\item Age, sex, and an interaction term for age by sex
+\item Age and sex
+\item Advanced disease (stage III+)
 \item Top ten principal components \(PCs\)
 \item Tumor purity
 }

@@ -16,5 +16,6 @@ URL: https://github.com/RCollins13/oncomod
 RoxygenNote: 7.2.3
 Imports: 
   beeswarm,
+  metafor,
   RLCtools,
   survival

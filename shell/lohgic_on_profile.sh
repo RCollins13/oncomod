@@ -74,7 +74,7 @@ chmod a+x $WRKDIR/LSF/scripts/AllFIT.sh
 while read infile; do
   ID=$( basename $infile | sed 's/\.AllFIT_input\.tsv//g' )
   bsub \
-    -q vshort -sla miket_sc -J AllFIT_$ID \
+    -q normal -sla miket_sc -J AllFIT_$ID \
     -o $WRKDIR/LSF/logs/AllFIT_$ID.log \
     -e $WRKDIR/LSF/logs/AllFIT_$ID.err \
     "$WRKDIR/LSF/scripts/AllFIT.sh $ID"
@@ -166,7 +166,7 @@ EOF
     if [ -e $WRKDIR/LSF/logs/LOHGIC.shard_$i.$suf ]; then rm $WRKDIR/LSF/logs/LOHGIC.shard_$i.$suf; fi
   done
   bsub \
-    -q matlab -sla miket_sc -J LOHGIC.shard_$i \
+    -q normal -sla miket_sc -J LOHGIC.shard_$i \
     -o $WRKDIR/LSF/logs/LOHGIC.shard_$i.log \
     -e $WRKDIR/LSF/logs/LOHGIC.shard_$i.err \
     "$WRKDIR/LSF/scripts/LOHGIC.shard_$i.sh"

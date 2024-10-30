@@ -50,6 +50,10 @@ load.patient.metadata <- function(file, fill.missing=NA, fill.columns=NULL,
   # Coerce metadata to types as needed
   df$AJCC_STAGE <- as.character(df$AJCC_STAGE)
 
+  # Infer advanced disease term
+  df$ADVANCED_DISEASE <- as.integer(df$APPROX_STAGE >= 3)
+  df$ADVANCED_DISEASE[which(is.na(df$ADVANCED_DISEASE))] <- 0
+
   return(df)
 }
 
