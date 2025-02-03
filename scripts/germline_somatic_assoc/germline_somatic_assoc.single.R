@@ -213,7 +213,7 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
     }
 
     # Compress x.vals as sum of ACs
-    x.vals <- compress.ad.matrix(x.vals.all, action="sum")
+    x.vals <- compress.ad.matrix(x.vals.all, action="sum", na.behavior="all")
 
     # Prep function aliases with progressively simpler covariates
     m1 <- function(y, x, m){germline.somatic.assoc(y, x, m, gqs=gq.vals,

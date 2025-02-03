@@ -196,7 +196,7 @@ EOF
 chmod a+x $WRKDIR/LSF/scripts/PROFILE_merge_common_snp_vcfs.sh
 rm $WRKDIR/LSF/logs/PROFILE_merge_common_snp_vcfs.*
 bsub \
-  -q big -sla miket_sc \
+  -q normal -sla miket_sc \
   -n 4 -R 'rusage[mem=16000]' -J PROFILE_merge_common_snp_vcfs \
   -o $WRKDIR/LSF/logs/PROFILE_merge_common_snp_vcfs.log \
   -e $WRKDIR/LSF/logs/PROFILE_merge_common_snp_vcfs.err \
@@ -334,7 +334,7 @@ EOF
 chmod a+x $WRKDIR/LSF/scripts/HMF_merge_common_snp_vcfs.sh
 rm $WRKDIR/LSF/logs/HMF_merge_common_snp_vcfs.*
 bsub \
-  -q big -sla miket_sc \
+  -q normal -sla miket_sc \
   -n 4 -R 'rusage[mem=16000]' -J HMF_merge_common_snp_vcfs \
   -o $WRKDIR/LSF/logs/HMF_merge_common_snp_vcfs.log \
   -e $WRKDIR/LSF/logs/HMF_merge_common_snp_vcfs.err \
@@ -394,7 +394,7 @@ EOF
 chmod a+x $WRKDIR/LSF/scripts/study_wide_PCA.sh
 rm $WRKDIR/LSF/logs/study_wide_PCA.*
 bsub \
-  -q big-multi -sla miket_sc \
+  -q bigmem -sla miket_sc \
   -n 8 -R 'rusage[mem=32000]' -J study_wide_PCA \
   -o $WRKDIR/LSF/logs/study_wide_PCA.log \
   -e $WRKDIR/LSF/logs/study_wide_PCA.err \

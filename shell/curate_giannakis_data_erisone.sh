@@ -221,7 +221,7 @@ EOF
   chmod a+x $WRKDIR/LSF/scripts/extract_common_SNPs.$contig.sh
   rm $WRKDIR/LSF/logs/extract_common_SNPs.$contig.*
   bsub \
-    -q big -sla miket_sc \
+    -q normal -sla miket_sc \
     -n 4 -R 'rusage[mem=12000]' -J extract_common_SNPs_$contig \
     -o $WRKDIR/LSF/logs/extract_common_SNPs.$contig.log \
     -e $WRKDIR/LSF/logs/extract_common_SNPs.$contig.err \

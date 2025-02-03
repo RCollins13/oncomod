@@ -172,7 +172,7 @@ EOF
           rm $COHORTDIR/LSF/logs/$cohort.$cancer.$gene.get_nonsyn_vids.$suf
         fi
       done
-      bsub -q vshort -sla miket_sc \
+      bsub -q normal -sla miket_sc \
         -J cohort.$cancer.$gene.get_nonsyn_vids \
         -o $COHORTDIR/LSF/logs/$cohort.$cancer.$gene.get_nonsyn_vids.log \
         -e $COHORTDIR/LSF/logs/$cohort.$cancer.$gene.get_nonsyn_vids.err \

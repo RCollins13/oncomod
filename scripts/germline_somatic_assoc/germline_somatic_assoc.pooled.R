@@ -220,7 +220,7 @@ res.by.somatic <- apply(somatic.sets, 1, function(somatic.info){
     }
 
     # Compress x.vals as sum of ACs
-    x.vals <- compress.ad.matrix(x.vals.all, action="sum")
+    x.vals <- compress.ad.matrix(x.vals.all, action="sum", na.behavior="all")
 
     # Run germline-somatic association
     res <- tryCatch(germline.somatic.assoc(y.vals, x.vals, meta, gqs=gq.vals,

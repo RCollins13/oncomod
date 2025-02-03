@@ -81,7 +81,7 @@ for suf in err log; do
   logfile=$WRKDIR/LSF/logs/germline_somatic_assoc_pooled_CRAD.FGFR4_allelic_series.$suf
   if [ -e $logfile ]; then rm $logfile; fi
 done
-bsub -q big-multi -sla miket_sc -R "rusage[mem=24000]" -n 4 \
+bsub -q normal -sla miket_sc -R "rusage[mem=24000]" -n 4 \
   -J germline_somatic_assoc_pooled_CRAD.FGFR4_allelic_series \
   -o $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_CRAD.FGFR4_allelic_series.log \
   -e $WRKDIR/LSF/logs/germline_somatic_assoc_pooled_CRAD.FGFR4_allelic_series.err \
